@@ -1,0 +1,72 @@
+@use './variables' as *;
+@use "tailwindcss";
+
+@theme {
+  /* 1. Tipografías */
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* 2. Paleta Paper (Fondos) */
+  --color-paper: #f8fafc;
+  --color-paper-50: #ffffff;
+  --color-paper-100: #f8fafc;
+
+  /* 3. Paleta Ink (Textos, Bordes y Tablas) */
+  --color-ink-900: #0f172a;
+  --color-ink-800: #1e293b;
+  --color-ink-700: #334155;
+  --color-ink-500: #64748b;
+  --color-ink-100: #e2e8f0;
+
+  /* 4. Paleta Seal (Colores de enfoque / Acentos) */
+  --color-seal-400: #0284c7;
+  --color-seal-500: #0369a1;
+
+  /* 5. Sombra personalizada (shadow-card) */
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+@layer base {
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply bg-paper text-ink-900 font-body text-[15px];
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display text-ink-900;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-seal-400;
+  }
+}
+
+@layer components {
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium;
+  }
+
+  .card {
+    @apply rounded-lg border border-ink-100 bg-white shadow-card;
+  }
+
+  .table-header-cell {
+    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500;
+  }
+
+  .table-cell {
+    @apply px-4 py-3 text-sm text-ink-800;
+  }
+}
+
+/* Reducción de movimiento para usuarios que lo prefieran */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

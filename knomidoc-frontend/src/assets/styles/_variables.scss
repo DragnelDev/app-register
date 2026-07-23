@@ -1,0 +1,18 @@
+// Variables SCSS complementarias a los tokens de Tailwind (tailwind.config.js)
+// Úsalas para estilos que no pasan por clases utilitarias (ej. componentes de terceros)
+
+$color-ink-900: #141f2c;
+$color-ink-700: #233a50;
+$color-ink-500: #3d5c7d;
+$color-seal-500: #c1871a;
+$color-paper: #faf8f3;
+
+$sidebar-width: 264px;
+$navbar-height: 64px;
+
+$radius-sm: 6px;
+$radius-md: 10px;
+$radius-lg: 16px;
+
+$font-display: 'Fraunces', serif;
+$font-body: 'Inter', sans-serif;
