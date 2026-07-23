@@ -1,26 +1,52 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CreateC31ChequeDto } from './dto/create-c31-cheque.dto';
 import { UpdateC31ChequeDto } from './dto/update-c31-cheque.dto';
+import { C31Cheque } from './entities/c31-cheque.entity';
 
 @Injectable()
 export class C31ChequesService {
-  create(createC31ChequeDto: CreateC31ChequeDto) {
-    return 'This action adds a new c31Cheque';
+  constructor(
+    @InjectRepository(C31Cheque)
+    private readonly repo: Repository<C31Cheque>,
+  ) {}
+
+  create(dto: CreateC31ChequeDto) {
+    const entidad = this.repo.create({
+      numeroCheque: dto.numeroCheque,
+      comprobante: { id: dto.comprobanteId } as any,
+    });
+    return this.repo.save(entidad);
   }
 
-  findAll() {
-    return `This action returns all c31Cheques`;
+  findAll(comprobanteId?: number) {
+    return this.repo.find({
+      where: comprobanteId ? { comprobante: { id: comprobanteId } } : {},
+      relations: { comprobante: true },
+    });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} c31Cheque`;
+  async findOne(id: number) {
+    const item = await this.repo.findOne({
+      where: { id },
+      relations: { comprobante: true },
+    });
+    if (!item) throw new NotFoundException('Registro no encontrado');
+    return item;
   }
 
-  update(id: number, updateC31ChequeDto: UpdateC31ChequeDto) {
-    return `This action updates a #${id} c31Cheque`;
+  async update(id: number, dto: UpdateC31ChequeDto) {
+    const item = await this.findOne(id);
+    Object.assign(
+      item,
+      dto.numeroCheque ? { numeroCheque: dto.numeroCheque } : {},
+    );
+    return this.repo.save(item);
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} c31Cheque`;
+  async remove(id: number) {
+    const item = await this.findOne(id);
+    return this.repo.remove(item);
   }
 }

@@ -1,26 +1,52 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CreateC31PreventivoDto } from './dto/create-c31-preventivo.dto';
 import { UpdateC31PreventivoDto } from './dto/update-c31-preventivo.dto';
+import { C31Preventivo } from './entities/c31-preventivo.entity';
 
 @Injectable()
 export class C31PreventivosService {
-  create(createC31PreventivoDto: CreateC31PreventivoDto) {
-    return 'This action adds a new c31Preventivo';
+  constructor(
+    @InjectRepository(C31Preventivo)
+    private readonly repo: Repository<C31Preventivo>,
+  ) {}
+
+  create(dto: CreateC31PreventivoDto) {
+    const entidad = this.repo.create({
+      numeroPreventivo: dto.numeroPreventivo,
+      comprobante: { id: dto.comprobanteId } as any,
+    });
+    return this.repo.save(entidad);
   }
 
-  findAll() {
-    return `This action returns all c31Preventivos`;
+  findAll(comprobanteId?: number) {
+    return this.repo.find({
+      where: comprobanteId ? { comprobante: { id: comprobanteId } } : {},
+      relations: { comprobante: true },
+    });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} c31Preventivo`;
+  async findOne(id: number) {
+    const item = await this.repo.findOne({
+      where: { id },
+      relations: { comprobante: true },
+    });
+    if (!item) throw new NotFoundException('Registro no encontrado');
+    return item;
   }
 
-  update(id: number, updateC31PreventivoDto: UpdateC31PreventivoDto) {
-    return `This action updates a #${id} c31Preventivo`;
+  async update(id: number, dto: UpdateC31PreventivoDto) {
+    const item = await this.findOne(id);
+    Object.assign(
+      item,
+      dto.numeroPreventivo ? { numeroPreventivo: dto.numeroPreventivo } : {},
+    );
+    return this.repo.save(item);
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} c31Preventivo`;
+  async remove(id: number) {
+    const item = await this.findOne(id);
+    return this.repo.remove(item);
   }
 }

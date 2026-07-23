@@ -73,6 +73,9 @@ export class ComprobantesC31 extends BaseAuditoriaEntity {
   })
   estadoFisico: EstadoFisicoC31 | undefined;
 
+  @Column({ name: 'motivo_rechazo', type: 'text', nullable: true })
+  motivoRechazo?: string;
+
   // Relaciones 1:N
   @OneToMany(() => C31Preventivo, (prev) => prev.comprobante, { cascade: true })
   preventivos: C31Preventivo[] | undefined;

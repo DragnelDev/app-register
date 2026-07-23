@@ -10,13 +10,18 @@ import {
 import { C31CarpetasUbicacionService } from './c31-carpetas-ubicacion.service';
 import { CreateC31CarpetasUbicacionDto } from './dto/create-c31-carpetas-ubicacion.dto';
 import { UpdateC31CarpetasUbicacionDto } from './dto/update-c31-carpetas-ubicacion.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Roles } from 'src/auth/decorators/roles.decorator';
 
+@ApiTags('c31-carpetas-ubicacion')
+@ApiBearerAuth()
 @Controller('c31-carpetas-ubicacion')
 export class C31CarpetasUbicacionController {
   constructor(
     private readonly c31CarpetasUbicacionService: C31CarpetasUbicacionService,
   ) {}
 
+  @Roles('ADMIN', 'REGISTRADOR')
   @Post()
   create(@Body() createC31CarpetasUbicacionDto: CreateC31CarpetasUbicacionDto) {
     return this.c31CarpetasUbicacionService.create(
@@ -34,6 +39,7 @@ export class C31CarpetasUbicacionController {
     return this.c31CarpetasUbicacionService.findOne(+id);
   }
 
+  @Roles('ADMIN', 'REGISTRADOR')
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -45,6 +51,7 @@ export class C31CarpetasUbicacionController {
     );
   }
 
+  @Roles('ADMIN', 'REGISTRADOR')
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.c31CarpetasUbicacionService.remove(+id);
