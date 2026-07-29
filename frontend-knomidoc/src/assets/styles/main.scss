@@ -1,0 +1,99 @@
+@use './variables' as *;
+@use "tailwindcss";
+
+/* Modo oscuro activado por atributo data-theme en <html>, controlado por
+   el composable useTheme (ver src/composables/useTheme.ts). RNF-01.3 */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  /* 1. Tipografías */
+  --font-display: '"Fraunces"', ui-serif, Georgia, serif;
+  --font-body: '"Inter"', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: '"IBM Plex Mono"', ui-monospace, monospace;
+
+  /* 2. Paleta Paper (Fondos, tema claro) */
+  --color-paper: #faf8f3;
+
+  /* 3. Paleta Ink (Textos, bordes, superficies — tema institucional) */
+  --color-ink-50: #f2f5f8;
+  --color-ink-100: #e3e9ef;
+  --color-ink-200: #c2d0dd;
+  --color-ink-300: #93a9c1;
+  --color-ink-400: #5f7d9e;
+  --color-ink-500: #3d5c7d;
+  --color-ink-600: #2c4763;
+  --color-ink-700: #233a50;
+  --color-ink-800: #1c2e40;
+  --color-ink-900: #141f2c;
+  --color-ink-950: #0c141d;
+
+  /* 4. Paleta Seal (Acentos / sello dorado) */
+  --color-seal-50: #fdf7e9;
+  --color-seal-100: #f9ecc4;
+  --color-seal-200: #f2d788;
+  --color-seal-300: #e9bd4c;
+  --color-seal-400: #dda526;
+  --color-seal-500: #c1871a;
+  --color-seal-600: #996815;
+  --color-seal-700: #754e14;
+  --color-seal-800: #5f3f16;
+  --color-seal-900: #513516;
+
+  /* 5. Sombra personalizada (shadow-card) */
+  --shadow-card: 0 1px 2px 0 rgb(20 31 44 / 0.06), 0 1px 3px 0 rgb(20 31 44 / 0.08);
+}
+
+@layer base {
+  html {
+    @apply antialiased;
+    color-scheme: light;
+  }
+
+  html[data-theme='dark'] {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-paper text-ink-900 font-body text-[15px] dark:bg-ink-950 dark:text-ink-50;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display text-ink-900 dark:text-white;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-seal-400;
+  }
+}
+
+@layer components {
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium;
+  }
+
+  .card {
+    @apply rounded-lg border border-ink-100 bg-white shadow-card dark:border-white/10 dark:bg-ink-900;
+  }
+
+  .table-header-cell {
+    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400;
+  }
+
+  .table-cell {
+    @apply px-4 py-3 text-sm text-ink-800 dark:text-ink-100;
+  }
+
+  /* Grupo de navegación de la barra lateral, agrupado por dominio (RNF-04.1) */
+  .nav-group-title {
+    @apply mt-4 mb-1.5 px-3 text-[10px] font-bold uppercase tracking-widest text-ink-400/80 first:mt-0;
+  }
+}
+
+/* Reducción de movimiento para usuarios que lo prefieran */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
