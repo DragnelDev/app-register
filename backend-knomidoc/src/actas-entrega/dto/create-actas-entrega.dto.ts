@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsDateString, IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
-export class CreateNotasEntregaDto {
+export class CreateActasEntregaDto {
   @ApiProperty({ example: 'AE-2026-001' })
   @IsNotEmpty({ message: 'El número de acta es obligatorio' })
   @IsString()

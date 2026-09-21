@@ -4,7 +4,6 @@ import { C31Devengado } from 'src/c31-devengados/entities/c31-devengado.entity';
 import { C31Preventivo } from 'src/c31-preventivos/entities/c31-preventivo.entity';
 import { C31Cheque } from 'src/c31-cheques/entities/c31-cheque.entity';
 import { BaseAuditoriaEntity } from 'src/common/entities/base-auditoria.entity';
-import { NotasEntrega } from 'src/notas-entrega/entities/notas-entrega.entity';
 import {
   Column,
   Entity,
@@ -13,6 +12,7 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { ActasEntrega } from 'src/actas-entrega/entities/actas-entrega.entity';
 
 export enum EstadoAprobacionC31 {
   PENDIENTE = 'PENDIENTE',
@@ -30,11 +30,11 @@ export class ComprobantesC31 extends BaseAuditoriaEntity {
   @PrimaryGeneratedColumn('identity')
   id: number | undefined;
 
-  @ManyToOne(() => NotasEntrega, (nota) => nota.comprobantesC31, {
+  @ManyToOne(() => ActasEntrega, (nota) => nota.comprobantesC31, {
     nullable: true,
   })
   @JoinColumn({ name: 'nota_entrega_id' })
-  notaEntrega?: NotasEntrega;
+  actaEntrega?: ActasEntrega;
 
   @Column({ name: 'nota_entrega_id', type: 'integer', nullable: true })
   notaEntregaId?: number;

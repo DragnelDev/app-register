@@ -4,7 +4,6 @@ import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsuariosModule } from './usuarios/usuarios.module';
-import { NotasEntregaModule } from './notas-entrega/notas-entrega.module';
 import { ComprobantesC31Module } from './comprobantes_c31/comprobantes_c31.module';
 import { CarpetasModule } from './carpetas/carpetas.module';
 import { C31PreventivosModule } from './c31-preventivos/c31-preventivos.module';
@@ -19,6 +18,7 @@ import { UploadsModule } from './uploads/uploads.module';
 import { AuthModule } from './auth/auth.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { ActasEntregaModule } from './actas-entrega/actas-entrega.module';
 
 @Module({
   imports: [
@@ -35,7 +35,7 @@ import { join } from 'path';
       synchronize: true,
     }),
     UsuariosModule,
-    NotasEntregaModule,
+    ActasEntregaModule,
     ComprobantesC31Module,
     CarpetasModule,
     C31PreventivosModule,

@@ -5,11 +5,11 @@ jest.mock('./entities/notas-entrega.entity', () => ({
   NotasEntrega: class NotasEntrega {},
 }));
 
-import { NotasEntregaService } from './notas-entrega.service';
-import { NotasEntrega } from './entities/notas-entrega.entity';
+import { ActasEntregaService as ActasEntregaService } from './actas-entrega.service';
+import { ActasEntrega } from './entities/actas-entrega.entity';
 
 describe('NotasEntregaService', () => {
-  let service: NotasEntregaService;
+  let service: ActasEntregaService;
   let repo: {
     create: jest.Mock;
     save: jest.Mock;
@@ -29,15 +29,15 @@ describe('NotasEntregaService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        NotasEntregaService,
+        ActasEntregaService,
         {
-          provide: getRepositoryToken(NotasEntrega),
+          provide: getRepositoryToken(ActasEntrega),
           useValue: repo,
         },
       ],
     }).compile();
 
-    service = module.get<NotasEntregaService>(NotasEntregaService);
+    service = module.get<ActasEntregaService>(ActasEntregaService);
   });
 
   it('should be defined', () => {

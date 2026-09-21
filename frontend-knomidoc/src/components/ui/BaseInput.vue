@@ -22,7 +22,7 @@ withDefaults(defineProps<Props>(), {
   disabled: false,
 })
 
-defineEmits<{ 'update:modelValue': [value: string] }>()
+defineEmits<{ 'update:modelValue': [value: string]; blur: [event: FocusEvent] }>()
 
 const inputId = useId()
 </script>
@@ -49,6 +49,7 @@ const inputId = useId()
           : 'border-ink-200 focus:border-ink-400 dark:border-white/10 dark:focus:border-seal-400'
       "
       @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+      @blur="$emit('blur', $event)"
     />
 
     <p v-if="error" :id="`${inputId}-error`" class="text-xs text-red-600">{{ error }}</p>

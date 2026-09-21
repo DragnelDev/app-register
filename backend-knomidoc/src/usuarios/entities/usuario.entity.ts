@@ -1,7 +1,7 @@
 import * as bcrypt from 'bcrypt';
 import { BaseAuditoriaEntity } from '../../common/entities/base-auditoria.entity';
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
-import { NotasEntrega } from '../../notas-entrega/entities/notas-entrega.entity';
+import { ActasEntrega } from 'src/actas-entrega/entities/actas-entrega.entity';
 @Entity('usuarios')
 export class Usuario extends BaseAuditoriaEntity {
   validatePassword(passwordPlano: string): boolean {
@@ -36,6 +36,6 @@ export class Usuario extends BaseAuditoriaEntity {
   @Column('boolean', { default: true })
   estado: boolean | undefined;
 
-  @OneToMany(() => NotasEntrega, (nota) => nota.creadoPor)
-  notasEntrega: NotasEntrega[] | undefined;
+  @OneToMany(() => ActasEntrega, (nota) => nota.creadoPor)
+  notasEntrega: ActasEntrega[] | undefined;
 }

@@ -37,6 +37,7 @@ export interface C31Cheque {
 
 export interface ComprobanteC31 {
   id: string
+  numeroComprobante?: number | null
   notaEntregaId?: string | null
   montoTotal: number
   fechaElaboracion: string
