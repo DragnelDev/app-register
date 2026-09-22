@@ -9,7 +9,7 @@ const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
-const form = reactive({ email: '', password: '' })
+const form = reactive({ username: '', password: '' })
 const errorMessage = ref('')
 
 async function handleSubmit() {
@@ -19,7 +19,7 @@ async function handleSubmit() {
     const redirect = (route.query.redirect as string) || '/'
     router.push(redirect)
   } catch {
-    errorMessage.value = 'Credenciales inválidas. Verifica tu correo y contraseña.'
+    errorMessage.value = 'Credenciales inválidas. Verifica tu usuario y contraseña.'
   }
 }
 </script>
@@ -30,14 +30,29 @@ async function handleSubmit() {
       <div class="mb-6 text-center">
         <h1 class="font-display text-2xl font-semibold text-ink-900">KnomiDoc</h1>
         <!-- Imagen centrada desde assets/images -->
-        <img src="@/assets/images/logo.png" alt="KnomiDoc Logo" class="mx-auto mb-3 h-12 w-auto object-contain" />
+        <img
+          src="@/assets/images/logo.png"
+          alt="KnomiDoc Logo"
+          class="mx-auto mb-3 h-12 w-auto object-contain"
+        />
         <p class="mt-1 text-sm text-ink-400">Gestión de comprobantes C31 y préstamos</p>
       </div>
 
       <form class="space-y-4" @submit.prevent="handleSubmit">
-        <BaseInput v-model="form.email" type="email" label="Correo electrónico" placeholder="usuario@institucion.gob"
-          required />
-        <BaseInput v-model="form.password" type="password" label="Contraseña" placeholder="••••••••" required />
+        <BaseInput
+          v-model="form.username"
+          type="text"
+          label="Usuario"
+          placeholder="usuario o correo"
+          required
+        />
+        <BaseInput
+          v-model="form.password"
+          type="password"
+          label="Contraseña"
+          placeholder="••••••••"
+          required
+        />
 
         <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
 

@@ -19,7 +19,7 @@ import { Roles } from 'src/auth/decorators/roles.decorator';
 export class C31PreventivosController {
   constructor(private readonly c31PreventivosService: C31PreventivosService) {}
 
-  @Roles('ADMIN', 'REGISTRADOR')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
   @Post()
   create(@Body() createC31PreventivoDto: CreateC31PreventivoDto) {
     return this.c31PreventivosService.create(createC31PreventivoDto);
@@ -35,7 +35,7 @@ export class C31PreventivosController {
     return this.c31PreventivosService.findOne(+id);
   }
 
-  @Roles('ADMIN', 'REGISTRADOR')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -44,7 +44,7 @@ export class C31PreventivosController {
     return this.c31PreventivosService.update(+id, updateC31PreventivoDto);
   }
 
-  @Roles('ADMIN', 'REGISTRADOR')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.c31PreventivosService.remove(+id);

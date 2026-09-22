@@ -1,46 +1,52 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
-  ArrayMaxSize,
-  ArrayMinSize,
-  ArrayNotEmpty,
   IsArray,
-  IsBoolean,
   IsDateString,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsPositive,
   IsString,
-  Max,
-  Min,
-  ValidateNested,
+  MaxLength,
 } from 'class-validator';
+import { ArrayNotEmpty } from 'class-validator';
 
-export class CarpetaUbicacionItemDto {
-  @ApiProperty({ example: 5 })
-  @Type(() => Number)
-  @IsInt()
-  readonly carpetaId: number | undefined;
+export const TIPOS_C31 = ['CON_IMPUTACION', 'SIN_IMPUTACION'] as const;
 
-  @ApiProperty({ example: 1, description: 'Parte 1 de 5, 2 de 5...' })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(5)
-  readonly numeroParte: number | undefined;
-}
+/** Convierte '' en undefined para que el campo opcional se ignore. */
+const vacioAUndefined = ({ value }: { value: unknown }): unknown =>
+  typeof value === 'string' && value.trim() === '' ? undefined : value;
 
 export class CreateComprobantesC31Dto {
   @ApiPropertyOptional({
     example: 3,
-    description: 'ID de la nota de entrega asociada',
+    description: 'ID del acta de entrega (lote de ingreso) asociada',
   })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  readonly notaEntregaId?: number;
+  readonly actaEntregaId?: number;
+
+  @ApiPropertyOptional({
+    enum: TIPOS_C31,
+    default: 'CON_IMPUTACION',
+    description: 'Tipo de C31',
+  })
+  @IsOptional()
+  @IsIn([...TIPOS_C31], {
+    message: `El tipo de C31 debe ser uno de: ${TIPOS_C31.join(', ')}`,
+  })
+  readonly tipoC31?: string;
+
+  @ApiPropertyOptional({ example: '00123' })
+  @IsOptional()
+  @Transform(vacioAUndefined)
+  @IsString()
+  @MaxLength(50)
+  readonly numeroComprobante?: string;
 
   @ApiProperty({ example: 15340.5 })
   @IsNotEmpty({ message: 'El monto total es obligatorio' })
@@ -62,16 +68,15 @@ export class CreateComprobantesC31Dto {
   @IsString()
   readonly descripcion: string | undefined;
 
-  @ApiPropertyOptional({ example: 102 })
+  @ApiPropertyOptional({ example: '102', description: 'Folio individual' })
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  readonly numeroFolio?: number;
-
-  @ApiPropertyOptional({ default: false })
-  @IsOptional()
-  @IsBoolean()
-  readonly estaFoliado?: boolean = false;
+  @Transform(({ value }): unknown => {
+    const v = vacioAUndefined({ value });
+    return typeof v === 'number' ? String(v) : v;
+  })
+  @IsString()
+  @MaxLength(50)
+  readonly numeroFolio?: string;
 
   @ApiPropertyOptional({
     example: 2026,
@@ -83,25 +88,47 @@ export class CreateComprobantesC31Dto {
   @IsInt()
   readonly gestion?: number;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
+    example: 'Estante 3 - Carpeta CARP-2026-001',
+    description:
+      'Ubicación física del comprobante (no obligatoria al registrar)',
+  })
+  @IsOptional()
+  @Transform(vacioAUndefined)
+  @IsString()
+  @MaxLength(150)
+  readonly ubicacionFisica?: string;
+
+  @ApiPropertyOptional({
+    example: 'Hoja 2 con humedad',
+    description: 'Detalles del estado físico del comprobante',
+  })
+  @IsOptional()
+  @Transform(vacioAUndefined)
+  @IsString()
+  readonly observaciones?: string;
+
+  @ApiPropertyOptional({
     type: [String],
     example: ['PREV-2026-0001'],
-    description: 'Soporta preventivos "2 en 1"',
+    description:
+      'Soporta preventivos "2 en 1". Se exige al menos un preventivo o un devengado.',
   })
+  @IsOptional()
   @IsArray()
-  @ArrayNotEmpty({ message: 'Debe registrar al menos un número de preventivo' })
   @IsString({ each: true })
-  readonly preventivos: string[] = [];
+  readonly preventivos?: string[];
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     type: [String],
     example: ['DEV-2026-0001'],
-    description: 'Soporta devengados "2 en 1"',
+    description:
+      'Soporta devengados "2 en 1". Se exige al menos un preventivo o un devengado.',
   })
+  @IsOptional()
   @IsArray()
-  @ArrayNotEmpty({ message: 'Debe registrar al menos un número de devengado' })
   @IsString({ each: true })
-  readonly devengados: string[] = [];
+  readonly devengados?: string[];
 
   @ApiProperty({ type: [String], example: ['Juan Pérez'] })
   @IsArray()
@@ -114,17 +141,4 @@ export class CreateComprobantesC31Dto {
   @IsArray()
   @IsString({ each: true })
   readonly cheques?: string[];
-
-  @ApiProperty({
-    type: [CarpetaUbicacionItemDto],
-    description: 'Ubicación física del comprobante. De 1 a 5 carpetas.',
-  })
-  @IsArray()
-  @ArrayMinSize(1, { message: 'El comprobante debe ocupar al menos 1 carpeta' })
-  @ArrayMaxSize(5, {
-    message: 'El comprobante no puede ocupar más de 5 carpetas',
-  })
-  @ValidateNested({ each: true })
-  @Type(() => CarpetaUbicacionItemDto)
-  readonly carpetas: CarpetaUbicacionItemDto[] = [];
 }

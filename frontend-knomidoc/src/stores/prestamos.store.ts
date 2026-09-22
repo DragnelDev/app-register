@@ -18,8 +18,8 @@ export const usePrestamosStore = defineStore('prestamos', {
   }),
 
   getters: {
-    cuadernoPrestados: (state) => state.cuaderno.filter((p) => p.estadoPrestamo === 'PRESTADO'),
-    notasPrestadas: (state) => state.notas.filter((n) => n.estadoPrestamo === 'PRESTADO'),
+    cuadernoPrestados: (state) => state.cuaderno.filter((p) => !p.devuelto),
+    notasPrestadas: (state) => state.notas.filter((n) => n.estadoPrestamo === 'ENTREGADO'),
   },
 
   actions: {
@@ -47,6 +47,12 @@ export const usePrestamosStore = defineStore('prestamos', {
       const updated = await prestamosService.devolverCuaderno(id)
       const idx = this.cuaderno.findIndex((p) => p.id === id)
       if (idx !== -1) this.cuaderno[idx] = updated
+    },
+
+    async devolverNota(id: string) {
+      const updated = await prestamosService.devolverNota(id)
+      const idx = this.notas.findIndex((n) => n.id === id)
+      if (idx !== -1) this.notas[idx] = updated
     },
   },
 })

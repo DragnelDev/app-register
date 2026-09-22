@@ -1,9 +1,9 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { UsuariosService } from 'src/usuarios/usuarios.service';
+import { UsuariosService } from '../usuarios/usuarios.service';
 import { AuthLoginDto } from './dto/auth-login.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
-import { Usuario } from 'src/usuarios/entities/usuario.entity';
+import { Usuario } from '../usuarios/entities/usuario.entity';
 
 @Injectable()
 export class AuthService {
@@ -14,8 +14,8 @@ export class AuthService {
 
   // src/auth/auth.service.ts
   async login(authLoginDto: AuthLoginDto): Promise<any> {
-    const { email, password } = authLoginDto;
-    const usuarioOk = await this.usuarioService.validate(email, password);
+    const { username, password } = authLoginDto;
+    const usuarioOk = await this.usuarioService.validate(username, password);
 
     if (!usuarioOk.id) {
       throw new UnauthorizedException('Usuario inválido');
@@ -24,15 +24,20 @@ export class AuthService {
     const payload: JwtPayload = {
       sub: usuarioOk.id,
       rol: usuarioOk.rol,
+      username: usuarioOk.username,
       email: usuarioOk.email,
     };
     const accessToken = await this.getAccessToken(payload);
 
     const usuarioSafe = {
       id: usuarioOk.id,
+      username: usuarioOk.username,
       nombreCompleto: usuarioOk.nombreCompleto,
       email: usuarioOk.email,
+      cargo: usuarioOk.cargo,
+      unidadOArea: usuarioOk.unidadOArea,
       rol: usuarioOk.rol,
+      activo: usuarioOk.activo,
     };
 
     return {
@@ -57,6 +62,10 @@ export class AuthService {
       usuario = await this.usuarioService.findOne(payload.sub);
     } catch {
       throw new UnauthorizedException(`Usuario inválido: ${payload.sub}`);
+    }
+
+    if (usuario.activo === false) {
+      throw new UnauthorizedException('El usuario se encuentra inactivo');
     }
 
     return usuario;

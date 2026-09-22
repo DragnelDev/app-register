@@ -1,29 +1,16 @@
-import {
-  CreateDateColumn,
-  UpdateDateColumn,
-  DeleteDateColumn,
-  ManyToOne,
-  JoinColumn,
-  Column,
-} from 'typeorm';
+import { Column, JoinColumn, ManyToOne } from 'typeorm';
 import { Usuario } from '../../usuarios/entities/usuario.entity';
+import { BaseFechasEntity } from './base-fechas.entity';
 
-export abstract class BaseAuditoriaEntity {
-  // --- Única relación de Auditoría ---
+/**
+ * Fechas + usuario que registró el registro (relación "registra" del DER:
+ * USUARIOS 1 ── N COMPROBANTES_C31, columna creado_por_id).
+ */
+export abstract class BaseAuditoriaEntity extends BaseFechasEntity {
   @ManyToOne(() => Usuario, { nullable: true })
-  @JoinColumn({ name: 'creado_por' })
+  @JoinColumn({ name: 'creado_por_id' })
   creadoPor?: Usuario;
 
-  @Column({ name: 'creado_por_id', type: 'integer', nullable: true }) // O "integer" si tu ID es numérico
+  @Column({ name: 'creado_por_id', type: 'integer', nullable: true })
   creadoPorId?: number;
-
-  // --- Fechas automáticas de TypeORM ---
-  @CreateDateColumn({ name: 'fecha_creacion' })
-  fechaCreacion: Date | undefined;
-
-  @UpdateDateColumn({ name: 'fecha_modificacion' })
-  fechaModificacion: Date | undefined;
-
-  @DeleteDateColumn({ name: 'fecha_eliminacion' })
-  fechaEliminacion: Date | undefined;
 }

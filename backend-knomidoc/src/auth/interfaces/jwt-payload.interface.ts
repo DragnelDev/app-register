@@ -1,6 +1,7 @@
 export interface JwtPayload {
   sub: number;
-  rol?: string; // 👈 agrega
+  rol?: string;
+  username?: string;
   email?: string; // opcional
   iat?: number;
   exp?: number;

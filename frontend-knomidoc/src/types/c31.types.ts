@@ -1,87 +1,87 @@
-import type { EstadoAprobacion, EstadoFisico } from './common.types'
-
-export interface Carpeta {
-  id: string
-  codigoCarpeta: string
-  ubicacionFisica: string
-  estadoFisico: EstadoFisico
-}
-
-/** Relación N:M comprobantes_c31 <-> carpetas, con número de parte (1 de 5, 2 de 5...) */
-export interface C31CarpetaUbicacion {
-  comprobanteId: string
-  carpetaId: string
-  numeroParte: number
-  carpeta?: Carpeta
-}
+import type { EstadoFisico, TipoC31 } from './common.types'
 
 export interface C31Preventivo {
-  comprobanteId: string
+  id?: string
+  comprobanteId?: string
   numeroPreventivo: string
 }
 
 export interface C31Devengado {
-  comprobanteId: string
+  id?: string
+  comprobanteId?: string
   numeroDevengado: string
 }
 
 export interface C31Beneficiario {
-  comprobanteId: string
+  id?: string
+  comprobanteId?: string
   nombreBeneficiario: string
 }
 
 export interface C31Cheque {
-  comprobanteId: string
+  id?: string
+  comprobanteId?: string
   numeroCheque: string
+}
+
+export interface Carpeta {
+  id: string | number
+  codigoCarpeta: string
+  ubicacionFisica?: string
+  estadoFisico?: string
 }
 
 export interface ComprobanteC31 {
   id: string
-  numeroComprobante?: number | null
-  notaEntregaId?: string | null
+  actaEntregaId?: string | null
+  tipoC31: TipoC31
+  numeroComprobante?: string | null
   montoTotal: number
   fechaElaboracion: string
   descripcion: string
-  numeroFolio?: number | null
+  numeroFolio?: string | null
   gestion: number
-  estaFoliado: boolean
-  cantidadCarpetas: number // 1 a 5
-  estadoAprobacion: EstadoAprobacion
   estadoFisico: EstadoFisico
-  createdBy: string
-  deletedAt?: string | null
+  ubicacionFisica?: string | null
+  observaciones?: string | null
+  creadoPorId?: string | null
+  fechaCreacion?: string
+  fechaModificacion?: string
 
   // Relaciones 0..N cargadas junto con el comprobante
   preventivos: C31Preventivo[]
   devengados: C31Devengado[]
   beneficiarios: C31Beneficiario[]
   cheques: C31Cheque[]
-  carpetasUbicacion: C31CarpetaUbicacion[]
 }
 
 /** Payload plano para el formulario dinámico (arrays de strings, se transforman antes de enviar) */
 export interface ComprobanteC31FormPayload {
-  notaEntregaId?: string | null
+  actaEntregaId?: string | null
+  tipoC31?: TipoC31
+  numeroComprobante?: string | null
   montoTotal: number
   fechaElaboracion: string
   descripcion: string
-  numeroFolio?: number | null
+  numeroFolio?: string | null
   gestion?: number
-  estaFoliado: boolean
+  ubicacionFisica?: string | null
+  observaciones?: string | null
   preventivos: string[] // soporta "2 en 1"
   devengados: string[] // soporta "2 en 1"
   beneficiarios: string[]
   cheques: string[] // opcional, puede ir vacío
-  carpetas: { carpetaId: string; numeroParte: number }[] // hasta 5
+  carpetas?: { carpetaId: string | number; numeroParte: number }[]
 }
 
 export interface C31FilterState {
   search?: string
-  estadoAprobacion?: EstadoAprobacion | ''
   estadoFisico?: EstadoFisico | ''
+  tipoC31?: TipoC31 | ''
   fechaDesde?: string
   fechaHasta?: string
   gestion?: number | ''
+  actaEntregaId?: string | ''
 }
 
 /** Resultado de una importación masiva desde Excel */

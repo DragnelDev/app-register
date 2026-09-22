@@ -28,9 +28,16 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      const auth = useAuthStore()
-      auth.logout()
-      router.push({ name: 'login' })
+      const isLoginRequest = error.config?.url?.includes('/auth/login')
+      const currentRoute = router.currentRoute.value
+
+      if (!isLoginRequest) {
+        const auth = useAuthStore()
+        auth.logout()
+        if (currentRoute.name !== 'login') {
+          router.replace({ name: 'login', query: { redirect: currentRoute.fullPath } })
+        }
+      }
     }
     return Promise.reject(error)
   },

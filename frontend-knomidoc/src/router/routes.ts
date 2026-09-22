@@ -18,7 +18,7 @@ export const routes: RouteRecordRaw[] = [
     path: '/actas-entrega',
     name: 'actas-entrega',
     component: () => import('@/modules/notas-entrega/views/NotasEntregaListView.vue'),
-    meta: { roles: ['ADMIN', 'REGISTRADOR'] as RolUsuario[] },
+    meta: { roles: ['ADMIN', 'ENCARGADO_PRESTAMOS'] as RolUsuario[] },
   },
   {
     path: '/c31',
@@ -29,7 +29,7 @@ export const routes: RouteRecordRaw[] = [
     path: '/c31/nuevo',
     name: 'c31-create',
     component: () => import('@/modules/c31-gastos/views/C31CreateView.vue'),
-    meta: { roles: ['ADMIN', 'REGISTRADOR'] as RolUsuario[] },
+    meta: { roles: ['ADMIN', 'ENCARGADO_PRESTAMOS'] as RolUsuario[] },
   },
   {
     path: '/c31/aprobaciones',
@@ -47,13 +47,13 @@ export const routes: RouteRecordRaw[] = [
     path: '/prestamos/cuaderno',
     name: 'prestamos-cuaderno',
     component: () => import('@/modules/prestamos/views/PrestamosCuadernoView.vue'),
-    meta: { roles: ['ADMIN', 'REGISTRADOR'] as RolUsuario[] },
+    meta: { roles: ['ADMIN', 'ENCARGADO_PRESTAMOS'] as RolUsuario[] },
   },
   {
     path: '/prestamos/notas',
     name: 'prestamos-notas',
     component: () => import('@/modules/prestamos/views/PrestamosNotasView.vue'),
-    meta: { roles: ['ADMIN', 'REGISTRADOR'] as RolUsuario[] },
+    meta: { roles: ['ADMIN', 'ENCARGADO_PRESTAMOS'] as RolUsuario[] },
   },
   {
     path: '/:pathMatch(.*)*',

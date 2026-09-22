@@ -15,12 +15,11 @@ const saving = ref(false)
 const returningId = ref<string | null>(null)
 
 const columns: DataTableColumn<PrestamoCuaderno>[] = [
-  { key: 'gestion', label: 'Gestión', sortable: true },
   { key: 'comprobanteId', label: 'Comprobante' },
-  { key: 'quienRemite', label: 'Quién remite' },
-  { key: 'aQuienSePresta', label: 'A quién se presta' },
-  { key: 'fechaEntrega', label: 'Fecha entrega', sortable: true },
-  { key: 'estadoPrestamo', label: 'Estado' },
+  { key: 'solicitanteId', label: 'Solicitante' },
+  { key: 'areaUnidad', label: 'Área / unidad' },
+  { key: 'fechaHoraSalida', label: 'Salida', sortable: true },
+  { key: 'devuelto', label: 'Estado' },
 ]
 
 async function handleSubmit(payload: PrestamoCuadernoCreatePayload) {
@@ -43,6 +42,14 @@ async function handleDevolver(row: PrestamoCuaderno) {
   }
 }
 
+function nombreComprobante(row: PrestamoCuaderno) {
+  return row.comprobante?.numeroComprobante ?? row.comprobante?.numeroFolio ?? row.comprobanteId
+}
+
+function nombreSolicitante(row: PrestamoCuaderno) {
+  return row.solicitante?.nombreCompleto ?? row.solicitanteId
+}
+
 onMounted(() => store.fetchCuaderno())
 </script>
 
@@ -52,7 +59,7 @@ onMounted(() => store.fetchCuaderno())
       <div>
         <h1 class="text-2xl font-semibold">Préstamo — Cuaderno Bitácora</h1>
         <p class="text-sm text-ink-400">
-          Préstamo individual y rápido de comprobantes registrados por gestión.
+          Préstamo individual y rápido de comprobantes ya en archivo.
         </p>
       </div>
       <BaseButton @click="modalOpen = true">+ Registrar préstamo</BaseButton>
@@ -64,13 +71,17 @@ onMounted(() => store.fetchCuaderno())
       :loading="store.loadingCuaderno"
       empty-message="Aún no hay préstamos registrados en el cuaderno."
     >
-      <template #cell-fechaEntrega="{ row }">
-        {{ new Date(row.fechaEntrega).toLocaleString('es-BO') }}
+      <template #cell-comprobanteId="{ row }">{{ nombreComprobante(row) }}</template>
+      <template #cell-solicitanteId="{ row }">{{ nombreSolicitante(row) }}</template>
+      <template #cell-fechaHoraSalida="{ row }">
+        {{ new Date(row.fechaHoraSalida).toLocaleString('es-BO') }}
       </template>
-      <template #cell-estadoPrestamo="{ row }"><BaseBadge :estado="row.estadoPrestamo" /></template>
+      <template #cell-devuelto="{ row }">
+        <BaseBadge :estado="row.devuelto ? 'DEVUELTO' : 'PRESTADO'" />
+      </template>
       <template #actions="{ row }">
         <BaseButton
-          v-if="row.estadoPrestamo === 'PRESTADO'"
+          v-if="!row.devuelto"
           variant="secondary"
           size="sm"
           :loading="returningId === row.id"

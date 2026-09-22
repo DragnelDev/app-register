@@ -60,7 +60,7 @@ const ultimosComprobantes = computed(() => c31Store.items.slice(0, 6))
         <p class="text-sm text-ink-400">Resumen del estado actual del archivo documental.</p>
       </div>
       <RouterLink
-        v-if="auth.puedeRegistrar"
+        v-if="auth.puedeRegistrarC31"
         to="/c31/nuevo"
         class="inline-flex items-center gap-2 rounded-md bg-ink-800 px-4 py-2 text-sm font-medium text-white hover:bg-ink-900 dark:bg-seal-500 dark:hover:bg-seal-600"
       >
@@ -132,7 +132,7 @@ const ultimosComprobantes = computed(() => c31Store.items.slice(0, 6))
               Bs {{ Number(c.montoTotal).toFixed(2) }} · {{ c.fechaElaboracion }}
             </p>
           </div>
-          <BaseBadge :estado="c.estadoAprobacion" />
+          <BaseBadge :estado="c.estadoFisico" />
         </li>
         <li
           v-if="ultimosComprobantes.length === 0"

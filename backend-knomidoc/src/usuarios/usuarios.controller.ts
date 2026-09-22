@@ -13,8 +13,8 @@ import { UsuariosService } from './usuarios.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Roles } from 'src/auth/decorators/roles.decorator';
-import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { UpdateEstadoUsuarioDto } from './dto/update-estado-usuario.dto';
 
 // RF-01.2: la gestión de usuarios es exclusiva del rol ADMIN
@@ -28,6 +28,13 @@ export class UsuariosController {
   @Post()
   create(@Body() createUsuarioDto: CreateUsuarioDto) {
     return this.usuariosService.create(createUsuarioDto);
+  }
+
+  /** Solicitantes posibles de un préstamo: también lo usa ENCARGADO_PRESTAMOS. */
+  @Roles('ADMIN', 'ENCARGADO_PRESTAMOS')
+  @Get('solicitantes')
+  findSolicitantes(@Query('search') search?: string) {
+    return this.usuariosService.findSolicitantes(search);
   }
 
   @Get()
@@ -50,7 +57,7 @@ export class UsuariosController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateEstadoUsuarioDto,
   ) {
-    return this.usuariosService.updateEstado(id, dto.estado as boolean);
+    return this.usuariosService.updateEstado(id, dto.activo as boolean);
   }
 
   @Delete(':id')

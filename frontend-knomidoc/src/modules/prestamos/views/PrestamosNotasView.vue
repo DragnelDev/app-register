@@ -11,15 +11,16 @@ import type { PrestamoNota, PrestamoNotaCreatePayload } from '@/types/prestamos.
 
 const store = usePrestamosStore()
 const modalOpen = ref(false)
-const detailOpen = ref(false)
 const saving = ref(false)
-const selected = ref<PrestamoNota | null>(null)
 const returningId = ref<string | null>(null)
 
+// El backend crea un registro de préstamo por cada comprobante incluido en la nota,
+// así que la tabla muestra una fila por comprobante (agrupables visualmente por N° de nota).
 const columns: DataTableColumn<PrestamoNota>[] = [
   { key: 'numeroNotaSolicitud', label: 'N° de nota', sortable: true },
-  { key: 'unidadSolicitante', label: 'Unidad solicitante' },
-  { key: 'aQuienSePresta', label: 'Responsable' },
+  { key: 'institucionSolicitante', label: 'Institución solicitante' },
+  { key: 'funcionarioResponsable', label: 'Funcionario responsable' },
+  { key: 'comprobanteId', label: 'Comprobante' },
   { key: 'estadoPrestamo', label: 'Estado' },
 ]
 
@@ -34,21 +35,17 @@ async function handleSubmit(payload: PrestamoNotaCreatePayload) {
   }
 }
 
-function openDetail(row: PrestamoNota) {
-  selected.value = row
-  detailOpen.value = true
-}
-
-async function handleDevolverItem(detalleId: string) {
-  if (!selected.value) return
-  returningId.value = detalleId
+async function handleDevolver(row: PrestamoNota) {
+  returningId.value = row.id
   try {
-    const updated = await prestamosService.devolverItemNota(selected.value.id, detalleId)
-    selected.value = updated
-    await store.fetchNotas()
+    await store.devolverNota(row.id)
   } finally {
     returningId.value = null
   }
+}
+
+function nombreComprobante(row: PrestamoNota) {
+  return row.comprobante?.numeroComprobante ?? row.comprobante?.numeroFolio ?? row.comprobanteId
 }
 
 onMounted(() => store.fetchNotas())
@@ -60,7 +57,8 @@ onMounted(() => store.fetchNotas())
       <div>
         <h1 class="text-2xl font-semibold">Préstamo — Nota / Oficio Oficial</h1>
         <p class="text-sm text-ink-400">
-          Préstamo en lote de múltiples comprobantes o carpetas completas (ej. Auditoría Interna).
+          Préstamo formal de uno o varios comprobantes mediante una nota de solicitud (ej. Auditoría
+          Interna).
         </p>
       </div>
       <BaseButton @click="modalOpen = true">+ Registrar solicitud</BaseButton>
@@ -70,43 +68,25 @@ onMounted(() => store.fetchNotas())
       :columns="columns"
       :rows="store.notas"
       :loading="store.loadingNotas"
-      empty-message="Aún no hay préstamos en lote registrados."
-      @row-click="openDetail"
+      empty-message="Aún no hay préstamos por nota registrados."
     >
+      <template #cell-comprobanteId="{ row }">{{ nombreComprobante(row) }}</template>
       <template #cell-estadoPrestamo="{ row }"><BaseBadge :estado="row.estadoPrestamo" /></template>
       <template #actions="{ row }">
-        <BaseButton variant="ghost" size="sm" @click="openDetail(row)">Ver ítems</BaseButton>
+        <BaseButton
+          v-if="row.estadoPrestamo === 'ENTREGADO'"
+          variant="secondary"
+          size="sm"
+          :loading="returningId === row.id"
+          @click="handleDevolver(row)"
+        >
+          Marcar devuelto
+        </BaseButton>
       </template>
     </BaseDataTable>
 
-    <BaseModal v-model="modalOpen" title="Registrar préstamo en lote" size="lg">
+    <BaseModal v-model="modalOpen" title="Registrar préstamo por nota" size="lg">
       <PrestamoNotaForm :saving="saving" @submit="handleSubmit" />
-    </BaseModal>
-
-    <BaseModal v-model="detailOpen" :title="`Ítems de ${selected?.numeroNotaSolicitud ?? ''}`">
-      <ul v-if="selected" class="divide-y divide-ink-100">
-        <li
-          v-for="detalle in selected.detalles"
-          :key="detalle.id"
-          class="flex items-center justify-between py-3 text-sm"
-        >
-          <span class="text-ink-700">
-            {{ detalle.comprobanteId ? `Comprobante ${detalle.comprobanteId}` : `Carpeta ${detalle.carpetaId}` }}
-          </span>
-          <div class="flex items-center gap-2">
-            <BaseBadge :estado="detalle.estadoItem" />
-            <BaseButton
-              v-if="detalle.estadoItem === 'PRESTADO'"
-              variant="secondary"
-              size="sm"
-              :loading="returningId === detalle.id"
-              @click="handleDevolverItem(detalle.id)"
-            >
-              Devolver
-            </BaseButton>
-          </div>
-        </li>
-      </ul>
     </BaseModal>
   </div>
 </template>

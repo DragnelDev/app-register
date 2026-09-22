@@ -1,13 +1,7 @@
-import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { OmitType, PartialType } from '@nestjs/swagger';
 import { CreatePrestamosNotaDto } from './create-prestamos-nota.dto';
 
+/** El comprobante prestado no se cambia: se devuelve y se registra otro préstamo. */
 export class UpdatePrestamosNotaDto extends PartialType(
-  CreatePrestamosNotaDto,
-) {
-  @ApiPropertyOptional({ example: 'Lic. Pedro Gómez' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(150)
-  readonly aQuienSePresta?: string;
-}
+  OmitType(CreatePrestamosNotaDto, ['comprobanteIds'] as const),
+) {}

@@ -41,11 +41,10 @@ async function runSearch(term: string) {
     const res = await c31Service.list({ search: term, pageSize: 10 })
     results.value = res.data.filter((c) => {
       if (props.excludeIds.some((id) => String(id) === String(c.id))) return false
-      if (props.excludeAprobados && c.estadoAprobacion === 'APROBADO') return false
       if (
         props.excludeAsignadosAActa &&
-        c.notaEntregaId &&
-        String(c.notaEntregaId) !== String(props.actaActualId ?? '')
+        c.actaEntregaId &&
+        String(c.actaEntregaId) !== String(props.actaActualId ?? '')
       )
         return false
       return true
@@ -82,11 +81,24 @@ function formatMonto(monto: number) {
 }
 
 function joinNombres(items: { nombreBeneficiario?: string }[] | undefined) {
-  return (items ?? []).map((i) => i.nombreBeneficiario).filter(Boolean).join(', ') || '—'
+  return (
+    (items ?? [])
+      .map((i) => i.nombreBeneficiario)
+      .filter(Boolean)
+      .join(', ') || '—'
+  )
 }
 
-function joinNumeros(items: { numeroPreventivo?: string; numeroDevengado?: string }[] | undefined, key: 'numeroPreventivo' | 'numeroDevengado') {
-  return (items ?? []).map((i) => i[key]).filter(Boolean).join(', ') || '—'
+function joinNumeros(
+  items: { numeroPreventivo?: string; numeroDevengado?: string }[] | undefined,
+  key: 'numeroPreventivo' | 'numeroDevengado',
+) {
+  return (
+    (items ?? [])
+      .map((i) => i[key])
+      .filter(Boolean)
+      .join(', ') || '—'
+  )
 }
 
 onBeforeUnmount(() => {
@@ -123,7 +135,8 @@ onBeforeUnmount(() => {
       >
         <div class="flex items-center justify-between gap-2">
           <span class="font-medium text-ink-800 dark:text-ink-100">
-            Comprobante N° {{ comprobante.numeroComprobante ?? comprobante.numeroFolio ?? comprobante.id }}
+            Comprobante N°
+            {{ comprobante.numeroComprobante ?? comprobante.numeroFolio ?? comprobante.id }}
           </span>
           <span class="whitespace-nowrap text-ink-600 dark:text-ink-300"
             >Bs {{ formatMonto(comprobante.montoTotal) }}</span

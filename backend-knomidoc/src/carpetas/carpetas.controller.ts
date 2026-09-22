@@ -23,7 +23,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 export class CarpetasController {
   constructor(private readonly carpetasService: CarpetasService) {}
 
-  @Roles('ADMIN', 'REGISTRADOR')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
   @Post()
   create(
     @Body() createCarpetaDto: CreateCarpetaDto,
@@ -42,13 +42,13 @@ export class CarpetasController {
     return this.carpetasService.findOne(+id);
   }
 
-  @Roles('ADMIN', 'REGISTRADOR')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateCarpetaDto: UpdateCarpetaDto) {
     return this.carpetasService.update(+id, updateCarpetaDto);
   }
 
-  @Roles('ADMIN', 'REGISTRADOR')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.carpetasService.remove(+id);

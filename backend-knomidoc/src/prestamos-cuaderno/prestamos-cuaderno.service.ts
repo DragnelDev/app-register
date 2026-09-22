@@ -1,36 +1,41 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, FindOptionsWhere, Like, Repository } from 'typeorm';
 import { CreatePrestamosCuadernoDto } from './dto/create-prestamos-cuaderno.dto';
 import { UpdatePrestamosCuadernoDto } from './dto/update-prestamos-cuaderno.dto';
+import { DevolverPrestamosCuadernoDto } from './dto/devolver-prestamos-cuaderno.dto';
 import { FilterPrestamosCuadernoDto } from './dto/filter-prestamos-cuaderno.dto';
-import { PrestamosCuaderno } from './entities/prestamos-cuaderno.entity';
+import {
+  MetodoVerificacion,
+  PrestamosCuaderno,
+} from './entities/prestamos-cuaderno.entity';
 import {
   ComprobantesC31,
   EstadoFisicoC31,
 } from '../comprobantes_c31/entities/comprobantes_c31.entity';
+import { Usuario } from '../usuarios/entities/usuario.entity';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { paginationSkip } from '../common/utils/pagination.util';
-import { Usuario } from '../usuarios/entities/usuario.entity';
+
+const RELATIONS = {
+  comprobante: { preventivos: true, devengados: true, beneficiarios: true },
+  solicitante: true,
+};
 
 @Injectable()
 export class PrestamosCuadernoService {
   constructor(
     @InjectRepository(PrestamosCuaderno)
     private readonly repo: Repository<PrestamosCuaderno>,
-    @InjectRepository(ComprobantesC31)
-    private readonly comprobantesRepo: Repository<ComprobantesC31>,
     private readonly dataSource: DataSource,
   ) {}
 
-  async create(
-    dto: CreatePrestamosCuadernoDto,
-    usuario: Usuario,
-  ): Promise<PrestamosCuaderno> {
+  async create(dto: CreatePrestamosCuadernoDto): Promise<PrestamosCuaderno> {
     return this.dataSource.transaction(async (manager) => {
       const comprobante = await manager.findOne(ComprobantesC31, {
         where: { id: dto.comprobanteId },
@@ -41,23 +46,52 @@ export class PrestamosCuadernoService {
       if (comprobante.estadoFisico === EstadoFisicoC31.PRESTADO) {
         throw new ConflictException('El comprobante ya se encuentra prestado');
       }
+      if (comprobante.estadoFisico === EstadoFisicoC31.ANULADO) {
+        throw new ConflictException(
+          'El comprobante está anulado y no puede prestarse',
+        );
+      }
+
+      const solicitante = await manager.findOne(Usuario, {
+        where: { id: dto.solicitanteId },
+      });
+      if (!solicitante) {
+        throw new NotFoundException('El usuario solicitante no existe');
+      }
+      if (solicitante.activo === false) {
+        throw new BadRequestException('El usuario solicitante está inactivo');
+      }
+
+      const areaUnidad = dto.areaUnidad ?? solicitante.unidadOArea;
+      if (!areaUnidad) {
+        throw new BadRequestException(
+          'Indique el área o unidad del solicitante (su usuario no la tiene registrada)',
+        );
+      }
 
       const prestamo = manager.create(PrestamosCuaderno, {
-        comprobante: { id: dto.comprobanteId } as ComprobantesC31,
-        gestion: dto.gestion,
-        quienRemite: dto.quienRemite,
-        aQuienSePresta: dto.aQuienSePresta,
-        estadoPrestamo: 'PRESTADO',
-        creadoPorId: usuario.id,
+        comprobanteId: dto.comprobanteId,
+        solicitanteId: dto.solicitanteId,
+        areaUnidad,
+        fechaHoraSalida: dto.fechaHoraSalida
+          ? new Date(dto.fechaHoraSalida)
+          : new Date(),
+        devuelto: false,
+        metodoVerificacion:
+          (dto.metodoVerificacion as MetodoVerificacion) ??
+          MetodoVerificacion.FIRMA_MANUAL,
+        evidenciaVerificacionUrl: dto.evidenciaVerificacionUrl,
+        observaciones: dto.observaciones,
       });
       const guardado = await manager.save(PrestamosCuaderno, prestamo);
 
-      comprobante.estadoFisico = EstadoFisicoC31.PRESTADO;
-      await manager.save(ComprobantesC31, comprobante);
+      await manager.update(ComprobantesC31, comprobante.id, {
+        estadoFisico: EstadoFisicoC31.PRESTADO,
+      });
 
       const completo = await manager.findOne(PrestamosCuaderno, {
         where: { id: guardado.id },
-        relations: { comprobante: true },
+        relations: RELATIONS,
       });
       if (!completo)
         throw new NotFoundException('No se pudo recuperar el préstamo creado');
@@ -71,15 +105,25 @@ export class PrestamosCuadernoService {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 10;
 
-    const where: Record<string, any> = {};
-    if (query.estadoPrestamo) where.estadoPrestamo = query.estadoPrestamo;
-    if (query.gestion) where.gestion = query.gestion;
-    if (query.comprobanteId) where.comprobante = { id: query.comprobanteId };
+    const base: FindOptionsWhere<PrestamosCuaderno> = {};
+    if (query.devuelto !== undefined) base.devuelto = query.devuelto;
+    if (query.comprobanteId) base.comprobanteId = query.comprobanteId;
+    if (query.solicitanteId) base.solicitanteId = query.solicitanteId;
+
+    const where: FindOptionsWhere<PrestamosCuaderno>[] = query.search
+      ? [
+          { ...base, areaUnidad: Like(`%${query.search}%`) },
+          {
+            ...base,
+            solicitante: { nombreCompleto: Like(`%${query.search}%`) },
+          },
+        ]
+      : [base];
 
     const [data, total] = await this.repo.findAndCount({
       where,
-      relations: { comprobante: true, creadoPor: true },
-      order: { fechaCreacion: query.order ?? 'DESC' },
+      relations: RELATIONS,
+      order: { fechaHoraSalida: query.order ?? 'DESC' },
       skip: paginationSkip(page, pageSize),
       take: pageSize,
     });
@@ -90,7 +134,7 @@ export class PrestamosCuadernoService {
   async findOne(id: number): Promise<PrestamosCuaderno> {
     const prestamo = await this.repo.findOne({
       where: { id },
-      relations: { comprobante: true, creadoPor: true },
+      relations: RELATIONS,
     });
     if (!prestamo) throw new NotFoundException('El préstamo no existe');
     return prestamo;
@@ -101,43 +145,77 @@ export class PrestamosCuadernoService {
     dto: UpdatePrestamosCuadernoDto,
   ): Promise<PrestamosCuaderno> {
     const prestamo = await this.findOne(id);
-    if (prestamo.estadoPrestamo === 'DEVUELTO') {
+    if (prestamo.devuelto) {
       throw new ConflictException(
         'No se puede modificar un préstamo ya devuelto',
       );
     }
-    Object.assign(prestamo, {
-      gestion: dto.gestion ?? prestamo.gestion,
-      quienRemite: dto.quienRemite ?? prestamo.quienRemite,
-      aQuienSePresta: dto.aQuienSePresta ?? prestamo.aQuienSePresta,
-    });
-    return this.repo.save(prestamo);
+
+    if (dto.solicitanteId !== undefined) {
+      const existe = await this.dataSource.manager.existsBy(Usuario, {
+        id: dto.solicitanteId,
+      });
+      if (!existe)
+        throw new NotFoundException('El usuario solicitante no existe');
+    }
+
+    const cambios: Record<string, unknown> = {};
+    if (dto.solicitanteId !== undefined)
+      cambios.solicitanteId = dto.solicitanteId;
+    if (dto.areaUnidad !== undefined) cambios.areaUnidad = dto.areaUnidad;
+    if (dto.fechaHoraSalida !== undefined)
+      cambios.fechaHoraSalida = new Date(dto.fechaHoraSalida);
+    if (dto.metodoVerificacion !== undefined)
+      cambios.metodoVerificacion = dto.metodoVerificacion;
+    if (dto.evidenciaVerificacionUrl !== undefined)
+      cambios.evidenciaVerificacionUrl = dto.evidenciaVerificacionUrl;
+    if (dto.observaciones !== undefined)
+      cambios.observaciones = dto.observaciones;
+
+    if (Object.keys(cambios).length > 0) {
+      await this.repo.update(id, cambios);
+    }
+    return this.findOne(id);
   }
 
   /** RF-03.3: registro de devolución */
-  async devolver(id: number): Promise<PrestamosCuaderno> {
+  async devolver(
+    id: number,
+    dto: DevolverPrestamosCuadernoDto,
+  ): Promise<PrestamosCuaderno> {
     return this.dataSource.transaction(async (manager) => {
       const prestamo = await manager.findOne(PrestamosCuaderno, {
         where: { id },
-        relations: { comprobante: true },
       });
       if (!prestamo) throw new NotFoundException('El préstamo no existe');
-      if (prestamo.estadoPrestamo === 'DEVUELTO') {
+      if (prestamo.devuelto) {
         throw new ConflictException('El préstamo ya fue devuelto');
       }
 
-      prestamo.estadoPrestamo = 'DEVUELTO';
+      const fechaHoraDevolucion = dto.fechaHoraDevolucion
+        ? new Date(dto.fechaHoraDevolucion)
+        : new Date();
+      if (
+        prestamo.fechaHoraSalida &&
+        fechaHoraDevolucion < prestamo.fechaHoraSalida
+      ) {
+        throw new BadRequestException(
+          'La devolución no puede ser anterior a la salida',
+        );
+      }
+
+      prestamo.devuelto = true;
+      prestamo.fechaHoraDevolucion = fechaHoraDevolucion;
+      if (dto.observaciones) prestamo.observaciones = dto.observaciones;
       await manager.save(PrestamosCuaderno, prestamo);
 
-      if (prestamo.comprobante?.id) {
-        await manager.update(ComprobantesC31, prestamo.comprobante.id, {
-          estadoFisico: EstadoFisicoC31.EN_ARCHIVO,
-        });
-      }
+      await manager.update(ComprobantesC31, prestamo.comprobanteId, {
+        estadoFisico: EstadoFisicoC31.EN_ARCHIVO,
+      });
 
       const completo = await manager.findOne(PrestamosCuaderno, {
         where: { id },
-        relations: { comprobante: true },
+        relations: RELATIONS,
       });
       if (!completo) throw new NotFoundException('El préstamo no existe');
       return completo;
@@ -146,6 +224,11 @@ export class PrestamosCuadernoService {
 
   async remove(id: number): Promise<PrestamosCuaderno> {
     const prestamo = await this.findOne(id);
-    return this.repo.softRemove(prestamo);
+    if (!prestamo.devuelto) {
+      throw new ConflictException(
+        'No se puede eliminar un préstamo que aún no fue devuelto',
+      );
+    }
+    return this.repo.remove(prestamo);
   }
 }

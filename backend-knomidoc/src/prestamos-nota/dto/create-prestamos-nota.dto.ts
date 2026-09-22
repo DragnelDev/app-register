@@ -1,63 +1,77 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayNotEmpty,
   IsArray,
+  IsDateString,
   IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
-  ValidateNested,
 } from 'class-validator';
 
-export class PrestamoNotaItemDto {
-  @ApiProperty({
-    required: false,
-    example: 12,
-    description: 'Comprobante C31 a prestar',
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  readonly comprobanteId?: number;
+const trim = ({ value }: { value: unknown }): unknown =>
+  typeof value === 'string' ? value.trim() : value;
 
-  @ApiProperty({
-    required: false,
-    example: 4,
-    description: 'Carpeta completa a prestar',
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  readonly carpetaId?: number;
-}
+const vacioAUndefined = ({ value }: { value: unknown }): unknown =>
+  typeof value === 'string' && value.trim() === '' ? undefined : value;
 
 export class CreatePrestamosNotaDto {
+  @ApiProperty({
+    type: [Number],
+    example: [12, 13],
+    description:
+      'Comprobantes C31 a prestar. Se registra un préstamo por cada comprobante.',
+  })
+  @IsArray()
+  @ArrayNotEmpty({ message: 'Debe indicar al menos un comprobante a prestar' })
+  @Type(() => Number)
+  @IsInt({ each: true })
+  readonly comprobanteIds: number[] = [];
+
   @ApiProperty({ example: 'NOTA-AUD-045/2026' })
   @IsNotEmpty({ message: 'El número de nota de solicitud es obligatorio' })
   @IsString()
   @MaxLength(100)
+  @Transform(trim)
   readonly numeroNotaSolicitud: string | undefined;
 
   @ApiProperty({ example: 'Auditoría Interna' })
-  @IsNotEmpty({ message: 'La unidad solicitante es obligatoria' })
+  @IsNotEmpty({ message: 'La institución solicitante es obligatoria' })
   @IsString()
   @MaxLength(150)
-  readonly unidadSolicitante: string | undefined;
+  @Transform(trim)
+  readonly institucionSolicitante: string | undefined;
 
   @ApiProperty({ example: 'Lic. Pedro Gómez' })
-  @IsNotEmpty({ message: 'Debe indicar a quién se presta' })
+  @IsNotEmpty({ message: 'El funcionario responsable es obligatorio' })
   @IsString()
   @MaxLength(150)
-  readonly aQuienSePresta: string | undefined;
+  @Transform(trim)
+  readonly funcionarioResponsable: string | undefined;
 
-  @ApiProperty({ type: [PrestamoNotaItemDto] })
-  @IsArray()
-  @ArrayNotEmpty({
-    message: 'Debe incluir al menos un ítem (comprobante o carpeta)',
+  @ApiPropertyOptional({
+    example: '2026-07-20',
+    description: 'Si no se indica, se usa la fecha de hoy',
   })
-  @ValidateNested({ each: true })
-  @Type(() => PrestamoNotaItemDto)
-  readonly items: PrestamoNotaItemDto[] = [];
+  @IsOptional()
+  @Transform(vacioAUndefined)
+  @IsDateString({}, { message: 'La fecha de préstamo debe ser válida' })
+  readonly fechaPrestamo?: string;
+
+  @ApiPropertyOptional({ example: '2026-08-20' })
+  @IsOptional()
+  @Transform(vacioAUndefined)
+  @IsDateString(
+    {},
+    { message: 'La fecha de devolución estimada debe ser válida' },
+  )
+  readonly fechaDevolucionEstimada?: string;
+
+  @ApiPropertyOptional({ example: 'Se entrega con 3 carpetas' })
+  @IsOptional()
+  @Transform(vacioAUndefined)
+  @IsString()
+  readonly observaciones?: string;
 }

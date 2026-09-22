@@ -24,8 +24,9 @@ async function handleSubmit(payload: ComprobanteC31FormPayload) {
     <div>
       <h1 class="text-2xl font-semibold text-ink-900 dark:text-white">Registrar comprobante C31</h1>
       <p class="text-sm text-ink-500 dark:text-ink-400">
-        Soporta preventivos y devengados "2 en 1", múltiples beneficiarios, cheques opcionales y
-        distribución en hasta 5 carpetas.
+        Soporta preventivos y devengados "2 en 1", múltiples beneficiarios y cheques opcionales.
+        Úsalo para registrar un comprobante suelto (sin acta de entrega); si el comprobante llega
+        como parte de un lote de Tesorería, agrégalo desde el acta correspondiente.
       </p>
     </div>
 

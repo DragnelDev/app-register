@@ -3,7 +3,13 @@ import { reactive, ref, computed } from 'vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import CarpetaPicker from '@/components/shared/CarpetaPicker.vue'
-import { required, isPositiveNumber, isValidDate, dateNotInFuture, runValidators } from '@/utils/validators'
+import {
+  required,
+  isPositiveNumber,
+  isValidDate,
+  dateNotInFuture,
+  runValidators,
+} from '@/utils/validators'
 import type { ComprobanteC31FormPayload, Carpeta } from '@/types/c31.types'
 
 const props = defineProps<{ fechaSugerida: string }>()
@@ -15,7 +21,6 @@ function blankDraft(): ComprobanteC31FormPayload & { carpetasSeleccionadas: Carp
     fechaElaboracion: props.fechaSugerida,
     descripcion: '',
     numeroFolio: null,
-    estaFoliado: false,
     preventivos: [''],
     devengados: [''],
     beneficiarios: [''],
@@ -50,7 +55,7 @@ function addCarpeta(carpeta: Carpeta) {
   draft.carpetasSeleccionadas.push(carpeta)
   errors.carpetas = ''
 }
-function removeCarpeta(id: string) {
+function removeCarpeta(id: string | number) {
   draft.carpetasSeleccionadas = draft.carpetasSeleccionadas.filter((c) => c.id !== id)
 }
 
@@ -66,14 +71,21 @@ function validate(): boolean {
 
   const tienePrev = draft.preventivos.some((p) => p.trim() !== '')
   const tieneDev = draft.devengados.some((d) => d.trim() !== '')
-  errors.prevODev = tienePrev || tieneDev ? '' : 'Debe indicar al menos un N° de preventivo o de devengado'
+  errors.prevODev =
+    tienePrev || tieneDev ? '' : 'Debe indicar al menos un N° de preventivo o de devengado'
 
   errors.carpetas =
     draft.carpetasSeleccionadas.length === 0
       ? 'Debe asignar al menos 1 carpeta de ubicación física'
       : ''
 
-  return !errors.montoTotal && !errors.descripcion && !errors.fechaElaboracion && !errors.prevODev && !errors.carpetas
+  return (
+    !errors.montoTotal &&
+    !errors.descripcion &&
+    !errors.fechaElaboracion &&
+    !errors.prevODev &&
+    !errors.carpetas
+  )
 }
 
 function handleAdd() {
@@ -82,9 +94,10 @@ function handleAdd() {
   const payload: ComprobanteC31FormPayload = {
     montoTotal: draft.montoTotal,
     fechaElaboracion: draft.fechaElaboracion,
-    descripcion: draft.descripcion.trim() || 'Comprobante registrado desde acta de entrega (completar descripción)',
+    descripcion:
+      draft.descripcion.trim() ||
+      'Comprobante registrado desde acta de entrega (completar descripción)',
     numeroFolio: draft.numeroFolio,
-    estaFoliado: draft.estaFoliado,
     preventivos: draft.preventivos.filter((p) => p.trim() !== ''),
     devengados: draft.devengados.filter((d) => d.trim() !== ''),
     beneficiarios: draft.beneficiarios.filter((b) => b.trim() !== ''),
@@ -113,7 +126,11 @@ function handleAdd() {
         </label>
         <div v-for="(_, i) in draft.preventivos" :key="i" class="mb-2 flex gap-2">
           <BaseInput v-model="draft.preventivos[i]" placeholder="Ej: PREV-001" class="flex-1" />
-          <BaseButton variant="ghost" size="sm" type="button" @click="removeItem(draft.preventivos, i)"
+          <BaseButton
+            variant="ghost"
+            size="sm"
+            type="button"
+            @click="removeItem(draft.preventivos, i)"
             >✕</BaseButton
           >
         </div>
@@ -128,7 +145,11 @@ function handleAdd() {
         </label>
         <div v-for="(_, i) in draft.devengados" :key="i" class="mb-2 flex gap-2">
           <BaseInput v-model="draft.devengados[i]" placeholder="Ej: DEV-001" class="flex-1" />
-          <BaseButton variant="ghost" size="sm" type="button" @click="removeItem(draft.devengados, i)"
+          <BaseButton
+            variant="ghost"
+            size="sm"
+            type="button"
+            @click="removeItem(draft.devengados, i)"
             >✕</BaseButton
           >
         </div>
@@ -142,12 +163,25 @@ function handleAdd() {
           Beneficiario <span class="text-ink-300">(puede añadir más de uno)</span>
         </label>
         <div v-for="(_, i) in draft.beneficiarios" :key="i" class="mb-2 flex gap-2">
-          <BaseInput v-model="draft.beneficiarios[i]" placeholder="Nombre del beneficiario" class="flex-1" />
-          <BaseButton variant="ghost" size="sm" type="button" @click="removeItem(draft.beneficiarios, i)"
+          <BaseInput
+            v-model="draft.beneficiarios[i]"
+            placeholder="Nombre del beneficiario"
+            class="flex-1"
+          />
+          <BaseButton
+            variant="ghost"
+            size="sm"
+            type="button"
+            @click="removeItem(draft.beneficiarios, i)"
             >✕</BaseButton
           >
         </div>
-        <BaseButton variant="secondary" size="sm" type="button" @click="addItem(draft.beneficiarios)">
+        <BaseButton
+          variant="secondary"
+          size="sm"
+          type="button"
+          @click="addItem(draft.beneficiarios)"
+        >
           + Agregar beneficiario
         </BaseButton>
       </div>
@@ -176,7 +210,11 @@ function handleAdd() {
           class="flex items-center gap-1 rounded-full bg-ink-100 px-3 py-1 text-xs text-ink-700 dark:bg-white/10 dark:text-ink-200"
         >
           {{ carpeta.codigoCarpeta }}
-          <button type="button" class="text-ink-400 hover:text-red-600" @click="removeCarpeta(carpeta.id)">
+          <button
+            type="button"
+            class="text-ink-400 hover:text-red-600"
+            @click="removeCarpeta(carpeta.id)"
+          >
             ✕
           </button>
         </li>
@@ -189,7 +227,8 @@ function handleAdd() {
       class="text-xs font-medium text-ink-500 underline decoration-dotted hover:text-ink-700 dark:text-ink-400"
       @click="showDetalles = !showDetalles"
     >
-      {{ showDetalles ? 'Ocultar' : 'Completar' }} descripción y fecha de elaboración (opcional por ahora)
+      {{ showDetalles ? 'Ocultar' : 'Completar' }} descripción y fecha de elaboración (opcional por
+      ahora)
     </button>
     <div v-if="showDetalles" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <BaseInput

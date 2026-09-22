@@ -22,9 +22,10 @@ const togglingId = ref<string | null>(null)
 
 const columns: DataTableColumn<Usuario>[] = [
   { key: 'nombreCompleto', label: 'Nombre', sortable: true },
+  { key: 'username', label: 'Usuario' },
   { key: 'email', label: 'Correo' },
   { key: 'rol', label: 'Rol' },
-  { key: 'estado', label: 'Estado' },
+  { key: 'activo', label: 'Estado' },
 ]
 
 async function loadRows() {
@@ -70,14 +71,14 @@ async function handleUpdate(id: string, payload: UsuarioUpdatePayload) {
   }
 }
 
-async function handleToggleEstado(row: Usuario) {
+async function handleToggleActivo(row: Usuario) {
   if (row.id === auth.usuario?.id) {
     alert('No puedes desactivar tu propia cuenta.')
     return
   }
   togglingId.value = row.id
   try {
-    await usuariosService.toggleEstado(row.id, !row.estado)
+    await usuariosService.toggleActivo(row.id, !row.activo)
     await loadRows()
   } finally {
     togglingId.value = null
@@ -99,26 +100,48 @@ onMounted(loadRows)
       <BaseButton @click="openCreate">+ Registrar usuario</BaseButton>
     </div>
 
-    <BaseDataTable :columns="columns" :rows="rows" :loading="loading" :page="page"
-      :total-pages="Math.max(1, Math.ceil(total / pageSize))" empty-message="Aún no hay usuarios registrados."
-      @update:page="(p) => { page = p; loadRows() }" @row-click="openEdit">
-      <template #cell-estado="{ row }">
-        <BaseBadge :estado="row.estado ? 'APROBADO' : 'RECHAZADO'">
-          {{ row.estado ? 'Activo' : 'Inactivo' }}
+    <BaseDataTable
+      :columns="columns"
+      :rows="rows"
+      :loading="loading"
+      :page="page"
+      :total-pages="Math.max(1, Math.ceil(total / pageSize))"
+      empty-message="Aún no hay usuarios registrados."
+      @update:page="
+        (p) => {
+          page = p
+          loadRows()
+        }
+      "
+      @row-click="openEdit"
+    >
+      <template #cell-activo="{ row }">
+        <BaseBadge :estado="row.activo ? 'EN_ARCHIVO' : 'ANULADO'">
+          {{ row.activo ? 'Activo' : 'Inactivo' }}
         </BaseBadge>
       </template>
       <template #actions="{ row }">
         <div class="flex justify-end gap-2">
           <BaseButton variant="ghost" size="sm" @click="openEdit(row)">Editar</BaseButton>
-          <BaseButton :variant="row.estado ? 'danger' : 'secondary'" size="sm" :disabled="row.id === auth.usuario?.id"
-            :loading="togglingId === row.id" @click="handleToggleEstado(row)">
-            {{ row.estado ? 'Desactivar' : 'Activar' }}
+          <BaseButton
+            :variant="row.activo ? 'danger' : 'secondary'"
+            size="sm"
+            :disabled="row.id === auth.usuario?.id"
+            :loading="togglingId === row.id"
+            @click="handleToggleActivo(row)"
+          >
+            {{ row.activo ? 'Desactivar' : 'Activar' }}
           </BaseButton>
         </div>
       </template>
     </BaseDataTable>
 
-    <UsuarioModal v-model="modalOpen" :usuario="editingUsuario" :saving="saving" @create="handleCreate"
-      @update="handleUpdate" />
+    <UsuarioModal
+      v-model="modalOpen"
+      :usuario="editingUsuario"
+      :saving="saving"
+      @create="handleCreate"
+      @update="handleUpdate"
+    />
   </div>
 </template>

@@ -13,30 +13,32 @@ const emit = defineEmits<{ submit: [payload: PrestamoNotaCreatePayload] }>()
 
 const form = reactive({
   numeroNotaSolicitud: '',
-  unidadSolicitante: '',
-  aQuienSePresta: '',
+  institucionSolicitante: '',
+  funcionarioResponsable: '',
+  fechaPrestamo: new Date().toISOString().slice(0, 10),
+  fechaDevolucionEstimada: '',
+  observaciones: '',
 })
 
 const selectedComprobantes = ref<ComprobanteC31[]>([])
-const carpetas = ref<string[]>([''])
 
 // --- Validación ---
 const errors = reactive({
   numeroNotaSolicitud: '',
-  unidadSolicitante: '',
-  aQuienSePresta: '',
+  institucionSolicitante: '',
+  funcionarioResponsable: '',
   items: '',
 })
 const touched = reactive({
   numeroNotaSolicitud: false,
-  unidadSolicitante: false,
-  aQuienSePresta: false,
+  institucionSolicitante: false,
+  funcionarioResponsable: false,
 })
 
 const rules = {
   numeroNotaSolicitud: [required('El N° de nota de solicitud es obligatorio'), maxLength(50)],
-  unidadSolicitante: [required('La unidad solicitante es obligatoria'), maxLength(100)],
-  aQuienSePresta: [required('Indica quién recibe el préstamo')],
+  institucionSolicitante: [required('La institución solicitante es obligatoria'), maxLength(100)],
+  funcionarioResponsable: [required('Indica el funcionario responsable')],
 }
 
 function validateField(field: keyof typeof rules) {
@@ -44,11 +46,8 @@ function validateField(field: keyof typeof rules) {
 }
 
 function validateItems() {
-  const carpetasValidas = carpetas.value.filter((c) => c.trim() !== '')
   errors.items =
-    selectedComprobantes.value.length === 0 && carpetasValidas.length === 0
-      ? 'Debe añadir al menos un comprobante o una carpeta completa al préstamo'
-      : ''
+    selectedComprobantes.value.length === 0 ? 'Debe añadir al menos un comprobante al préstamo' : ''
 }
 
 function onBlur(field: keyof typeof rules) {
@@ -64,8 +63,8 @@ function validateAll(): boolean {
   validateItems()
   return (
     !errors.numeroNotaSolicitud &&
-    !errors.unidadSolicitante &&
-    !errors.aQuienSePresta &&
+    !errors.institucionSolicitante &&
+    !errors.funcionarioResponsable &&
     !errors.items
   )
 }
@@ -83,25 +82,18 @@ function removeComprobante(id: string) {
   validateItems()
 }
 
-// --- Carpetas completas: lista libre, sin límite ---
-function addCarpeta() {
-  carpetas.value.push('')
-}
-
-function removeCarpeta(index: number) {
-  if (carpetas.value.length > 1) carpetas.value.splice(index, 1)
-  validateItems()
-}
-
 function handleSubmit() {
   if (!validateAll()) return
 
-  const items: PrestamoNotaCreatePayload['items'] = [
-    ...selectedComprobantes.value.map((c) => ({ comprobanteId: c.id })),
-    ...carpetas.value.filter((c) => c.trim() !== '').map((carpetaId) => ({ carpetaId })),
-  ]
-
-  emit('submit', { ...form, items })
+  emit('submit', {
+    numeroNotaSolicitud: form.numeroNotaSolicitud,
+    institucionSolicitante: form.institucionSolicitante,
+    funcionarioResponsable: form.funcionarioResponsable,
+    fechaPrestamo: form.fechaPrestamo || undefined,
+    fechaDevolucionEstimada: form.fechaDevolucionEstimada || undefined,
+    observaciones: form.observaciones || undefined,
+    comprobanteIds: selectedComprobantes.value.map((c) => c.id),
+  })
 }
 </script>
 
@@ -117,45 +109,41 @@ function handleSubmit() {
         @blur="onBlur('numeroNotaSolicitud')"
       />
       <BaseInput
-        v-model="form.unidadSolicitante"
-        label="Unidad solicitante"
+        v-model="form.institucionSolicitante"
+        label="Institución solicitante"
         placeholder="Ej: Auditoría Interna"
         required
-        :error="touched.unidadSolicitante ? errors.unidadSolicitante : ''"
-        @blur="onBlur('unidadSolicitante')"
+        :error="touched.institucionSolicitante ? errors.institucionSolicitante : ''"
+        @blur="onBlur('institucionSolicitante')"
       />
       <BaseInput
-        v-model="form.aQuienSePresta"
-        label="Responsable que recibe"
+        v-model="form.funcionarioResponsable"
+        label="Funcionario responsable que recibe"
         required
-        :error="touched.aQuienSePresta ? errors.aQuienSePresta : ''"
-        @blur="onBlur('aQuienSePresta')"
+        :error="touched.funcionarioResponsable ? errors.funcionarioResponsable : ''"
+        @blur="onBlur('funcionarioResponsable')"
+      />
+      <BaseInput v-model="form.fechaPrestamo" type="date" label="Fecha de préstamo" />
+      <BaseInput
+        v-model="form.fechaDevolucionEstimada"
+        type="date"
+        label="Fecha de devolución estimada (opcional)"
       />
     </div>
 
     <section>
       <h3 class="mb-2 text-sm font-semibold text-ink-800">
-        Comprobantes C31 (búsqueda y selección)
+        Comprobantes C31 a prestar (búsqueda y selección)
       </h3>
-      <ComprobanteC31Picker :exclude-ids="excludeIds" @select="addComprobante" />
+      <ComprobanteC31Picker :exclude-ids="excludeIds" solo-disponibles @select="addComprobante" />
       <div class="mt-3">
         <ComprobantesC31SelectedTable :items="selectedComprobantes" @remove="removeComprobante" />
       </div>
+      <p v-if="errors.items" class="mt-1 text-xs text-red-600">{{ errors.items }}</p>
     </section>
 
-    <section>
-      <h3 class="mb-2 text-sm font-semibold text-ink-800">Carpetas completas (opcional)</h3>
-      <div v-for="(_, i) in carpetas" :key="i" class="mb-2 flex gap-2">
-        <BaseInput v-model="carpetas[i]" placeholder="Código de carpeta completa" class="flex-1" />
-        <BaseButton variant="ghost" size="sm" type="button" @click="removeCarpeta(i)">✕</BaseButton>
-      </div>
-      <BaseButton variant="secondary" size="sm" type="button" @click="addCarpeta">
-        + Agregar carpeta
-      </BaseButton>
-    </section>
+    <BaseInput v-model="form.observaciones" label="Observaciones (opcional)" />
 
-    <p v-if="errors.items" class="text-xs text-red-600">{{ errors.items }}</p>
-
-    <BaseButton type="submit" :loading="saving">Registrar préstamo en lote</BaseButton>
+    <BaseButton type="submit" :loading="saving">Registrar préstamo</BaseButton>
   </form>
 </template>

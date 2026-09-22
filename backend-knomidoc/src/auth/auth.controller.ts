@@ -9,8 +9,9 @@ import {
 import { AuthService } from './auth.service';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthLoginDto } from './dto/auth-login.dto';
-import { Usuario } from 'src/usuarios/entities/usuario.entity';
+import { Usuario } from '../usuarios/entities/usuario.entity';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { Public } from './decorators/auth-public.decorator';
 
 @ApiTags('auth')
 @ApiBearerAuth()
@@ -18,6 +19,7 @@ import { CurrentUser } from './decorators/current-user.decorator';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() authLoginDto: AuthLoginDto): Promise<any> {

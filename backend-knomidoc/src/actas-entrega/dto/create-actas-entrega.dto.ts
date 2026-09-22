@@ -1,33 +1,56 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsDateString, IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import {
+  IsDateString,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
+
+const trim = ({ value }: { value: unknown }): unknown =>
+  typeof value === 'string' ? value.trim() : value;
 
 export class CreateActasEntregaDto {
   @ApiProperty({ example: 'AE-2026-001' })
   @IsNotEmpty({ message: 'El número de acta es obligatorio' })
   @IsString()
   @MaxLength(50)
-  @Transform(({ value }): string | undefined =>
-    typeof value === 'string' ? value.trim() : value,
-  )
-  readonly numeroNota?: string;
+  @Transform(trim)
+  readonly numeroActa?: string;
 
-  @ApiProperty({ example: 'Tesorería' })
-  @IsNotEmpty({ message: 'La oficina de origen es obligatoria' })
+  @ApiPropertyOptional({ example: 'Tesorería', default: 'Tesorería' })
+  @IsOptional()
   @IsString()
   @MaxLength(100)
-  @Transform(({ value }): string | undefined =>
-    typeof value === 'string' ? value.trim() : value,
-  )
-  readonly oficinaOrigen?: string;
+  @Transform(trim)
+  readonly unidadEmisora?: string;
+
+  @ApiProperty({ example: 'Lic. María Rojas (Tesorería)' })
+  @IsNotEmpty({ message: 'El responsable de entrega es obligatorio' })
+  @IsString()
+  @MaxLength(150)
+  @Transform(trim)
+  readonly responsableEntrega?: string;
+
+  @ApiProperty({ example: 'Ana Rodríguez (Archivo Central)' })
+  @IsNotEmpty({ message: 'El responsable de recepción es obligatorio' })
+  @IsString()
+  @MaxLength(150)
+  @Transform(trim)
+  readonly responsableRecepcion?: string;
 
   @ApiProperty({ example: '2026-07-20' })
-  @IsNotEmpty({ message: 'La fecha de entrega es obligatoria' })
+  @IsNotEmpty({ message: 'La fecha de recepción es obligatoria' })
   @IsDateString(
     {},
-    { message: 'La fecha de entrega debe ser una fecha válida' },
+    { message: 'La fecha de recepción debe ser una fecha válida' },
   )
-  readonly fechaEntrega?: string;
+  readonly fechaRecepcion?: string;
 
-  // readonly imagenUrl?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Transform(trim)
+  readonly observaciones?: string;
 }

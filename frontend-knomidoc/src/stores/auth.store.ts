@@ -3,6 +3,16 @@ import { authService } from '@/services/auth.service'
 import type { LoginPayload, Usuario } from '@/types/auth.types'
 
 const TOKEN_STORAGE_KEY = 'knomidoc_access_token'
+const USER_STORAGE_KEY = 'knomidoc_user'
+
+const readStoredUser = (): Usuario | null => {
+  try {
+    const raw = localStorage.getItem(USER_STORAGE_KEY)
+    return raw ? (JSON.parse(raw) as Usuario) : null
+  } catch {
+    return null
+  }
+}
 
 interface AuthState {
   usuario: Usuario | null
@@ -12,8 +22,9 @@ interface AuthState {
 
 export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
-    usuario: null,
-    accessToken: sessionStorage.getItem(TOKEN_STORAGE_KEY),
+    usuario: readStoredUser(),
+    accessToken:
+      localStorage.getItem(TOKEN_STORAGE_KEY) ?? sessionStorage.getItem(TOKEN_STORAGE_KEY),
     loading: false,
   }),
 
@@ -21,8 +32,12 @@ export const useAuthStore = defineStore('auth', {
     isAuthenticated: (state) => Boolean(state.accessToken),
     rol: (state) => state.usuario?.rol ?? null,
     isAdmin: (state) => state.usuario?.rol === 'ADMIN',
-    puedeRegistrar: (state) =>
-      state.usuario?.rol === 'ADMIN' || state.usuario?.rol === 'REGISTRADOR',
+    /** Puede registrar actas de entrega y comprobantes C31 */
+    puedeRegistrarC31: (state) =>
+      state.usuario?.rol === 'ADMIN' || state.usuario?.rol === 'OPERADOR_ARCHIVOS',
+    /** Puede registrar y devolver préstamos (cuaderno y nota) */
+    puedePrestar: (state) =>
+      state.usuario?.rol === 'ADMIN' || state.usuario?.rol === 'ENCARGADO_PRESTAMOS',
   },
 
   actions: {
@@ -30,8 +45,7 @@ export const useAuthStore = defineStore('auth', {
       this.loading = true
       try {
         const response = await authService.login(payload)
-        const accessToken = response.accessToken ?? response.access_token
-        const usuario = response.usuario
+        const { accessToken, usuario } = response
 
         if (!accessToken || !usuario) {
           throw new Error('Respuesta de login inválida')
@@ -39,7 +53,9 @@ export const useAuthStore = defineStore('auth', {
 
         this.accessToken = accessToken
         this.usuario = usuario
-        sessionStorage.setItem(TOKEN_STORAGE_KEY, accessToken)
+        localStorage.setItem(TOKEN_STORAGE_KEY, accessToken)
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(usuario))
+        sessionStorage.removeItem(TOKEN_STORAGE_KEY)
       } finally {
         this.loading = false
       }
@@ -47,12 +63,16 @@ export const useAuthStore = defineStore('auth', {
 
     async fetchProfile() {
       if (!this.accessToken) return
-      this.usuario = await authService.me()
+      const usuario = await authService.me()
+      this.usuario = usuario
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(usuario))
     },
 
     logout() {
       this.usuario = null
       this.accessToken = null
+      localStorage.removeItem(TOKEN_STORAGE_KEY)
+      localStorage.removeItem(USER_STORAGE_KEY)
       sessionStorage.removeItem(TOKEN_STORAGE_KEY)
     },
   },

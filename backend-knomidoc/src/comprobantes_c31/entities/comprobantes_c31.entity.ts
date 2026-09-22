@@ -1,9 +1,3 @@
-import { C31Beneficiario } from 'src/c31-beneficiarios/entities/c31-beneficiario.entity';
-import { C31CarpetasUbicacion } from 'src/c31-carpetas-ubicacion/entities/c31-carpetas-ubicacion.entity';
-import { C31Devengado } from 'src/c31-devengados/entities/c31-devengado.entity';
-import { C31Preventivo } from 'src/c31-preventivos/entities/c31-preventivo.entity';
-import { C31Cheque } from 'src/c31-cheques/entities/c31-cheque.entity';
-import { BaseAuditoriaEntity } from 'src/common/entities/base-auditoria.entity';
 import {
   Column,
   Entity,
@@ -12,17 +6,26 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { ActasEntrega } from 'src/actas-entrega/entities/actas-entrega.entity';
+import { C31Beneficiario } from '../../c31-beneficiarios/entities/c31-beneficiario.entity';
+import { C31Devengado } from '../../c31-devengados/entities/c31-devengado.entity';
+import { C31Preventivo } from '../../c31-preventivos/entities/c31-preventivo.entity';
+import { C31Cheque } from '../../c31-cheques/entities/c31-cheque.entity';
+import { BaseAuditoriaEntity } from '../../common/entities/base-auditoria.entity';
+import { ActasEntrega } from '../../actas-entrega/entities/actas-entrega.entity';
+import { PrestamosNota } from '../../prestamos-nota/entities/prestamos-nota.entity';
+import { PrestamosCuaderno } from '../../prestamos-cuaderno/entities/prestamos-cuaderno.entity';
+import { C31CarpetasUbicacion } from '../../c31-carpetas-ubicacion/entities/c31-carpetas-ubicacion.entity';
 
-export enum EstadoAprobacionC31 {
-  PENDIENTE = 'PENDIENTE',
-  APROBADO = 'APROBADO',
-  RECHAZADO = 'RECHAZADO',
+export enum TipoC31 {
+  CON_IMPUTACION = 'CON_IMPUTACION',
+  SIN_IMPUTACION = 'SIN_IMPUTACION',
 }
 
+/** Estado físico del comprobante: En Archivo, Anulado, etc. */
 export enum EstadoFisicoC31 {
   EN_ARCHIVO = 'EN_ARCHIVO',
   PRESTADO = 'PRESTADO',
+  ANULADO = 'ANULADO',
 }
 
 @Entity('comprobantes_c31')
@@ -30,17 +33,35 @@ export class ComprobantesC31 extends BaseAuditoriaEntity {
   @PrimaryGeneratedColumn('identity')
   id: number | undefined;
 
-  @ManyToOne(() => ActasEntrega, (nota) => nota.comprobantesC31, {
+  /** Relación "agrupa (lote de ingreso)". */
+  @ManyToOne(() => ActasEntrega, (acta) => acta.comprobantesC31, {
     nullable: true,
   })
-  @JoinColumn({ name: 'nota_entrega_id' })
+  @JoinColumn({ name: 'acta_entrega_id' })
   actaEntrega?: ActasEntrega;
 
-  @Column({ name: 'nota_entrega_id', type: 'integer', nullable: true })
-  notaEntregaId?: number;
+  @Column({ name: 'acta_entrega_id', type: 'integer', nullable: true })
+  actaEntregaId?: number | null;
 
-  @Column({ name: 'numero_comprobante', type: 'integer' })
-  numeroComprobante?: number;
+  /** Gestión (año): 2021, 2025, 2026... */
+  @Column({ name: 'gestion', type: 'int' })
+  gestion: number | undefined;
+
+  @Column({
+    name: 'tipo_c31',
+    type: 'varchar',
+    length: 20,
+    default: TipoC31.CON_IMPUTACION,
+  })
+  tipoC31: TipoC31 | undefined;
+
+  @Column({
+    name: 'numero_comprobante',
+    type: 'varchar',
+    length: 50,
+    nullable: true,
+  })
+  numeroComprobante?: string | null;
 
   @Column({ name: 'monto_total', type: 'decimal', precision: 14, scale: 2 })
   montoTotal: number | undefined;
@@ -51,25 +72,9 @@ export class ComprobantesC31 extends BaseAuditoriaEntity {
   @Column({ type: 'text' })
   descripcion: string | undefined;
 
-  @Column({ name: 'numero_folio', type: 'int', nullable: true })
-  numeroFolio?: number;
-
-  @Column({ name: 'gestion', type: 'int' })
-  gestion: number | undefined;
-
-  @Column({ name: 'esta_foliado', type: 'boolean', default: false })
-  estaFoliado: boolean | undefined;
-
-  @Column({ name: 'cantidad_carpetas', type: 'int', default: 1 })
-  cantidadCarpetas: number | undefined;
-
-  @Column({
-    name: 'estado_aprobacion',
-    type: 'varchar',
-    length: 20,
-    default: EstadoAprobacionC31.PENDIENTE,
-  })
-  estadoAprobacion: EstadoAprobacionC31 | undefined;
+  /** Folio individual por comprobante. */
+  @Column({ name: 'numero_folio', type: 'varchar', length: 50, nullable: true })
+  numeroFolio?: string | null;
 
   @Column({
     name: 'estado_fisico',
@@ -79,8 +84,17 @@ export class ComprobantesC31 extends BaseAuditoriaEntity {
   })
   estadoFisico: EstadoFisicoC31 | undefined;
 
-  @Column({ name: 'motivo_rechazo', type: 'text', nullable: true })
-  motivoRechazo?: string;
+  @Column({
+    name: 'ubicacion_fisica',
+    type: 'varchar',
+    length: 150,
+    nullable: true,
+  })
+  ubicacionFisica?: string | null;
+
+  /** Detalles del estado físico del comprobante (daños, faltantes, etc.). */
+  @Column({ type: 'text', nullable: true })
+  observaciones?: string | null;
 
   // Relaciones 1:N
   @OneToMany(() => C31Preventivo, (prev) => prev.comprobante, { cascade: true })
@@ -95,8 +109,12 @@ export class ComprobantesC31 extends BaseAuditoriaEntity {
   @OneToMany(() => C31Cheque, (chq) => chq.comprobante, { cascade: true })
   cheques: C31Cheque[] | undefined;
 
-  @OneToMany(() => C31CarpetasUbicacion, (ubic) => ubic.comprobante, {
-    cascade: true,
-  })
-  carpetasUbicacion: C31CarpetasUbicacion[] | undefined;
+  @OneToMany(() => PrestamosNota, (p) => p.comprobante)
+  prestamosNota?: PrestamosNota[];
+
+  @OneToMany(() => PrestamosCuaderno, (p) => p.comprobante)
+  prestamosCuaderno?: PrestamosCuaderno[];
+
+  @OneToMany(() => C31CarpetasUbicacion, (ubic) => ubic.comprobante)
+  carpetasUbicacion?: C31CarpetasUbicacion[];
 }

@@ -16,8 +16,9 @@ function handleLogout() {
 
 const rolLabel: Record<string, string> = {
   ADMIN: 'Administrador',
-  REGISTRADOR: 'Registrador',
-  CONSULTA: 'Consulta',
+  OPERADOR_ARCHIVOS: 'Operador de archivos',
+  ENCARGADO_PRESTAMOS: 'Encargado de préstamos',
+  CONSULTA_EXTERNA: 'Consulta externa',
 }
 
 const iniciales = computed(() => {

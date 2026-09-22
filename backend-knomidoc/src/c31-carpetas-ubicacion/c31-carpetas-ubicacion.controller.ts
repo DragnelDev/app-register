@@ -21,7 +21,7 @@ export class C31CarpetasUbicacionController {
     private readonly c31CarpetasUbicacionService: C31CarpetasUbicacionService,
   ) {}
 
-  @Roles('ADMIN', 'REGISTRADOR')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
   @Post()
   create(@Body() createC31CarpetasUbicacionDto: CreateC31CarpetasUbicacionDto) {
     return this.c31CarpetasUbicacionService.create(
@@ -39,7 +39,7 @@ export class C31CarpetasUbicacionController {
     return this.c31CarpetasUbicacionService.findOne(+id);
   }
 
-  @Roles('ADMIN', 'REGISTRADOR')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -51,7 +51,7 @@ export class C31CarpetasUbicacionController {
     );
   }
 
-  @Roles('ADMIN', 'REGISTRADOR')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.c31CarpetasUbicacionService.remove(+id);

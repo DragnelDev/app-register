@@ -8,20 +8,24 @@ import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Usuario } from './entities/usuario.entity';
-import { Like, Repository } from 'typeorm';
-import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
-import { PaginatedResponseDto } from 'src/common/dto/paginated-response.dto';
-import { paginationSkip } from 'src/common/utils/pagination.util';
+import { ILike, Like, Not, Repository } from 'typeorm';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
+import { paginationSkip } from '../common/utils/pagination.util';
 import * as bcrypt from 'bcrypt';
 
 const SALT_ROUNDS = 10;
 
+/** Columnas visibles de un usuario (nunca incluye la contraseña). */
 const SELECT_SAFE = {
   id: true,
+  username: true,
   nombreCompleto: true,
   email: true,
+  cargo: true,
+  unidadOArea: true,
   rol: true,
-  estado: true,
+  activo: true,
   fechaCreacion: true,
 } as const;
 
@@ -41,6 +45,7 @@ export class UsuariosService {
     const total = await this.usuariosRepository.count();
     if (total > 0) return;
 
+    const username = (process.env.ADMIN_USERNAME ?? 'admin').toLowerCase();
     const email = process.env.ADMIN_EMAIL ?? 'admin@knomidoc.com';
     const passwordPlano =
       process.env.ADMIN_PASSWORD ??
@@ -48,33 +53,61 @@ export class UsuariosService {
       'Knomi2026*';
 
     const admin = new Usuario();
+    admin.username = username;
     admin.nombreCompleto = 'Administrador del Sistema';
     admin.email = email;
     admin.rol = 'ADMIN';
-    admin.estado = true;
-    admin.passwordHash = bcrypt.hashSync(passwordPlano, SALT_ROUNDS);
+    admin.activo = true;
+    admin.password = bcrypt.hashSync(passwordPlano, SALT_ROUNDS);
 
     await this.usuariosRepository.save(admin);
     console.log(
-      `[Seed] Usuario ADMIN creado por defecto -> email: ${email} / password: ${passwordPlano} (cámbiela luego de iniciar sesión)`,
+      `[Seed] Usuario ADMIN creado por defecto -> username: ${username} / password: ${passwordPlano} (cámbiela luego de iniciar sesión)`,
     );
   }
 
+  /** username y email son únicos (UK en el DER). */
+  private async validarUnicidad(
+    username?: string,
+    email?: string,
+    excluirId?: number,
+  ): Promise<void> {
+    const excluir = excluirId ? { id: Not(excluirId) } : {};
+    if (username) {
+      const existente = await this.usuariosRepository.findOne({
+        where: { username, ...excluir },
+        withDeleted: true,
+      });
+      if (existente)
+        throw new ConflictException('El nombre de usuario ya existe');
+    }
+    if (email) {
+      const existente = await this.usuariosRepository.findOne({
+        where: { email, ...excluir },
+        withDeleted: true,
+      });
+      if (existente) throw new ConflictException('El correo ya está en uso');
+    }
+  }
+
   async create(createUsuarioDto: CreateUsuarioDto): Promise<Usuario> {
+    const username = createUsuarioDto.username?.trim().toLowerCase() ?? '';
     const email = createUsuarioDto.email?.trim().toLowerCase() ?? '';
 
-    const existente = await this.usuariosRepository.findOneBy({ email });
-    if (existente) throw new ConflictException('El usuario ya existe');
+    await this.validarUnicidad(username, email);
 
     const passwordPlano =
-      createUsuarioDto.passwordHash ??
-      process.env.DEFAULT_PASSWORD ??
-      'Knomi2026*';
+      createUsuarioDto.password ?? process.env.DEFAULT_PASSWORD ?? 'Knomi2026*';
+
+    const { password: _omitido, ...resto } = createUsuarioDto;
+    void _omitido;
 
     const usuario = new Usuario();
-    Object.assign(usuario, createUsuarioDto);
+    Object.assign(usuario, resto);
+    usuario.username = username;
     usuario.email = email;
-    usuario.passwordHash = bcrypt.hashSync(passwordPlano, SALT_ROUNDS);
+    usuario.activo = true;
+    usuario.password = bcrypt.hashSync(passwordPlano, SALT_ROUNDS);
 
     const guardado = await this.usuariosRepository.save(usuario);
     return this.findOne(guardado.id as number);
@@ -91,6 +124,7 @@ export class UsuariosService {
       where: query.search
         ? [
             { nombreCompleto: Like(`%${query.search}%`) },
+            { username: Like(`%${query.search}%`) },
             { email: Like(`%${query.search}%`) },
           ]
         : {},
@@ -101,16 +135,34 @@ export class UsuariosService {
     return new PaginatedResponseDto(data, total, page, pageSize);
   }
 
-  async findOne(id: number): Promise<Usuario> {
-    const usuario = await this.usuariosRepository.findOne({
-      where: { id },
+  /**
+   * Listado liviano de usuarios activos para elegir al "solicitante" de un
+   * préstamo (relación "solicita"). Accesible también para ENCARGADO_PRESTAMOS.
+   */
+  async findSolicitantes(search?: string): Promise<Usuario[]> {
+    const filtro = search?.trim();
+    return this.usuariosRepository.find({
       select: {
         id: true,
         nombreCompleto: true,
-        email: true,
-        rol: true,
-        estado: true,
+        cargo: true,
+        unidadOArea: true,
       },
+      where: filtro
+        ? [
+            { activo: true, nombreCompleto: ILike(`%${filtro}%`) },
+            { activo: true, unidadOArea: ILike(`%${filtro}%`) },
+          ]
+        : { activo: true },
+      order: { nombreCompleto: 'ASC' },
+      take: 20,
+    });
+  }
+
+  async findOne(id: number): Promise<Usuario> {
+    const usuario = await this.usuariosRepository.findOne({
+      where: { id },
+      select: SELECT_SAFE,
     });
     if (!usuario) throw new NotFoundException('El usuario no existe');
     return usuario;
@@ -123,21 +175,27 @@ export class UsuariosService {
     const usuario = await this.usuariosRepository.findOneBy({ id });
     if (!usuario) throw new NotFoundException('El usuario no existe');
 
-    const { passwordHash, ...resto } = updateUsuarioDto;
-    Object.assign(usuario, resto);
+    const { password, ...resto } = updateUsuarioDto;
 
-    if (resto.email) usuario.email = resto.email.trim().toLowerCase();
-    if (passwordHash)
-      usuario.passwordHash = bcrypt.hashSync(passwordHash, SALT_ROUNDS);
+    await this.validarUnicidad(
+      resto.username && resto.username !== usuario.username
+        ? resto.username
+        : undefined,
+      resto.email && resto.email !== usuario.email ? resto.email : undefined,
+      id,
+    );
+
+    Object.assign(usuario, resto);
+    if (password) usuario.password = bcrypt.hashSync(password, SALT_ROUNDS);
 
     await this.usuariosRepository.save(usuario);
     return this.findOne(id);
   }
 
-  async updateEstado(id: number, estado: boolean): Promise<Usuario> {
+  async updateEstado(id: number, activo: boolean): Promise<Usuario> {
     const usuario = await this.usuariosRepository.findOneBy({ id });
     if (!usuario) throw new NotFoundException('El usuario no existe');
-    usuario.estado = estado;
+    usuario.activo = activo;
     await this.usuariosRepository.save(usuario);
     return this.findOne(id);
   }
@@ -148,25 +206,37 @@ export class UsuariosService {
     return this.usuariosRepository.softRemove(usuario);
   }
 
-  /** Usado internamente por Auth (incluye el hash para validar credenciales) */
-  async validate(email: string, passwordPlano: string): Promise<Usuario> {
+  /**
+   * Usado internamente por Auth (incluye el hash para validar credenciales).
+   * Acepta el username o el correo como identificador.
+   */
+  async validate(
+    identificador: string,
+    passwordPlano: string,
+  ): Promise<Usuario> {
+    const login = identificador.trim().toLowerCase();
+    const seleccion = {
+      id: true,
+      username: true,
+      nombreCompleto: true,
+      email: true,
+      cargo: true,
+      unidadOArea: true,
+      password: true,
+      rol: true,
+      activo: true,
+    } as const;
+
     const usuarioOk = await this.usuariosRepository.findOne({
-      where: { email: email.trim().toLowerCase() },
-      select: {
-        id: true,
-        nombreCompleto: true,
-        email: true,
-        passwordHash: true,
-        rol: true,
-        estado: true,
-      },
+      where: [{ username: login }, { email: login }],
+      select: seleccion,
     });
 
     if (!usuarioOk) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    if (usuarioOk.estado === false) {
+    if (usuarioOk.activo === false) {
       throw new UnauthorizedException('El usuario se encuentra inactivo');
     }
 
@@ -175,7 +245,7 @@ export class UsuariosService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    delete (usuarioOk as Partial<Usuario>).passwordHash;
+    delete (usuarioOk as Partial<Usuario>).password;
     return usuarioOk;
   }
 }

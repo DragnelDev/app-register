@@ -8,19 +8,24 @@ const emit = defineEmits<{ submit: [payload: ComprobanteC31FormPayload]; cancel:
 
 const props = defineProps<{ saving?: boolean }>()
 
+const currentYear = new Date().getFullYear()
+
 // El formulario inicia con un elemento por lista repetible; el usuario agrega más
-// según las reglas de negocio (preventivos 2 en 1, múltiples beneficiarios, hasta 5 carpetas)
+// según las reglas de negocio (preventivos/devengados "2 en 1", múltiples beneficiarios)
 const form = reactive<ComprobanteC31FormPayload>({
+  tipoC31: 'CON_IMPUTACION',
+  numeroComprobante: '',
   montoTotal: 0,
   fechaElaboracion: '',
   descripcion: '',
-  numeroFolio: null,
-  estaFoliado: false,
+  numeroFolio: '',
+  gestion: currentYear,
+  ubicacionFisica: '',
+  observaciones: '',
   preventivos: [''],
   devengados: [''],
   beneficiarios: [''],
   cheques: [],
-  carpetas: [{ carpetaId: '', numeroParte: 1 }],
 })
 
 function addItem(list: string[]) {
@@ -31,15 +36,6 @@ function removeItem(list: string[], index: number) {
   if (list.length > 1) list.splice(index, 1)
 }
 
-function addCarpeta() {
-  if (form.carpetas.length >= 5) return // regla de negocio: máximo 5 carpetas por comprobante
-  form.carpetas.push({ carpetaId: '', numeroParte: form.carpetas.length + 1 })
-}
-
-function removeCarpeta(index: number) {
-  if (form.carpetas.length > 1) form.carpetas.splice(index, 1)
-}
-
 function handleSubmit() {
   const payload: ComprobanteC31FormPayload = {
     ...form,
@@ -47,7 +43,6 @@ function handleSubmit() {
     devengados: form.devengados.filter(Boolean),
     beneficiarios: form.beneficiarios.filter(Boolean),
     cheques: form.cheques.filter(Boolean),
-    carpetas: form.carpetas.filter((c) => c.carpetaId),
   }
   emit('submit', payload)
 }
@@ -57,28 +52,40 @@ function handleSubmit() {
   <form class="space-y-6" @submit.prevent="handleSubmit">
     <section class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <BaseInput v-model="form.descripcion" label="Descripción / glosa del comprobante" required />
-      <BaseInput v-model.number="form.montoTotal" type="number" label="Monto total (Bs)" required />
+      <BaseInput
+        v-model.number="form.montoTotal"
+        type="number"
+        step="0.01"
+        label="Monto total (Bs)"
+        required
+      />
       <BaseInput
         v-model="form.fechaElaboracion"
         type="date"
         label="Fecha de elaboración"
         required
       />
+      <BaseInput v-model.number="form.gestion" type="number" label="Gestión (año)" required />
+
+      <div>
+        <label class="mb-1 block text-sm font-medium text-ink-700 dark:text-ink-200"
+          >Tipo de C31</label
+        >
+        <select
+          v-model="form.tipoC31"
+          class="w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
+        >
+          <option value="CON_IMPUTACION">Con imputación</option>
+          <option value="SIN_IMPUTACION">Sin imputación</option>
+        </select>
+      </div>
+      <BaseInput v-model="form.numeroComprobante" label="N° de comprobante (opcional)" />
+      <BaseInput v-model="form.numeroFolio" label="N° de folio (individual, si ya está foliado)" />
       <BaseInput
-        v-model.number="form.numeroFolio"
-        type="number"
-        label="N° de folio (si ya está foliado)"
+        v-model="form.ubicacionFisica"
+        label="Ubicación física (ej. Estante 3 - Caja 12)"
       />
     </section>
-
-    <label class="flex items-center gap-2 text-sm text-ink-700 dark:text-ink-200">
-      <input
-        v-model="form.estaFoliado"
-        type="checkbox"
-        class="rounded border-ink-300 dark:border-white/20"
-      />
-      Este comprobante ya está foliado
-    </label>
 
     <!-- Preventivos 2 en 1 -->
     <section>
@@ -148,36 +155,11 @@ function handleSubmit() {
       </BaseButton>
     </section>
 
-    <!-- Ubicación física en carpetas, hasta 5 -->
-    <section>
-      <h3 class="mb-2 text-sm font-semibold text-ink-800 dark:text-ink-100">
-        Ubicación física en carpetas (hasta 5, ej. Parte 1 de 5)
-      </h3>
-      <div v-for="(carpeta, i) in form.carpetas" :key="i" class="mb-2 flex items-end gap-2">
-        <BaseInput
-          v-model="carpeta.carpetaId"
-          label="Código de carpeta"
-          placeholder="CARP-2026-001"
-          class="flex-1"
-        />
-        <BaseInput
-          v-model.number="carpeta.numeroParte"
-          type="number"
-          label="N° de parte"
-          class="w-28"
-        />
-        <BaseButton variant="ghost" size="sm" type="button" @click="removeCarpeta(i)">✕</BaseButton>
-      </div>
-      <BaseButton
-        variant="secondary"
-        size="sm"
-        type="button"
-        :disabled="form.carpetas.length >= 5"
-        @click="addCarpeta"
-      >
-        + Agregar carpeta ({{ form.carpetas.length }}/5)
-      </BaseButton>
-    </section>
+    <BaseInput
+      v-model="form.observaciones"
+      label="Observaciones (opcional)"
+      placeholder="Notas adicionales sobre el comprobante"
+    />
 
     <div class="flex justify-end gap-2 border-t border-ink-100 pt-4 dark:border-white/10">
       <BaseButton variant="secondary" type="button" @click="emit('cancel')">Cancelar</BaseButton>

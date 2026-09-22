@@ -12,11 +12,10 @@ import {
 import { PrestamosCuadernoService } from './prestamos-cuaderno.service';
 import { CreatePrestamosCuadernoDto } from './dto/create-prestamos-cuaderno.dto';
 import { UpdatePrestamosCuadernoDto } from './dto/update-prestamos-cuaderno.dto';
+import { DevolverPrestamosCuadernoDto } from './dto/devolver-prestamos-cuaderno.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Roles } from 'src/auth/decorators/roles.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { FilterPrestamosCuadernoDto } from './dto/filter-prestamos-cuaderno.dto';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { Usuario } from '../usuarios/entities/usuario.entity';
 
 @ApiTags('prestamos-cuaderno')
 @ApiBearerAuth()
@@ -26,49 +25,43 @@ export class PrestamosCuadernoController {
     private readonly prestamosCuadernoService: PrestamosCuadernoService,
   ) {}
 
-  @Roles('ADMIN', 'REGISTRADOR')
+  @Roles('ADMIN', 'ENCARGADO_PRESTAMOS')
   @Post()
-  create(
-    @Body() createPrestamosCuadernoDto: CreatePrestamosCuadernoDto,
-    @CurrentUser() usuario: Usuario,
-  ) {
-    return this.prestamosCuadernoService.create(
-      createPrestamosCuadernoDto,
-      usuario,
-    );
+  create(@Body() createPrestamosCuadernoDto: CreatePrestamosCuadernoDto) {
+    return this.prestamosCuadernoService.create(createPrestamosCuadernoDto);
   }
 
   @Get()
   findAll(@Query() query: FilterPrestamosCuadernoDto) {
-    return this.prestamosCuadernoService.findAll(query); // Pasa 'query'
+    return this.prestamosCuadernoService.findAll(query);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.prestamosCuadernoService.findOne(+id);
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.prestamosCuadernoService.findOne(id);
   }
 
-  @Roles('ADMIN', 'REGISTRADOR')
+  @Roles('ADMIN', 'ENCARGADO_PRESTAMOS')
   @Patch(':id')
   update(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() updatePrestamosCuadernoDto: UpdatePrestamosCuadernoDto,
   ) {
-    return this.prestamosCuadernoService.update(
-      +id,
-      updatePrestamosCuadernoDto,
-    );
+    return this.prestamosCuadernoService.update(id, updatePrestamosCuadernoDto);
   }
 
-  @Roles('ADMIN', 'REGISTRADOR')
+  @Roles('ADMIN', 'ENCARGADO_PRESTAMOS')
   @Patch(':id/devolver')
-  devolver(@Param('id', ParseIntPipe) id: number) {
-    return this.prestamosCuadernoService.devolver(id);
+  devolver(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: DevolverPrestamosCuadernoDto,
+  ) {
+    return this.prestamosCuadernoService.devolver(id, dto);
   }
 
   @Roles('ADMIN')
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.prestamosCuadernoService.remove(+id);
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.prestamosCuadernoService.remove(id);
   }
 }

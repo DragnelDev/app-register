@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-// Cubre los estados usados en el MER: aprobación, físico y préstamo
-type EstadoConocido =
-  | 'APROBADO' | 'PENDIENTE' | 'RECHAZADO'
-  | 'EN_ARCHIVO' | 'PRESTADO' | 'DEVUELTO'
+// Cubre estado_fisico de comprobantes_c31 y estado_prestamo de prestamos_nota / cuaderno
+type EstadoConocido = 'EN_ARCHIVO' | 'PRESTADO' | 'ANULADO' | 'ENTREGADO' | 'DEVUELTO'
 
 interface Props {
   estado: EstadoConocido | string
@@ -13,21 +11,19 @@ interface Props {
 const props = defineProps<Props>()
 
 const stylesByEstado: Record<string, string> = {
-  APROBADO: 'bg-emerald-50 text-emerald-700',
+  EN_ARCHIVO: 'bg-emerald-50 text-emerald-700',
   DEVUELTO: 'bg-emerald-50 text-emerald-700',
-  EN_ARCHIVO: 'bg-ink-100 text-ink-700',
-  PENDIENTE: 'bg-seal-100 text-seal-700',
   PRESTADO: 'bg-seal-100 text-seal-700',
-  RECHAZADO: 'bg-red-50 text-red-700',
+  ENTREGADO: 'bg-seal-100 text-seal-700',
+  ANULADO: 'bg-red-50 text-red-700',
 }
 
 const labelByEstado: Record<string, string> = {
-  APROBADO: 'Aprobado',
-  DEVUELTO: 'Devuelto',
   EN_ARCHIVO: 'En archivo',
-  PENDIENTE: 'Pendiente',
+  DEVUELTO: 'Devuelto',
   PRESTADO: 'Prestado',
-  RECHAZADO: 'Rechazado',
+  ENTREGADO: 'Prestado',
+  ANULADO: 'Anulado',
 }
 
 const classes = computed(() => stylesByEstado[props.estado] ?? 'bg-ink-100 text-ink-700')

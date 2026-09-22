@@ -21,8 +21,8 @@ export const useC31Store = defineStore('c31', {
     pageSize: 20,
     filters: {
       search: '',
-      estadoAprobacion: '',
       estadoFisico: '',
+      tipoC31: '',
       fechaDesde: '',
       fechaHasta: '',
       gestion: '',
@@ -34,7 +34,8 @@ export const useC31Store = defineStore('c31', {
 
   getters: {
     totalPages: (state) => Math.max(1, Math.ceil(state.total / state.pageSize)),
-    pendientes: (state) => state.items.filter((c) => c.estadoAprobacion === 'PENDIENTE'),
+    prestados: (state) => state.items.filter((c) => c.estadoFisico === 'PRESTADO'),
+    pendientes: (state) => state.items.filter((c) => c.estadoFisico === 'EN_ARCHIVO'),
   },
 
   actions: {
@@ -67,14 +68,10 @@ export const useC31Store = defineStore('c31', {
       return this.selected
     },
 
-    async aprobar(id: string) {
-      const updated = await c31Service.aprobar(id)
+    async anular(id: string) {
+      const updated = await c31Service.cambiarEstadoFisico(id, 'ANULADO')
       this.replaceInList(updated)
-    },
-
-    async rechazar(id: string, motivo: string) {
-      const updated = await c31Service.rechazar(id, motivo)
-      this.replaceInList(updated)
+      return updated
     },
 
     async exportExcel() {

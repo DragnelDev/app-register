@@ -1,7 +1,6 @@
 import apiClient from './api.client'
 import type { PaginatedResponse, QueryParams } from '@/types/common.types'
 import type {
-  Carpeta,
   ComprobanteC31,
   ComprobanteC31FormPayload,
   C31FilterState,
@@ -18,21 +17,15 @@ function cleanQueryParams(params: QueryParams & C31FilterState) {
   )
 }
 
-function normalizeComprobanteC31(payload: any): ComprobanteC31 {
+function normalizeComprobanteC31(payload: ComprobanteC31): ComprobanteC31 {
   return {
     ...payload,
     montoTotal: Number(payload.montoTotal),
-    numeroFolio:
-      payload.numeroFolio !== null && payload.numeroFolio !== undefined
-        ? Number(payload.numeroFolio)
-        : payload.numeroFolio,
     gestion: Number(payload.gestion),
-    cantidadCarpetas: Number(payload.cantidadCarpetas),
     preventivos: payload.preventivos ?? [],
     devengados: payload.devengados ?? [],
     beneficiarios: payload.beneficiarios ?? [],
     cheques: payload.cheques ?? [],
-    carpetasUbicacion: payload.carpetasUbicacion ?? [],
   }
 }
 
@@ -60,22 +53,15 @@ export const c31Service = {
     return apiClient.patch<ComprobanteC31>(`${RESOURCE}/${id}`, payload).then((r) => r.data)
   },
 
-  softDelete(id: string) {
-    return apiClient.delete<void>(`${RESOURCE}/${id}`).then((r) => r.data)
-  },
-
-  aprobar(id: string) {
-    return apiClient.patch<ComprobanteC31>(`${RESOURCE}/${id}/aprobar`).then((r) => r.data)
-  },
-
-  rechazar(id: string, motivo: string) {
+  /** Solo permite fijar EN_ARCHIVO o ANULADO (PRESTADO lo gestiona el módulo de préstamos). */
+  cambiarEstadoFisico(id: string, estadoFisico: 'EN_ARCHIVO' | 'ANULADO') {
     return apiClient
-      .patch<ComprobanteC31>(`${RESOURCE}/${id}/rechazar`, { motivo })
+      .patch<ComprobanteC31>(`${RESOURCE}/${id}`, { estadoFisico })
       .then((r) => r.data)
   },
 
-  listCarpetas(params: QueryParams = {}) {
-    return apiClient.get<PaginatedResponse<Carpeta>>('/carpetas', { params }).then((r) => r.data)
+  softDelete(id: string) {
+    return apiClient.delete<void>(`${RESOURCE}/${id}`).then((r) => r.data)
   },
 
   /** Gestiones (años) con comprobantes registrados, para el selector de filtro */

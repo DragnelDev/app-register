@@ -55,7 +55,7 @@ async function crearComprobantesNuevos(notaId: string, comprobantes: Comprobante
 
   for (const comprobante of comprobantes) {
     try {
-      await c31Service.create({ ...comprobante, notaEntregaId: notaId })
+      await c31Service.create({ ...comprobante, actaEntregaId: notaId })
     } catch (err) {
       fallos.push(
         `No se pudo registrar el comprobante (beneficiario: ${comprobante.beneficiarios.join(', ') || '—'}): ${extractApiErrorMessage(err)}`,

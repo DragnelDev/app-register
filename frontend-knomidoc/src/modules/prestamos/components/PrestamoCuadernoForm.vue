@@ -1,51 +1,50 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import ComprobanteC31Picker from '@/components/shared/ComprobanteC31Picker.vue'
+import { usuariosService } from '@/services/usuarios.service'
 import { required, runValidators } from '@/utils/validators'
 import type { PrestamoCuadernoCreatePayload } from '@/types/prestamos.types'
 import type { ComprobanteC31 } from '@/types/c31.types'
+import type { UsuarioSolicitante } from '@/types/auth.types'
 
 defineProps<{ saving?: boolean }>()
 const emit = defineEmits<{ submit: [payload: PrestamoCuadernoCreatePayload] }>()
 
-const currentYear = new Date().getFullYear()
+function nowLocal() {
+  const d = new Date()
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+  return d.toISOString().slice(0, 16)
+}
 
 const form = reactive({
-  gestion: currentYear,
-  quienRemite: '',
-  aQuienSePresta: '',
+  solicitanteId: '',
+  areaUnidad: '',
+  fechaHoraSalida: nowLocal(),
+  metodoVerificacion: 'FIRMA_MANUAL' as 'FIRMA_MANUAL' | 'HUELLA_DIGITAL',
+  evidenciaVerificacionUrl: '',
+  observaciones: '',
 })
 
 const comprobanteSeleccionado = ref<ComprobanteC31 | null>(null)
+const solicitantes = ref<UsuarioSolicitante[]>([])
+
+onMounted(async () => {
+  solicitantes.value = await usuariosService.solicitantes()
+})
 
 // --- Validación ---
-const errors = reactive({
-  comprobante: '',
-  gestion: '',
-  quienRemite: '',
-  aQuienSePresta: '',
-})
-const touched = reactive({ gestion: false, quienRemite: false, aQuienSePresta: false })
+const errors = reactive({ comprobante: '', solicitanteId: '', areaUnidad: '' })
+const touched = reactive({ solicitanteId: false, areaUnidad: false })
 
 const rules = {
-  quienRemite: [required('Indica quién remite el comprobante')],
-  aQuienSePresta: [required('Indica a quién se presta')],
+  solicitanteId: [required('Debes seleccionar al solicitante')],
+  areaUnidad: [required('Indica el área o unidad que solicita')],
 }
 
 function validateField(field: keyof typeof rules) {
   errors[field] = runValidators(form[field], rules[field]) ?? ''
-}
-
-function validateGestion() {
-  if (!form.gestion) {
-    errors.gestion = 'La gestión (año) es obligatoria'
-  } else if (form.gestion < 2000 || form.gestion > currentYear + 1) {
-    errors.gestion = `Ingresa un año de gestión válido (2000–${currentYear + 1})`
-  } else {
-    errors.gestion = ''
-  }
 }
 
 function validateComprobante() {
@@ -62,10 +61,8 @@ function validateAll(): boolean {
     touched[field] = true
     validateField(field)
   })
-  touched.gestion = true
-  validateGestion()
   validateComprobante()
-  return !errors.quienRemite && !errors.aQuienSePresta && !errors.gestion && !errors.comprobante
+  return !errors.solicitanteId && !errors.areaUnidad && !errors.comprobante
 }
 
 function selectComprobante(comprobante: ComprobanteC31) {
@@ -82,16 +79,20 @@ function handleSubmit() {
 
   emit('submit', {
     comprobanteId: comprobanteSeleccionado.value!.id,
-    gestion: form.gestion,
-    quienRemite: form.quienRemite,
-    aQuienSePresta: form.aQuienSePresta,
+    solicitanteId: form.solicitanteId,
+    areaUnidad: form.areaUnidad,
+    fechaHoraSalida: new Date(form.fechaHoraSalida).toISOString(),
+    metodoVerificacion: form.metodoVerificacion,
+    evidenciaVerificacionUrl: form.evidenciaVerificacionUrl || undefined,
+    observaciones: form.observaciones || undefined,
   })
 
   comprobanteSeleccionado.value = null
-  form.quienRemite = ''
-  form.aQuienSePresta = ''
-  touched.quienRemite = false
-  touched.aQuienSePresta = false
+  form.solicitanteId = ''
+  form.areaUnidad = ''
+  form.observaciones = ''
+  touched.solicitanteId = false
+  touched.areaUnidad = false
 }
 </script>
 
@@ -101,7 +102,11 @@ function handleSubmit() {
       <label class="mb-1.5 block text-sm font-medium text-ink-700">
         Comprobante C31 <span class="text-seal-600">*</span>
       </label>
-      <ComprobanteC31Picker v-if="!comprobanteSeleccionado" @select="selectComprobante" />
+      <ComprobanteC31Picker
+        v-if="!comprobanteSeleccionado"
+        solo-disponibles
+        @select="selectComprobante"
+      />
       <div
         v-else
         class="flex items-center justify-between rounded-md border border-ink-200 bg-ink-50 px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5"
@@ -122,32 +127,61 @@ function handleSubmit() {
       <p v-if="errors.comprobante" class="mt-1 text-xs text-red-600">{{ errors.comprobante }}</p>
     </div>
 
+    <div>
+      <label class="mb-1.5 block text-sm font-medium text-ink-700 dark:text-ink-200">
+        Solicitante <span class="text-seal-600">*</span>
+      </label>
+      <select
+        v-model="form.solicitanteId"
+        class="w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
+        @blur="onBlur('solicitanteId')"
+      >
+        <option value="" disabled>Selecciona un usuario…</option>
+        <option v-for="u in solicitantes" :key="u.id" :value="u.id">
+          {{ u.nombreCompleto }}<span v-if="u.unidadOArea"> — {{ u.unidadOArea }}</span>
+        </option>
+      </select>
+      <p v-if="touched.solicitanteId && errors.solicitanteId" class="mt-1 text-xs text-red-600">
+        {{ errors.solicitanteId }}
+      </p>
+    </div>
+
     <BaseInput
-      v-model.number="form.gestion"
-      type="number"
-      label="Gestión (año)"
+      v-model="form.areaUnidad"
+      label="Área / unidad que solicita"
       required
-      :error="touched.gestion ? errors.gestion : ''"
-      @blur="
-        () => {
-          touched.gestion = true
-          validateGestion()
-        }
-      "
+      :error="touched.areaUnidad ? errors.areaUnidad : ''"
+      @blur="onBlur('areaUnidad')"
+    />
+
+    <BaseInput
+      v-model="form.fechaHoraSalida"
+      type="datetime-local"
+      label="Fecha y hora de salida"
+    />
+
+    <div>
+      <label class="mb-1.5 block text-sm font-medium text-ink-700 dark:text-ink-200">
+        Método de verificación
+      </label>
+      <select
+        v-model="form.metodoVerificacion"
+        class="w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
+      >
+        <option value="FIRMA_MANUAL">Firma manual</option>
+        <option value="HUELLA_DIGITAL">Huella digital (futuro)</option>
+      </select>
+    </div>
+
+    <BaseInput
+      v-model="form.evidenciaVerificacionUrl"
+      label="Evidencia (URL, opcional)"
+      class="sm:col-span-2"
     />
     <BaseInput
-      v-model="form.quienRemite"
-      label="Quién remite (funcionario)"
-      required
-      :error="touched.quienRemite ? errors.quienRemite : ''"
-      @blur="onBlur('quienRemite')"
-    />
-    <BaseInput
-      v-model="form.aQuienSePresta"
-      label="A quién se presta (funcionario/oficina)"
-      required
-      :error="touched.aQuienSePresta ? errors.aQuienSePresta : ''"
-      @blur="onBlur('aQuienSePresta')"
+      v-model="form.observaciones"
+      label="Observaciones (opcional)"
+      class="sm:col-span-2"
     />
 
     <div class="sm:col-span-2">

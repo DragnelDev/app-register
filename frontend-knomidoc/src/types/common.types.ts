@@ -1,9 +1,10 @@
-// Tipos compartidos entre módulos, alineados a las convenciones del backend NestJS
+// Tipos compartidos entre módulos, alineados al DER/MER actual del backend NestJS
 
-export type EstadoFisico = 'EN_ARCHIVO' | 'PRESTADO'
-export type EstadoPrestamo = 'PRESTADO' | 'DEVUELTO'
-export type EstadoAprobacion = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO'
-export type RolUsuario = 'ADMIN' | 'REGISTRADOR' | 'CONSULTA'
+export type EstadoFisico = 'EN_ARCHIVO' | 'PRESTADO' | 'ANULADO'
+export type TipoC31 = 'CON_IMPUTACION' | 'SIN_IMPUTACION'
+export type EstadoPrestamoNota = 'ENTREGADO' | 'DEVUELTO'
+export type MetodoVerificacion = 'FIRMA_MANUAL' | 'HUELLA_DIGITAL'
+export type RolUsuario = 'ADMIN' | 'OPERADOR_ARCHIVOS' | 'ENCARGADO_PRESTAMOS' | 'CONSULTA_EXTERNA'
 
 /** Envelope estándar de respuesta paginada del backend */
 export interface PaginatedResponse<T> {

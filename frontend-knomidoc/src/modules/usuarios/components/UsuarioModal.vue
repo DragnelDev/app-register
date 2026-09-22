@@ -18,22 +18,33 @@ const emit = defineEmits<{
   update: [id: string, payload: UsuarioUpdatePayload]
 }>()
 
-const roles: RolUsuario[] = ['ADMIN', 'REGISTRADOR', 'CONSULTA']
+const roles: RolUsuario[] = [
+  'ADMIN',
+  'OPERADOR_ARCHIVOS',
+  'ENCARGADO_PRESTAMOS',
+  'CONSULTA_EXTERNA',
+]
 
 const form = reactive({
+  username: '',
   nombreCompleto: '',
   email: '',
+  cargo: '',
+  unidadOArea: '',
   password: '',
-  rol: 'REGISTRADOR' as RolUsuario,
+  rol: 'OPERADOR_ARCHIVOS' as RolUsuario,
 })
 
 watch(
   () => props.usuario,
   (usuario) => {
+    form.username = usuario?.username ?? ''
     form.nombreCompleto = usuario?.nombreCompleto ?? ''
     form.email = usuario?.email ?? ''
+    form.cargo = usuario?.cargo ?? ''
+    form.unidadOArea = usuario?.unidadOArea ?? ''
     form.password = ''
-    form.rol = usuario?.rol ?? 'REGISTRADOR'
+    form.rol = usuario?.rol ?? 'OPERADOR_ARCHIVOS'
   },
   { immediate: true },
 )
@@ -44,15 +55,20 @@ function handleSubmit() {
     const payload: UsuarioUpdatePayload = {
       nombreCompleto: form.nombreCompleto,
       email: form.email,
+      cargo: form.cargo || undefined,
+      unidadOArea: form.unidadOArea || undefined,
       rol: form.rol,
-      ...(form.password ? { passwordHash: form.password } : {}),
+      ...(form.password ? { password: form.password } : {}),
     }
     emit('update', props.usuario.id, payload)
   } else {
     emit('create', {
+      username: form.username,
       nombreCompleto: form.nombreCompleto,
       email: form.email,
-      passwordHash: form.password,
+      cargo: form.cargo || undefined,
+      unidadOArea: form.unidadOArea || undefined,
+      password: form.password,
       rol: form.rol,
     })
   }
@@ -66,8 +82,19 @@ function handleSubmit() {
     @update:model-value="emit('update:modelValue', $event)"
   >
     <form id="usuario-form" class="space-y-4" @submit.prevent="handleSubmit">
+      <BaseInput
+        v-model="form.username"
+        label="Usuario"
+        placeholder="jperez"
+        required
+        :disabled="Boolean(usuario)"
+      />
       <BaseInput v-model="form.nombreCompleto" label="Nombre completo" required />
       <BaseInput v-model="form.email" type="email" label="Correo electrónico" required />
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <BaseInput v-model="form.cargo" label="Cargo (opcional)" />
+        <BaseInput v-model="form.unidadOArea" label="Unidad / área (opcional)" />
+      </div>
       <BaseInput
         v-model="form.password"
         type="password"
@@ -85,8 +112,8 @@ function handleSubmit() {
           <option v-for="rol in roles" :key="rol" :value="rol">{{ rol }}</option>
         </select>
         <p class="text-xs text-ink-400">
-          ADMIN gestiona usuarios y aprobaciones · REGISTRADOR carga documentos y préstamos ·
-          CONSULTA solo lectura.
+          ADMIN gestiona todo el sistema · OPERADOR_ARCHIVOS registra actas y comprobantes C31 ·
+          ENCARGADO_PRESTAMOS gestiona préstamos · CONSULTA_EXTERNA solo lectura.
         </p>
       </div>
     </form>

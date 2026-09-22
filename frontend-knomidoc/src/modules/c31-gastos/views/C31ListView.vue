@@ -8,28 +8,31 @@ import C31FilterBar from '../components/C31FilterBar.vue'
 import C31DetailModal from '../components/C31DetailModal.vue'
 import { useC31Store } from '@/stores/c31.store'
 import { useAuthStore } from '@/stores/auth.store'
-import { exportToCsv } from '@/utils/export'
-import type { ComprobanteC31 } from '@/types/c31.types'
+import type { ComprobanteC31, C31FilterState } from '@/types/c31.types'
 
 const store = useC31Store()
 const auth = useAuthStore()
 const detailOpen = ref(false)
 const importing = ref(false)
+const exporting = ref(false)
 const importFeedback = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
 
-function exportarExcel() {
-  exportToCsv(
-    'comprobantes-c31',
-    [
-      { key: 'descripcion', label: 'Descripción' },
-      { key: 'montoTotal', label: 'Monto (Bs)', format: (v) => Number(v).toFixed(2) },
-      { key: 'fechaElaboracion', label: 'Fecha' },
-      { key: 'estadoAprobacion', label: 'Aprobación' },
-      { key: 'estadoFisico', label: 'Físico' },
-    ],
-    store.items,
-  )
+function handleFiltersUpdate(filters: C31FilterState) {
+  store.setFilters(filters)
+  store.fetchList()
+}
+
+async function exportarExcel() {
+  exporting.value = true
+  try {
+    await store.exportExcel()
+  } catch (error) {
+    console.error(error)
+    importFeedback.value = 'No se pudo generar el Excel.'
+  } finally {
+    exporting.value = false
+  }
 }
 
 function openImportPicker() {
@@ -68,8 +71,8 @@ const columns: DataTableColumn<ComprobanteC31>[] = [
   { key: 'descripcion', label: 'Descripción', sortable: true },
   { key: 'montoTotal', label: 'Monto (Bs)', sortable: true },
   { key: 'fechaElaboracion', label: 'Fecha', sortable: true },
-  { key: 'estadoAprobacion', label: 'Aprobación' },
-  { key: 'estadoFisico', label: 'Físico' },
+  { key: 'gestion', label: 'Gestión', sortable: true },
+  { key: 'estadoFisico', label: 'Estado físico' },
 ]
 
 function openDetail(row: ComprobanteC31) {
@@ -77,7 +80,10 @@ function openDetail(row: ComprobanteC31) {
   detailOpen.value = true
 }
 
-onMounted(() => store.fetchList())
+onMounted(() => {
+  store.fetchGestiones()
+  store.fetchList()
+})
 </script>
 
 <template>
@@ -90,14 +96,20 @@ onMounted(() => store.fetchList())
         </p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <BaseButton variant="secondary" size="sm" :loading="importing" @click="openImportPicker">
+        <BaseButton
+          v-if="auth.puedeRegistrarC31"
+          variant="secondary"
+          size="sm"
+          :loading="importing"
+          @click="openImportPicker"
+        >
           📥 Importar Excel
         </BaseButton>
-        <BaseButton variant="secondary" size="sm" @click="exportarExcel">
+        <BaseButton variant="secondary" size="sm" :loading="exporting" @click="exportarExcel">
           📊 Exportar a Excel
         </BaseButton>
         <RouterLink
-          v-if="auth.puedeRegistrar"
+          v-if="auth.puedeRegistrarC31"
           to="/c31/nuevo"
           class="inline-flex items-center rounded-md bg-ink-800 px-4 py-2 text-sm font-medium text-white hover:bg-ink-900 dark:bg-seal-500 dark:hover:bg-seal-600"
         >
@@ -118,7 +130,12 @@ onMounted(() => store.fetchList())
       {{ importFeedback }}
     </p>
 
-    <C31FilterBar v-model="store.filters" @apply="store.fetchList()" />
+    <C31FilterBar
+      :model-value="store.filters"
+      :gestiones="store.gestiones"
+      @update:model-value="handleFiltersUpdate"
+      @export="exportarExcel"
+    />
 
     <BaseDataTable
       :columns="columns"
@@ -136,9 +153,6 @@ onMounted(() => store.fetchList())
       @row-click="openDetail"
     >
       <template #cell-montoTotal="{ row }">{{ Number(row.montoTotal).toFixed(2) }}</template>
-      <template #cell-estadoAprobacion="{ row }"
-        ><BaseBadge :estado="row.estadoAprobacion"
-      /></template>
       <template #cell-estadoFisico="{ row }"><BaseBadge :estado="row.estadoFisico" /></template>
       <template #actions="{ row }">
         <BaseButton variant="ghost" size="sm" @click="openDetail(row)">Ver detalle</BaseButton>

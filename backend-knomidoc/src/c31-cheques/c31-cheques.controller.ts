@@ -19,7 +19,7 @@ import { Roles } from 'src/auth/decorators/roles.decorator';
 export class C31ChequesController {
   constructor(private readonly c31ChequesService: C31ChequesService) {}
 
-  @Roles('ADMIN', 'REGISTRADOR')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
   @Post()
   create(@Body() createC31ChequeDto: CreateC31ChequeDto) {
     return this.c31ChequesService.create(createC31ChequeDto);
@@ -35,7 +35,7 @@ export class C31ChequesController {
     return this.c31ChequesService.findOne(+id);
   }
 
-  @Roles('ADMIN', 'REGISTRADOR')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -44,7 +44,7 @@ export class C31ChequesController {
     return this.c31ChequesService.update(+id, updateC31ChequeDto);
   }
 
-  @Roles('ADMIN', 'REGISTRADOR')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.c31ChequesService.remove(+id);
