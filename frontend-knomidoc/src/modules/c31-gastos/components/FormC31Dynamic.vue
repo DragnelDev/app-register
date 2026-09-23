@@ -20,6 +20,7 @@ const form = reactive<ComprobanteC31FormPayload>({
   descripcion: '',
   numeroFolio: '',
   gestion: currentYear,
+  estadoFisico: 'EN_TRAMITE',
   ubicacionFisica: '',
   observaciones: '',
   preventivos: [''],
@@ -85,6 +86,24 @@ function handleSubmit() {
         v-model="form.ubicacionFisica"
         label="Ubicación física (ej. Estante 3 - Caja 12)"
       />
+
+      <div>
+        <label class="mb-1 block text-sm font-medium text-ink-700 dark:text-ink-200"
+          >Estado del comprobante</label
+        >
+        <select
+          v-model="form.estadoFisico"
+          class="w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
+        >
+          <option value="EN_TRAMITE">En Trámite / Revisión</option>
+          <option value="EN_ARCHIVO">En archivo</option>
+          <option value="ANULADO">Anulado</option>
+        </select>
+        <p class="mt-1 text-xs text-ink-400 dark:text-ink-500">
+          Por defecto queda "En Trámite / Revisión" hasta que se entregue el acta correspondiente,
+          momento en el que pasará automáticamente a "En archivo".
+        </p>
+      </div>
     </section>
 
     <!-- Preventivos 2 en 1 -->

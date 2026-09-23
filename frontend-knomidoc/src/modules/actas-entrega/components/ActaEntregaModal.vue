@@ -5,7 +5,13 @@ import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import ComprobanteC31DraftForm from './ComprobanteC31DraftForm.vue'
 import ComprobantesC31SelectedTable from '@/components/shared/ComprobantesC31SelectedTable.vue'
-import { required, maxLength, isValidDate, dateNotInFuture, runValidators } from '@/utils/validators'
+import {
+  required,
+  maxLength,
+  isValidDate,
+  dateNotInFuture,
+  runValidators,
+} from '@/utils/validators'
 import type { ActaEntrega, ActaEntregaCreatePayload } from '@/types/actas-entrega.types'
 import type { ComprobanteC31FormPayload } from '@/types/c31.types'
 
@@ -38,7 +44,11 @@ const comprobantesNuevos = ref<ComprobanteC31FormPayload[]>([])
 // --- Validación del encabezado ---
 const errors = reactive<
   Record<
-    'numeroActa' | 'responsableEntrega' | 'responsableRecepcion' | 'fechaRecepcion' | 'comprobantes',
+    | 'numeroActa'
+    | 'responsableEntrega'
+    | 'responsableRecepcion'
+    | 'fechaRecepcion'
+    | 'comprobantes',
     string
   >
 >({
@@ -229,8 +239,8 @@ function handleSubmit() {
         <p class="mb-3 text-xs text-ink-400 dark:text-ink-500">
           Cada fila que añadas se registra como un comprobante C31 nuevo, vinculado a esta acta.
           Cada fila es de un solo tipo (preventivo o devengado), pero puedes agregar más de un
-          número por fila (ej. "2 en 1"), varios beneficiarios y cheques opcionales. No hay
-          límite de comprobantes por acta.
+          número por fila (ej. "2 en 1"), varios beneficiarios y cheques opcionales. No hay límite
+          de comprobantes por acta.
         </p>
 
         <ComprobanteC31DraftForm :fecha-sugerida="form.fechaRecepcion" @add="addComprobante" />

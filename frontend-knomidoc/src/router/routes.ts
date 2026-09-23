@@ -10,6 +10,18 @@ export const routes: RouteRecordRaw[] = [
     meta: { public: true },
   },
   {
+    path: '/forgot-password',
+    name: 'forgot-password',
+    component: () => import('@/modules/auth/views/ForgotPasswordView.vue'),
+    meta: { public: true },
+  },
+  {
+    path: '/reset-password',
+    name: 'reset-password',
+    component: () => import('@/modules/auth/views/ResetPasswordView.vue'),
+    meta: { public: true },
+  },
+  {
     path: '/',
     name: 'dashboard',
     component: () => import('@/modules/dashboard/views/DashboardView.vue'),

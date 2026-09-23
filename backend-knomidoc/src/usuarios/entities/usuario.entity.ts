@@ -47,6 +47,23 @@ export class Usuario extends BaseFechasEntity {
   @Column('boolean', { default: true })
   activo: boolean | undefined;
 
+  /** Hash (SHA-256) del token de recuperación de contraseña vigente, si existe. */
+  @Column('varchar', {
+    length: 255,
+    name: 'reset_password_token',
+    nullable: true,
+    select: false,
+  })
+  resetPasswordToken?: string | null;
+
+  /** Vencimiento del token de recuperación de contraseña. */
+  @Column('timestamp', {
+    name: 'reset_password_expires',
+    nullable: true,
+    select: false,
+  })
+  resetPasswordExpires?: Date | null;
+
   /** Relación "registra": comprobantes C31 registrados por este usuario. */
   @OneToMany(() => ComprobantesC31, (c31) => c31.creadoPor)
   comprobantesRegistrados?: ComprobantesC31[];

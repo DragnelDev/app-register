@@ -65,6 +65,7 @@ export interface ComprobanteC31FormPayload {
   descripcion: string
   numeroFolio?: string | null
   gestion?: number
+  estadoFisico?: EstadoFisico
   ubicacionFisica?: string | null
   observaciones?: string | null
   preventivos: string[] // soporta "2 en 1"

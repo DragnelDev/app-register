@@ -36,24 +36,24 @@ const iniciales = computed(() => {
 
 <template>
   <header
-    class="flex h-16 items-center justify-between gap-4 border-b border-ink-100 bg-white px-4 dark:border-white/10 dark:bg-ink-900 sm:px-6"
+    class="flex h-16 items-center justify-between gap-4 border-b border-white/15 bg-ink-950 px-4 text-white shadow-sm dark:border-white/10 dark:bg-ink-900 sm:px-6"
   >
     <div class="lg:hidden">
-      <span class="font-display text-lg font-semibold text-ink-900 dark:text-white">KnomiDoc</span>
+      <span class="font-display text-lg font-semibold text-white">KnomiDoc</span>
     </div>
 
     <!-- Buscador (visual, referencia rápida) -->
     <div
-      class="hidden w-72 items-center gap-2 rounded-lg border border-ink-100 bg-ink-50/60 px-3 py-2 text-sm text-ink-400 dark:border-white/10 dark:bg-white/5 dark:text-ink-400 lg:flex"
+      class="hidden w-72 items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-sm text-white/70 dark:border-white/10 dark:bg-white/5 dark:text-ink-400 lg:flex"
     >
       <span aria-hidden="true">🔍</span>
       <input
         type="text"
         placeholder="Buscar comprobante, nota o usuario…"
-        class="w-full bg-transparent text-sm text-ink-800 outline-none placeholder:text-ink-400 dark:text-ink-100"
+        class="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/60 dark:text-ink-100"
       />
       <span
-        class="rounded border border-ink-200 px-1.5 py-0.5 text-[10px] font-semibold text-ink-400 dark:border-white/10"
+        class="rounded border border-white/25 px-1.5 py-0.5 text-[10px] font-semibold text-white/70 dark:border-white/10"
       >
         Ctrl+K
       </span>
@@ -62,7 +62,7 @@ const iniciales = computed(() => {
     <div class="flex items-center gap-2 sm:gap-4">
       <button
         type="button"
-        class="flex items-center gap-2 rounded-full border border-ink-100 bg-ink-50/60 px-3 py-1.5 text-xs font-medium text-ink-700 transition-colors hover:bg-ink-100 dark:border-white/10 dark:bg-white/5 dark:text-ink-200 dark:hover:bg-white/10"
+        class="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-white/20 dark:border-white/10 dark:bg-white/5 dark:text-ink-200 dark:hover:bg-white/10"
         :title="theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
         @click="toggleTheme"
       >
@@ -72,7 +72,7 @@ const iniciales = computed(() => {
 
       <button
         type="button"
-        class="relative rounded-lg p-2 text-ink-500 transition-colors hover:bg-ink-100 hover:text-ink-900 dark:text-ink-300 dark:hover:bg-white/10 dark:hover:text-white"
+        class="relative rounded-lg p-2 text-white/80 transition-colors hover:bg-white/10 hover:text-white dark:text-ink-300 dark:hover:bg-white/10 dark:hover:text-white"
         title="Notificaciones"
       >
         <span aria-hidden="true">🔔</span>
@@ -81,7 +81,7 @@ const iniciales = computed(() => {
 
       <div
         v-if="auth.usuario"
-        class="flex items-center gap-3 border-l border-ink-100 pl-3 dark:border-white/10"
+        class="flex items-center gap-3 border-l border-white/20 pl-3 dark:border-white/10"
       >
         <div
           class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-seal-400 to-ink-500 text-xs font-bold text-white"
@@ -89,10 +89,10 @@ const iniciales = computed(() => {
           {{ iniciales }}
         </div>
         <div class="hidden text-right leading-tight sm:block">
-          <p class="text-sm font-medium text-ink-900 dark:text-white">
+          <p class="text-sm font-medium text-white">
             {{ auth.usuario.nombreCompleto }}
           </p>
-          <p class="text-xs text-ink-400">{{ rolLabel[auth.usuario.rol] ?? auth.usuario.rol }}</p>
+          <p class="text-xs text-white/70 dark:text-ink-400">{{ rolLabel[auth.usuario.rol] ?? auth.usuario.rol }}</p>
         </div>
       </div>
       <BaseButton variant="ghost" size="sm" @click="handleLogout">Salir</BaseButton>

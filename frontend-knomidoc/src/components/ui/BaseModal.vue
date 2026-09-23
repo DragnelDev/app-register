@@ -32,16 +32,16 @@ const sizeClass = {
         @keydown.esc="close"
       >
         <div
-          class="w-full rounded-lg bg-white shadow-xl"
+          class="w-full rounded-lg bg-white text-ink-900 shadow-xl dark:bg-ink-900 dark:text-ink-100"
           :class="sizeClass"
           role="dialog"
           aria-modal="true"
         >
-          <header class="flex items-center justify-between border-b border-ink-100 px-5 py-4">
-            <h3 class="text-lg font-semibold text-ink-900">{{ title }}</h3>
+          <header class="flex items-center justify-between border-b border-ink-100 px-5 py-4 dark:border-white/10">
+            <h3 class="text-lg font-semibold text-ink-900 dark:text-white">{{ title }}</h3>
             <button
               type="button"
-              class="rounded-md p-1 text-ink-400 hover:bg-ink-100 hover:text-ink-700"
+              class="rounded-md p-1 text-ink-500 hover:bg-ink-100 hover:text-ink-900 dark:text-ink-300 dark:hover:bg-white/10 dark:hover:text-white"
               aria-label="Cerrar"
               @click="close"
             >
@@ -53,7 +53,10 @@ const sizeClass = {
             <slot />
           </div>
 
-          <footer v-if="$slots.footer" class="flex justify-end gap-2 border-t border-ink-100 px-5 py-4">
+          <footer
+            v-if="$slots.footer"
+            class="flex justify-end gap-2 border-t border-ink-100 px-5 py-4 dark:border-white/10"
+          >
             <slot name="footer" />
           </footer>
         </div>

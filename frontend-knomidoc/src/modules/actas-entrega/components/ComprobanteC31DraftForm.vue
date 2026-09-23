@@ -2,7 +2,13 @@
 import { reactive, ref } from 'vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import { isPositiveNumber, required, isValidDate, dateNotInFuture, runValidators } from '@/utils/validators'
+import {
+  isPositiveNumber,
+  required,
+  isValidDate,
+  dateNotInFuture,
+  runValidators,
+} from '@/utils/validators'
 import type { ComprobanteC31FormPayload } from '@/types/c31.types'
 import type { TipoC31 } from '@/types/common.types'
 

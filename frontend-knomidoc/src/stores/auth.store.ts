@@ -68,6 +68,24 @@ export const useAuthStore = defineStore('auth', {
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(usuario))
     },
 
+    async forgotPassword(email: string) {
+      this.loading = true
+      try {
+        return await authService.forgotPassword({ email })
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async resetPassword(token: string, password: string) {
+      this.loading = true
+      try {
+        return await authService.resetPassword({ token, password })
+      } finally {
+        this.loading = false
+      }
+    },
+
     logout() {
       this.usuario = null
       this.accessToken = null

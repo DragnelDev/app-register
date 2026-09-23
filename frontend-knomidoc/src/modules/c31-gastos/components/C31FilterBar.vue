@@ -73,6 +73,7 @@ function reset() {
         class="rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
       >
         <option value="">Todos</option>
+        <option value="EN_TRAMITE">En Trámite / Revisión</option>
         <option value="EN_ARCHIVO">En archivo</option>
         <option value="PRESTADO">Prestado</option>
         <option value="ANULADO">Anulado</option>

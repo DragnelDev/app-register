@@ -16,6 +16,18 @@ import { ArrayNotEmpty } from 'class-validator';
 
 export const TIPOS_C31 = ['CON_IMPUTACION', 'SIN_IMPUTACION'] as const;
 
+/**
+ * Estados físicos que se pueden fijar manualmente al registrar/editar un
+ * comprobante. EN_ARCHIVO también se fija automáticamente al vincular un
+ * acta de entrega; PRESTADO lo gestiona exclusivamente el módulo de
+ * préstamos y no se admite aquí.
+ */
+export const ESTADOS_FISICO_EDITABLES = [
+  'EN_TRAMITE',
+  'EN_ARCHIVO',
+  'ANULADO',
+] as const;
+
 /** Convierte '' en undefined para que el campo opcional se ignore. */
 const vacioAUndefined = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' && value.trim() === '' ? undefined : value;
@@ -107,6 +119,21 @@ export class CreateComprobantesC31Dto {
   @Transform(vacioAUndefined)
   @IsString()
   readonly observaciones?: string;
+
+  @ApiPropertyOptional({
+    enum: ESTADOS_FISICO_EDITABLES,
+    default: 'EN_TRAMITE',
+    description:
+      'Estado físico inicial del comprobante (editable). Si no se indica, ' +
+      'queda en "En Trámite / Revisión"; salvo que se registre ya vinculado ' +
+      'a un acta de entrega (actaEntregaId), en cuyo caso el sistema lo fija ' +
+      'automáticamente en "En archivo".',
+  })
+  @IsOptional()
+  @IsIn([...ESTADOS_FISICO_EDITABLES], {
+    message: `El estado físico solo puede fijarse a: ${ESTADOS_FISICO_EDITABLES.join(', ')}`,
+  })
+  readonly estadoFisico?: string;
 
   @ApiPropertyOptional({
     type: [String],

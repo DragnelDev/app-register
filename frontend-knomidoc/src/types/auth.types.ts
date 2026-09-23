@@ -29,6 +29,19 @@ export interface LoginResponse {
   usuario: Usuario
 }
 
+export interface ForgotPasswordPayload {
+  email: string
+}
+
+export interface ResetPasswordPayload {
+  token: string
+  password: string
+}
+
+export interface MensajeResponse {
+  mensaje: string
+}
+
 export interface UsuarioCreatePayload {
   username: string
   nombreCompleto: string

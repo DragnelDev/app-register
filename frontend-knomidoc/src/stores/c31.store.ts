@@ -1,6 +1,11 @@
 import { defineStore } from 'pinia'
 import { c31Service } from '@/services/c31.service'
-import type { ComprobanteC31, C31FilterState, C31ImportResult } from '@/types/c31.types'
+import type {
+  ComprobanteC31,
+  ComprobanteC31FormPayload,
+  C31FilterState,
+  C31ImportResult,
+} from '@/types/c31.types'
 
 interface C31State {
   items: ComprobanteC31[]
@@ -71,6 +76,14 @@ export const useC31Store = defineStore('c31', {
     async anular(id: string) {
       const updated = await c31Service.cambiarEstadoFisico(id, 'ANULADO')
       this.replaceInList(updated)
+      return updated
+    },
+
+    /** Edición manual (folio, cheques, ubicación/carpeta, estado, etc.) */
+    async update(id: string, payload: Partial<ComprobanteC31FormPayload>) {
+      const updated = await c31Service.update(id, payload)
+      this.replaceInList(updated)
+      if (this.selected?.id === id) this.selected = updated
       return updated
     },
 

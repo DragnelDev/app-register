@@ -248,4 +248,53 @@ export class UsuariosService {
     delete (usuarioOk as Partial<Usuario>).password;
     return usuarioOk;
   }
+
+  // ---------------------------------------------------------------------
+  // Recuperación de contraseña por correo
+  // ---------------------------------------------------------------------
+
+  /** Busca un usuario activo por correo (sin exponerlo en las respuestas normales). */
+  async findByEmailActivo(email: string): Promise<Usuario | null> {
+    return this.usuariosRepository.findOne({
+      where: { email },
+      select: { id: true, email: true, nombreCompleto: true, activo: true },
+    });
+  }
+
+  /** Guarda el hash del token de recuperación y su vencimiento. */
+  async guardarTokenRecuperacion(
+    id: number,
+    tokenHash: string,
+    expira: Date,
+  ): Promise<void> {
+    await this.usuariosRepository.update(id, {
+      resetPasswordToken: tokenHash,
+      resetPasswordExpires: expira,
+    });
+  }
+
+  /** Busca un usuario por el hash del token de recuperación (no expone la contraseña). */
+  async findByResetTokenHash(tokenHash: string): Promise<Usuario | null> {
+    return this.usuariosRepository.findOne({
+      where: { resetPasswordToken: tokenHash },
+      select: {
+        id: true,
+        activo: true,
+        resetPasswordToken: true,
+        resetPasswordExpires: true,
+      },
+    });
+  }
+
+  /** Fija la nueva contraseña y limpia el token de recuperación (uso único). */
+  async actualizarPasswordYLimpiarToken(
+    id: number,
+    passwordPlano: string,
+  ): Promise<void> {
+    await this.usuariosRepository.update(id, {
+      password: bcrypt.hashSync(passwordPlano, SALT_ROUNDS),
+      resetPasswordToken: null,
+      resetPasswordExpires: null,
+    });
+  }
 }

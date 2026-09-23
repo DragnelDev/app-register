@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -59,6 +59,12 @@ async function handleSubmit() {
         <BaseButton type="submit" class="w-full justify-center" :loading="auth.loading">
           Ingresar
         </BaseButton>
+
+        <p class="text-center text-sm">
+          <RouterLink to="/forgot-password" class="font-medium text-ink-700 hover:underline">
+            ¿Olvidaste tu contraseña?
+          </RouterLink>
+        </p>
       </form>
     </div>
   </div>

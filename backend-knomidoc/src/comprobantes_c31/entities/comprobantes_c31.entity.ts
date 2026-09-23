@@ -21,12 +21,29 @@ export enum TipoC31 {
   SIN_IMPUTACION = 'SIN_IMPUTACION',
 }
 
-/** Estado físico del comprobante: En Archivo, Anulado, etc. */
+/** Estado físico del comprobante: En Trámite/Revisión, En Archivo, Prestado, Anulado. */
 export enum EstadoFisicoC31 {
+  /** Comprobante recién registrado, aún no entregado/archivado formalmente. */
+  EN_TRAMITE = 'EN_TRAMITE',
   EN_ARCHIVO = 'EN_ARCHIVO',
   PRESTADO = 'PRESTADO',
   ANULADO = 'ANULADO',
 }
+
+/** Etiquetas legibles de cada estado físico (uso en reportes/backoffice). */
+export const ESTADO_FISICO_LABELS: Record<EstadoFisicoC31, string> = {
+  [EstadoFisicoC31.EN_TRAMITE]: 'En Trámite / Revisión',
+  [EstadoFisicoC31.EN_ARCHIVO]: 'En archivo',
+  [EstadoFisicoC31.PRESTADO]: 'Prestado',
+  [EstadoFisicoC31.ANULADO]: 'Anulado',
+};
+
+/**
+ * Ubicación física que se asigna automáticamente a un comprobante cuando se
+ * vincula a un acta de entrega (RN: al recibirse el acta, el comprobante
+ * pasa a "En archivo" y queda ubicado físicamente en "ARCHIVOS GAMSL").
+ */
+export const UBICACION_ARCHIVO_DEFAULT = 'ARCHIVOS GAMSL';
 
 @Entity('comprobantes_c31')
 export class ComprobantesC31 extends BaseAuditoriaEntity {
@@ -80,7 +97,7 @@ export class ComprobantesC31 extends BaseAuditoriaEntity {
     name: 'estado_fisico',
     type: 'varchar',
     length: 20,
-    default: EstadoFisicoC31.EN_ARCHIVO,
+    default: EstadoFisicoC31.EN_TRAMITE,
   })
   estadoFisico: EstadoFisicoC31 | undefined;
 

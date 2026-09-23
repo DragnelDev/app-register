@@ -18,6 +18,7 @@ import {
   ComprobantesC31,
   EstadoFisicoC31,
   TipoC31,
+  UBICACION_ARCHIVO_DEFAULT,
 } from './entities/comprobantes_c31.entity';
 import { CreateComprobantesC31Dto } from './dto/create-comprobantes_c31.dto';
 import { UpdateComprobantesC31Dto } from './dto/update-comprobantes_c31.dto';
@@ -91,6 +92,32 @@ export class ComprobantesC31Service {
     }
   }
 
+  /**
+   * Resuelve el estado físico y la ubicación con la que nace un comprobante:
+   *  - Si se registra ya vinculado a un acta de entrega, se considera
+   *    entregado/archivado: queda "En archivo" en "ARCHIVOS GAMSL" de forma
+   *    automática (sin importar lo que venga en el DTO).
+   *  - Si se registra suelto (sin acta), queda en el estado que indique el
+   *    usuario, o "En Trámite / Revisión" por defecto; la ubicación física
+   *    queda vacía hasta que se archive.
+   */
+  private resolverEstadoAlCrear(dto: CreateComprobantesC31Dto): {
+    estadoFisico: EstadoFisicoC31;
+    ubicacionFisica?: string | null;
+  } {
+    if (dto.actaEntregaId) {
+      return {
+        estadoFisico: EstadoFisicoC31.EN_ARCHIVO,
+        ubicacionFisica: UBICACION_ARCHIVO_DEFAULT,
+      };
+    }
+    return {
+      estadoFisico:
+        (dto.estadoFisico as EstadoFisicoC31) ?? EstadoFisicoC31.EN_TRAMITE,
+      ubicacionFisica: dto.ubicacionFisica,
+    };
+  }
+
   private async validarActa(manager: EntityManager, actaId?: number | null) {
     if (!actaId) return;
     const existe = await manager.existsBy(ActasEntrega, { id: actaId });
@@ -123,6 +150,7 @@ export class ComprobantesC31Service {
 
     return this.dataSource.transaction(async (manager) => {
       await this.validarActa(manager, dto.actaEntregaId);
+      const { estadoFisico, ubicacionFisica } = this.resolverEstadoAlCrear(dto);
 
       const comprobante = manager.create(ComprobantesC31, {
         actaEntregaId: dto.actaEntregaId,
@@ -134,8 +162,8 @@ export class ComprobantesC31Service {
         numeroFolio: dto.numeroFolio,
         gestion:
           dto.gestion ?? new Date(dto.fechaElaboracion as string).getFullYear(),
-        estadoFisico: EstadoFisicoC31.EN_ARCHIVO,
-        ubicacionFisica: dto.ubicacionFisica,
+        estadoFisico,
+        ubicacionFisica,
         observaciones: dto.observaciones,
         creadoPorId: usuario.id,
         preventivos: preventivos.map((numeroPreventivo) =>
@@ -282,6 +310,18 @@ export class ComprobantesC31Service {
         camposSimples.observaciones = dto.observaciones;
       if (dto.estadoFisico !== undefined)
         camposSimples.estadoFisico = dto.estadoFisico;
+
+      // RN: cuando el comprobante se vincula (o cambia) a un acta de
+      // entrega, se considera entregado/archivado automáticamente, sin
+      // importar lo que se haya enviado manualmente en el mismo request.
+      const seVinculaAActa =
+        dto.actaEntregaId !== undefined &&
+        dto.actaEntregaId !== null &&
+        dto.actaEntregaId !== actaAnterior;
+      if (seVinculaAActa) {
+        camposSimples.estadoFisico = EstadoFisicoC31.EN_ARCHIVO;
+        camposSimples.ubicacionFisica = UBICACION_ARCHIVO_DEFAULT;
+      }
 
       if (Object.keys(camposSimples).length > 0) {
         await manager.update(ComprobantesC31, id, camposSimples);

@@ -1,5 +1,5 @@
 @use './variables' as *;
-@use "tailwindcss";
+@use 'tailwindcss';
 
 /* Modo oscuro activado por atributo data-theme en <html>, controlado por
    el composable useTheme (ver src/composables/useTheme.ts). RNF-01.3 */
@@ -12,32 +12,32 @@
   --font-mono: '"IBM Plex Mono"', ui-monospace, monospace;
 
   /* 2. Paleta Paper (Fondos, tema claro) */
-  --color-paper: #faf8f3;
+  --color-paper: #eaf3eb;
 
   /* 3. Paleta Ink (Textos, bordes, superficies — tema institucional) */
-  --color-ink-50: #f2f5f8;
-  --color-ink-100: #e3e9ef;
-  --color-ink-200: #c2d0dd;
-  --color-ink-300: #93a9c1;
-  --color-ink-400: #5f7d9e;
-  --color-ink-500: #3d5c7d;
-  --color-ink-600: #2c4763;
-  --color-ink-700: #233a50;
-  --color-ink-800: #1c2e40;
-  --color-ink-900: #141f2c;
-  --color-ink-950: #0c141d;
+  --color-ink-50: #eff8f0;
+  --color-ink-100: #dceee0;
+  --color-ink-200: #bddcc5;
+  --color-ink-300: #91c1a0;
+  --color-ink-400: #639875;
+  --color-ink-500: #397553;
+  --color-ink-600: #286342;
+  --color-ink-700: #1b5236;
+  --color-ink-800: #12432e;
+  --color-ink-900: #0b3525;
+  --color-ink-950: #06251a;
 
   /* 4. Paleta Seal (Acentos / sello dorado) */
-  --color-seal-50: #fdf7e9;
-  --color-seal-100: #f9ecc4;
-  --color-seal-200: #f2d788;
-  --color-seal-300: #e9bd4c;
-  --color-seal-400: #dda526;
-  --color-seal-500: #c1871a;
-  --color-seal-600: #996815;
-  --color-seal-700: #754e14;
-  --color-seal-800: #5f3f16;
-  --color-seal-900: #513516;
+  --color-seal-50: #fffbea;
+  --color-seal-100: #fff2b8;
+  --color-seal-200: #ffe56b;
+  --color-seal-300: #ffda24;
+  --color-seal-400: #f5c400;
+  --color-seal-500: #ddb000;
+  --color-seal-600: #b58e00;
+  --color-seal-700: #856700;
+  --color-seal-800: #614b00;
+  --color-seal-900: #493900;
 
   /* 5. Sombra personalizada (shadow-card) */
   --shadow-card: 0 1px 2px 0 rgb(20 31 44 / 0.06), 0 1px 3px 0 rgb(20 31 44 / 0.08);
@@ -54,10 +54,20 @@
   }
 
   body {
-    @apply bg-paper text-ink-900 font-body text-[15px] dark:bg-ink-950 dark:text-ink-50;
+    @apply min-h-screen bg-paper text-ink-900 font-body text-[15px] dark:bg-ink-950 dark:text-ink-50;
+    background-image: radial-gradient(ellipse at 10% 0%, rgb(255 255 255 / 0.22), transparent 38%),
+      linear-gradient(145deg, #087b43 0%, #056338 48%, #034b30 100%);
+    background-attachment: fixed;
   }
 
-  h1, h2, h3, h4 {
+  html[data-theme='dark'] body {
+    background-image: none;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
     @apply font-display text-ink-900 dark:text-white;
   }
 
@@ -72,7 +82,7 @@
   }
 
   .card {
-    @apply rounded-lg border border-ink-100 bg-white shadow-card dark:border-white/10 dark:bg-ink-900;
+    @apply rounded-lg border border-white/70 bg-white/95 shadow-card backdrop-blur-sm dark:border-white/10 dark:bg-ink-900;
   }
 
   .table-header-cell {
@@ -91,7 +101,9 @@
 
 /* Reducción de movimiento para usuarios que lo prefieran */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
