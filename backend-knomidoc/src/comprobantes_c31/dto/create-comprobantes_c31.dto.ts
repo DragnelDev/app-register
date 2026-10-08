@@ -53,13 +53,6 @@ export class CreateComprobantesC31Dto {
   })
   readonly tipoC31?: string;
 
-  @ApiPropertyOptional({ example: '00123' })
-  @IsOptional()
-  @Transform(vacioAUndefined)
-  @IsString()
-  @MaxLength(50)
-  readonly numeroComprobante?: string;
-
   @ApiProperty({ example: 15340.5 })
   @IsNotEmpty({ message: 'El monto total es obligatorio' })
   @Type(() => Number)
@@ -136,26 +129,32 @@ export class CreateComprobantesC31Dto {
   readonly estadoFisico?: string;
 
   @ApiPropertyOptional({
-    type: [String],
-    example: ['PREV-2026-0001'],
+    example: 'PREV-2026-0001',
     description:
-      'Soporta preventivos "2 en 1". Se exige al menos un preventivo o un devengado.',
+      'Identificador oficial cuando tipoC31 = CON_IMPUTACION. Obligatorio en ' +
+      'ese caso y no debe enviarse junto con numeroDevengado (relación 1 a 1 ' +
+      'estricta: un comprobante solo tiene preventivo o devengado, no ambos). ' +
+      'Soporta "2 en 1" como texto libre en un mismo campo (ej. "0012 / 0013").',
   })
   @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  readonly preventivos?: string[];
+  @Transform(vacioAUndefined)
+  @IsString()
+  @MaxLength(50)
+  readonly numeroPreventivo?: string;
 
   @ApiPropertyOptional({
-    type: [String],
-    example: ['DEV-2026-0001'],
+    example: 'DEV-2026-0001',
     description:
-      'Soporta devengados "2 en 1". Se exige al menos un preventivo o un devengado.',
+      'Identificador oficial cuando tipoC31 = SIN_IMPUTACION. Obligatorio en ' +
+      'ese caso y no debe enviarse junto con numeroPreventivo (relación 1 a 1 ' +
+      'estricta: un comprobante solo tiene preventivo o devengado, no ambos). ' +
+      'Soporta "2 en 1" como texto libre en un mismo campo (ej. "0012 / 0013").',
   })
   @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  readonly devengados?: string[];
+  @Transform(vacioAUndefined)
+  @IsString()
+  @MaxLength(50)
+  readonly numeroDevengado?: string;
 
   @ApiProperty({ type: [String], example: ['Juan Pérez'] })
   @IsArray()

@@ -80,15 +80,41 @@ export class ComprobantesC31Service {
     private readonly dataSource: DataSource,
   ) {}
 
-  /** Debe existir al menos un N° de preventivo o de devengado (no ambos obligatorios). */
-  private validarPreventivoODevengado(
-    preventivos: string[],
-    devengados: string[],
+  /**
+   * Regla del DER: relación 1 a 1 estricta entre comprobantes_c31 y sus
+   * tablas hijas de identificación.
+   *  - tipoC31 = CON_IMPUTACION -> debe existir numeroPreventivo y NO debe
+   *    enviarse numeroDevengado.
+   *  - tipoC31 = SIN_IMPUTACION -> debe existir numeroDevengado y NO debe
+   *    enviarse numeroPreventivo.
+   */
+  private validarTipoCoincideConIdentificador(
+    tipoC31: TipoC31,
+    numeroPreventivo?: string,
+    numeroDevengado?: string,
   ) {
-    if (preventivos.length === 0 && devengados.length === 0) {
-      throw new BadRequestException(
-        'Debe registrar al menos un N° de preventivo o de devengado',
-      );
+    if (tipoC31 === TipoC31.CON_IMPUTACION) {
+      if (!numeroPreventivo) {
+        throw new BadRequestException(
+          'Un comprobante CON_IMPUTACION debe tener un N° de preventivo',
+        );
+      }
+      if (numeroDevengado) {
+        throw new BadRequestException(
+          'Un comprobante CON_IMPUTACION no puede tener N° de devengado',
+        );
+      }
+    } else {
+      if (!numeroDevengado) {
+        throw new BadRequestException(
+          'Un comprobante SIN_IMPUTACION debe tener un N° de devengado',
+        );
+      }
+      if (numeroPreventivo) {
+        throw new BadRequestException(
+          'Un comprobante SIN_IMPUTACION no puede tener N° de preventivo',
+        );
+      }
     }
   }
 
@@ -144,9 +170,14 @@ export class ComprobantesC31Service {
     dto: CreateComprobantesC31Dto,
     usuario: Usuario,
   ): Promise<ComprobantesC31> {
-    const preventivos = limpiarLista(dto.preventivos);
-    const devengados = limpiarLista(dto.devengados);
-    this.validarPreventivoODevengado(preventivos, devengados);
+    const tipoC31 = (dto.tipoC31 as TipoC31) ?? TipoC31.CON_IMPUTACION;
+    const numeroPreventivo = dto.numeroPreventivo?.trim() || undefined;
+    const numeroDevengado = dto.numeroDevengado?.trim() || undefined;
+    this.validarTipoCoincideConIdentificador(
+      tipoC31,
+      numeroPreventivo,
+      numeroDevengado,
+    );
 
     return this.dataSource.transaction(async (manager) => {
       await this.validarActa(manager, dto.actaEntregaId);
@@ -154,8 +185,7 @@ export class ComprobantesC31Service {
 
       const comprobante = manager.create(ComprobantesC31, {
         actaEntregaId: dto.actaEntregaId,
-        tipoC31: (dto.tipoC31 as TipoC31) ?? TipoC31.CON_IMPUTACION,
-        numeroComprobante: dto.numeroComprobante,
+        tipoC31,
         montoTotal: dto.montoTotal,
         fechaElaboracion: dto.fechaElaboracion as unknown as Date,
         descripcion: dto.descripcion,
@@ -166,12 +196,12 @@ export class ComprobantesC31Service {
         ubicacionFisica,
         observaciones: dto.observaciones,
         creadoPorId: usuario.id,
-        preventivos: preventivos.map((numeroPreventivo) =>
-          manager.create(C31Preventivo, { numeroPreventivo }),
-        ),
-        devengados: devengados.map((numeroDevengado) =>
-          manager.create(C31Devengado, { numeroDevengado }),
-        ),
+        preventivos: numeroPreventivo
+          ? [manager.create(C31Preventivo, { numeroPreventivo })]
+          : [],
+        devengados: numeroDevengado
+          ? [manager.create(C31Devengado, { numeroDevengado })]
+          : [],
         beneficiarios: limpiarLista(dto.beneficiarios).map(
           (nombreBeneficiario) =>
             manager.create(C31Beneficiario, { nombreBeneficiario }),
@@ -218,9 +248,16 @@ export class ComprobantesC31Service {
     const where: FindOptionsWhere<ComprobantesC31>[] = query.search
       ? [
           { ...baseWhere, descripcion: Like(`%${query.search}%`) },
-          { ...baseWhere, numeroComprobante: Like(`%${query.search}%`) },
           { ...baseWhere, numeroFolio: Like(`%${query.search}%`) },
           { ...baseWhere, ubicacionFisica: Like(`%${query.search}%`) },
+          {
+            ...baseWhere,
+            preventivos: { numeroPreventivo: Like(`%${query.search}%`) },
+          },
+          {
+            ...baseWhere,
+            devengados: { numeroDevengado: Like(`%${query.search}%`) },
+          },
         ]
       : [baseWhere];
 
@@ -260,19 +297,23 @@ export class ComprobantesC31Service {
       );
     }
 
-    // Si cambian preventivos o devengados, el resultado final debe conservar al menos uno
-    if (dto.preventivos !== undefined || dto.devengados !== undefined) {
-      const prev =
-        dto.preventivos !== undefined
-          ? limpiarLista(dto.preventivos)
-          : (comprobante.preventivos ?? []).map(
-              (p) => p.numeroPreventivo ?? '',
-            );
-      const dev =
-        dto.devengados !== undefined
-          ? limpiarLista(dto.devengados)
-          : (comprobante.devengados ?? []).map((d) => d.numeroDevengado ?? '');
-      this.validarPreventivoODevengado(prev, dev);
+    // Si cambia el tipo o el identificador, el resultado final debe
+    // seguir cumpliendo la relación 1 a 1 estricta con tipoC31.
+    if (
+      dto.tipoC31 !== undefined ||
+      dto.numeroPreventivo !== undefined ||
+      dto.numeroDevengado !== undefined
+    ) {
+      const tipoFinal = (dto.tipoC31 as TipoC31) ?? comprobante.tipoC31;
+      const prevFinal =
+        dto.numeroPreventivo !== undefined
+          ? dto.numeroPreventivo.trim() || undefined
+          : comprobante.preventivos?.[0]?.numeroPreventivo;
+      const devFinal =
+        dto.numeroDevengado !== undefined
+          ? dto.numeroDevengado.trim() || undefined
+          : comprobante.devengados?.[0]?.numeroDevengado;
+      this.validarTipoCoincideConIdentificador(tipoFinal, prevFinal, devFinal);
     }
     if (dto.beneficiarios !== undefined) {
       if (limpiarLista(dto.beneficiarios).length === 0) {
@@ -293,8 +334,6 @@ export class ComprobantesC31Service {
       if (dto.actaEntregaId !== undefined)
         camposSimples.actaEntregaId = dto.actaEntregaId;
       if (dto.tipoC31 !== undefined) camposSimples.tipoC31 = dto.tipoC31;
-      if (dto.numeroComprobante !== undefined)
-        camposSimples.numeroComprobante = dto.numeroComprobante;
       if (dto.montoTotal !== undefined)
         camposSimples.montoTotal = dto.montoTotal;
       if (dto.fechaElaboracion !== undefined)
@@ -327,30 +366,32 @@ export class ComprobantesC31Service {
         await manager.update(ComprobantesC31, id, camposSimples);
       }
 
-      // Reemplazo de colecciones si vienen en el DTO
-      if (dto.preventivos !== undefined) {
+      // Reemplazo del identificador 1 a 1 si viene en el DTO
+      if (dto.numeroPreventivo !== undefined) {
         await manager.delete(C31Preventivo, { comprobante: { id } });
-        await manager.save(
-          C31Preventivo,
-          limpiarLista(dto.preventivos).map((numeroPreventivo) =>
+        const numeroPreventivo = dto.numeroPreventivo.trim();
+        if (numeroPreventivo) {
+          await manager.save(
+            C31Preventivo,
             manager.create(C31Preventivo, {
               numeroPreventivo,
               comprobante: { id } as ComprobantesC31,
             }),
-          ),
-        );
+          );
+        }
       }
-      if (dto.devengados !== undefined) {
+      if (dto.numeroDevengado !== undefined) {
         await manager.delete(C31Devengado, { comprobante: { id } });
-        await manager.save(
-          C31Devengado,
-          limpiarLista(dto.devengados).map((numeroDevengado) =>
+        const numeroDevengado = dto.numeroDevengado.trim();
+        if (numeroDevengado) {
+          await manager.save(
+            C31Devengado,
             manager.create(C31Devengado, {
               numeroDevengado,
               comprobante: { id } as ComprobantesC31,
             }),
-          ),
-        );
+          );
+        }
       }
       if (dto.beneficiarios !== undefined) {
         await manager.delete(C31Beneficiario, { comprobante: { id } });
@@ -478,7 +519,10 @@ export class ComprobantesC31Service {
     // Filas de datos
     comprobantes.forEach((c) => {
       const fila = hoja.addRow({
-        prev: (c.preventivos ?? []).map((p) => p.numeroPreventivo).join('   '),
+        prev:
+          c.preventivos?.[0]?.numeroPreventivo ??
+          c.devengados?.[0]?.numeroDevengado ??
+          '',
         cheque: (c.cheques ?? []).map((ch) => ch.numeroCheque).join('   '),
         beneficiario: (c.beneficiarios ?? [])
           .map((b) => b.nombreBeneficiario)
@@ -587,11 +631,10 @@ export class ComprobantesC31Service {
           throw new Error('La fecha no es válida');
         }
 
-        const preventivos = textoDeCelda(prev)
-          .split(/\s+/)
-          .map((s) => s.trim())
-          .filter(Boolean);
-        if (preventivos.length === 0) preventivos.push('S/N');
+        // Un solo identificador por comprobante (relación 1 a 1 estricta).
+        // Si la celda trae varios números (formato "2 en 1"), se conservan
+        // juntos como texto libre en numeroPreventivo.
+        const numeroPreventivo = textoDeCelda(prev).trim() || 'S/N';
 
         const cheques = textoDeCelda(cheque)
           .split(/\s+/)
@@ -618,10 +661,7 @@ export class ComprobantesC31Service {
             gestion,
             estadoFisico: EstadoFisicoC31.EN_ARCHIVO,
             creadoPorId: usuario.id,
-            preventivos: preventivos.map((numeroPreventivo) =>
-              manager.create(C31Preventivo, { numeroPreventivo }),
-            ),
-            devengados: [],
+            preventivos: [manager.create(C31Preventivo, { numeroPreventivo })],
             beneficiarios: beneficiarios.map((nombreBeneficiario) =>
               manager.create(C31Beneficiario, { nombreBeneficiario }),
             ),

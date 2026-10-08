@@ -72,14 +72,6 @@ export class ComprobantesC31 extends BaseAuditoriaEntity {
   })
   tipoC31: TipoC31 | undefined;
 
-  @Column({
-    name: 'numero_comprobante',
-    type: 'varchar',
-    length: 50,
-    nullable: true,
-  })
-  numeroComprobante?: string | null;
-
   @Column({ name: 'monto_total', type: 'decimal', precision: 14, scale: 2 })
   montoTotal: number | undefined;
 
@@ -113,13 +105,16 @@ export class ComprobantesC31 extends BaseAuditoriaEntity {
   @Column({ type: 'text', nullable: true })
   observaciones?: string | null;
 
-  // Relaciones 1:N
-  @OneToMany(() => C31Preventivo, (prev) => prev.comprobante, { cascade: true })
-  preventivos: C31Preventivo[] | undefined;
+  // Un comprobante puede tener varios identificadores preventivo/devengado.
+  @OneToMany(() => C31Preventivo, (prev) => prev.comprobante, {
+    cascade: true,
+  })
+  preventivos?: C31Preventivo[];
 
   @OneToMany(() => C31Devengado, (dev) => dev.comprobante, { cascade: true })
-  devengados: C31Devengado[] | undefined;
+  devengados?: C31Devengado[];
 
+  // Relaciones 1:N
   @OneToMany(() => C31Beneficiario, (ben) => ben.comprobante, { cascade: true })
   beneficiarios: C31Beneficiario[] | undefined;
 
