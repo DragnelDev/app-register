@@ -10,11 +10,13 @@ const props = defineProps<{ saving?: boolean }>()
 
 const currentYear = new Date().getFullYear()
 
-// El formulario inicia con un elemento por lista repetible; el usuario agrega más
-// según las reglas de negocio (preventivos/devengados "2 en 1", múltiples beneficiarios)
+// El formulario inicia con un elemento por lista repetible (beneficiarios,
+// cheques); numeroPreventivo/numeroDevengado son un único campo cada uno
+// (relación 1 a 1 estricta con el comprobante), y solo uno de los dos se
+// usa según tipoC31. Ambos soportan "2 en 1" como texto libre en el mismo
+// campo (ej. "0012 / 0013").
 const form = reactive<ComprobanteC31FormPayload>({
   tipoC31: 'CON_IMPUTACION',
-  numeroComprobante: '',
   montoTotal: 0,
   fechaElaboracion: '',
   descripcion: '',
@@ -23,8 +25,8 @@ const form = reactive<ComprobanteC31FormPayload>({
   estadoFisico: 'EN_TRAMITE',
   ubicacionFisica: '',
   observaciones: '',
-  preventivos: [''],
-  devengados: [''],
+  numeroPreventivo: '',
+  numeroDevengado: '',
   beneficiarios: [''],
   cheques: [],
 })
@@ -40,8 +42,8 @@ function removeItem(list: string[], index: number) {
 function handleSubmit() {
   const payload: ComprobanteC31FormPayload = {
     ...form,
-    preventivos: form.preventivos.filter(Boolean),
-    devengados: form.devengados.filter(Boolean),
+    numeroPreventivo: form.tipoC31 === 'CON_IMPUTACION' ? form.numeroPreventivo : undefined,
+    numeroDevengado: form.tipoC31 === 'SIN_IMPUTACION' ? form.numeroDevengado : undefined,
     beneficiarios: form.beneficiarios.filter(Boolean),
     cheques: form.cheques.filter(Boolean),
   }
@@ -80,7 +82,6 @@ function handleSubmit() {
           <option value="SIN_IMPUTACION">Sin imputación</option>
         </select>
       </div>
-      <BaseInput v-model="form.numeroComprobante" label="N° de comprobante (opcional)" />
       <BaseInput v-model="form.numeroFolio" label="N° de folio (individual, si ya está foliado)" />
       <BaseInput
         v-model="form.ubicacionFisica"
@@ -106,36 +107,23 @@ function handleSubmit() {
       </div>
     </section>
 
-    <!-- Preventivos 2 en 1 -->
-    <section>
-      <h3 class="mb-2 text-sm font-semibold text-ink-800 dark:text-ink-100">
-        N° de Preventivo (soporta "2 en 1")
-      </h3>
-      <div v-for="(_, i) in form.preventivos" :key="i" class="mb-2 flex gap-2">
-        <BaseInput v-model="form.preventivos[i]" placeholder="Ej: PREV-001" class="flex-1" />
-        <BaseButton variant="ghost" size="sm" type="button" @click="removeItem(form.preventivos, i)"
-          >✕</BaseButton
-        >
-      </div>
-      <BaseButton variant="secondary" size="sm" type="button" @click="addItem(form.preventivos)">
-        + Agregar preventivo
-      </BaseButton>
+    <!-- Identificador único según tipoC31 (relación 1 a 1 estricta) -->
+    <section v-if="form.tipoC31 === 'CON_IMPUTACION'">
+      <h3 class="mb-2 text-sm font-semibold text-ink-800 dark:text-ink-100">N° de Preventivo</h3>
+      <BaseInput
+        v-model="form.numeroPreventivo"
+        placeholder='Ej: PREV-001 (soporta "2 en 1": "0012 / 0013")'
+        required
+      />
     </section>
 
-    <!-- Devengados 2 en 1 -->
-    <section>
-      <h3 class="mb-2 text-sm font-semibold text-ink-800 dark:text-ink-100">
-        N° de Devengado (soporta "2 en 1")
-      </h3>
-      <div v-for="(_, i) in form.devengados" :key="i" class="mb-2 flex gap-2">
-        <BaseInput v-model="form.devengados[i]" placeholder="Ej: DEV-001" class="flex-1" />
-        <BaseButton variant="ghost" size="sm" type="button" @click="removeItem(form.devengados, i)"
-          >✕</BaseButton
-        >
-      </div>
-      <BaseButton variant="secondary" size="sm" type="button" @click="addItem(form.devengados)">
-        + Agregar devengado
-      </BaseButton>
+    <section v-else>
+      <h3 class="mb-2 text-sm font-semibold text-ink-800 dark:text-ink-100">N° de Devengado</h3>
+      <BaseInput
+        v-model="form.numeroDevengado"
+        placeholder='Ej: DEV-001 (soporta "2 en 1": "0012 / 0013")'
+        required
+      />
     </section>
 
     <!-- Beneficiarios múltiples -->

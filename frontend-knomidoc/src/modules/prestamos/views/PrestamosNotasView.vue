@@ -8,6 +8,7 @@ import PrestamoNotaForm from '../components/PrestamoNotaForm.vue'
 import { usePrestamosStore } from '@/stores/prestamos.store'
 import { prestamosService } from '@/services/prestamos.service'
 import type { PrestamoNota, PrestamoNotaCreatePayload } from '@/types/prestamos.types'
+import { identificadorC31 } from '@/types/c31.types'
 
 const store = usePrestamosStore()
 const modalOpen = ref(false)
@@ -45,7 +46,11 @@ async function handleDevolver(row: PrestamoNota) {
 }
 
 function nombreComprobante(row: PrestamoNota) {
-  return row.comprobante?.numeroComprobante ?? row.comprobante?.numeroFolio ?? row.comprobanteId
+  return (
+    (row.comprobante && identificadorC31(row.comprobante)) ??
+    row.comprobante?.numeroFolio ??
+    row.comprobanteId
+  )
 }
 
 onMounted(() => store.fetchNotas())

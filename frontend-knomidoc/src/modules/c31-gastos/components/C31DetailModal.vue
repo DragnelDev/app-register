@@ -104,13 +104,21 @@ function cancelarEdicion() {
     <div v-if="comprobante" class="space-y-5 text-sm">
       <div class="flex items-start justify-between gap-3">
         <div>
-          <p class="text-lg font-semibold text-ink-900 dark:text-white">{{ comprobante.descripcion }}</p>
+          <p class="text-lg font-semibold text-ink-900 dark:text-white">
+            {{ comprobante.descripcion }}
+          </p>
           <p class="text-ink-600 dark:text-ink-300">
             Bs {{ Number(comprobante.montoTotal).toFixed(2) }} ·
             {{ comprobante.fechaElaboracion }} · Gestión {{ comprobante.gestion }}
           </p>
-          <p v-if="comprobante.numeroComprobante" class="text-ink-600 dark:text-ink-300">
-            N° comprobante: {{ comprobante.numeroComprobante }}
+          <p
+            v-if="
+              comprobante.preventivo?.numeroPreventivo || comprobante.devengado?.numeroDevengado
+            "
+            class="text-ink-600 dark:text-ink-300"
+          >
+            N° {{ comprobante.tipoC31 === 'CON_IMPUTACION' ? 'preventivo' : 'devengado' }}:
+            {{ comprobante.preventivo?.numeroPreventivo ?? comprobante.devengado?.numeroDevengado }}
           </p>
         </div>
         <div class="flex flex-col items-end gap-2">
@@ -131,26 +139,23 @@ function cancelarEdicion() {
 
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <h4 class="mb-1 font-semibold text-ink-700 dark:text-ink-200">N° de Preventivo</h4>
-          <ul v-if="comprobante.preventivos.length" class="list-inside list-disc text-ink-700 dark:text-ink-300">
-            <li v-for="p in comprobante.preventivos" :key="p.id ?? p.numeroPreventivo">
-              {{ p.numeroPreventivo }}
-            </li>
-          </ul>
-          <p v-else class="text-ink-400">—</p>
-        </div>
-        <div>
-          <h4 class="mb-1 font-semibold text-ink-700 dark:text-ink-200">N° de Devengado</h4>
-          <ul v-if="comprobante.devengados.length" class="list-inside list-disc text-ink-700 dark:text-ink-300">
-            <li v-for="d in comprobante.devengados" :key="d.id ?? d.numeroDevengado">
-              {{ d.numeroDevengado }}
-            </li>
-          </ul>
-          <p v-else class="text-ink-400">—</p>
+          <h4 class="mb-1 font-semibold text-ink-700 dark:text-ink-200">
+            {{ comprobante.tipoC31 === 'CON_IMPUTACION' ? 'N° de Preventivo' : 'N° de Devengado' }}
+          </h4>
+          <p class="text-ink-700 dark:text-ink-300">
+            {{
+              comprobante.preventivo?.numeroPreventivo ??
+              comprobante.devengado?.numeroDevengado ??
+              '—'
+            }}
+          </p>
         </div>
         <div>
           <h4 class="mb-1 font-semibold text-ink-700 dark:text-ink-200">Beneficiarios</h4>
-          <ul v-if="comprobante.beneficiarios.length" class="list-inside list-disc text-ink-700 dark:text-ink-300">
+          <ul
+            v-if="comprobante.beneficiarios.length"
+            class="list-inside list-disc text-ink-700 dark:text-ink-300"
+          >
             <li v-for="b in comprobante.beneficiarios" :key="b.id ?? b.nombreBeneficiario">
               {{ b.nombreBeneficiario }}
             </li>
@@ -204,18 +209,27 @@ function cancelarEdicion() {
       <div v-if="!editando" class="space-y-4">
         <div>
           <h4 class="mb-1 font-semibold text-ink-700 dark:text-ink-200">N° de folio</h4>
-          <p class="text-ink-700 dark:text-ink-300">{{ comprobante.numeroFolio || 'Sin asignar aún.' }}</p>
+          <p class="text-ink-700 dark:text-ink-300">
+            {{ comprobante.numeroFolio || 'Sin asignar aún.' }}
+          </p>
         </div>
         <div>
           <h4 class="mb-1 font-semibold text-ink-700 dark:text-ink-200">Ubicación física</h4>
-          <p class="text-ink-700 dark:text-ink-300">{{ comprobante.ubicacionFisica || 'Sin asignar aún.' }}</p>
+          <p class="text-ink-700 dark:text-ink-300">
+            {{ comprobante.ubicacionFisica || 'Sin asignar aún.' }}
+          </p>
         </div>
       </div>
 
       <!-- Edición manual: estado, folio, ubicación/carpeta -->
-      <div v-else class="space-y-4 rounded-md border border-ink-100 bg-ink-50/50 p-4 dark:border-white/10 dark:bg-white/5">
+      <div
+        v-else
+        class="space-y-4 rounded-md border border-ink-100 bg-ink-50/50 p-4 dark:border-white/10 dark:bg-white/5"
+      >
         <div>
-          <label class="mb-1 block text-sm font-medium text-ink-700 dark:text-ink-200">Estado del comprobante</label>
+          <label class="mb-1 block text-sm font-medium text-ink-700 dark:text-ink-200"
+            >Estado del comprobante</label
+          >
           <select
             v-model="form.estadoFisico"
             class="w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"

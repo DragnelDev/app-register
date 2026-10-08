@@ -8,6 +8,7 @@ import PrestamoCuadernoForm from '../components/PrestamoCuadernoForm.vue'
 import { usePrestamosStore } from '@/stores/prestamos.store'
 import { prestamosService } from '@/services/prestamos.service'
 import type { PrestamoCuaderno, PrestamoCuadernoCreatePayload } from '@/types/prestamos.types'
+import { identificadorC31 } from '@/types/c31.types'
 
 const store = usePrestamosStore()
 const modalOpen = ref(false)
@@ -43,7 +44,11 @@ async function handleDevolver(row: PrestamoCuaderno) {
 }
 
 function nombreComprobante(row: PrestamoCuaderno) {
-  return row.comprobante?.numeroComprobante ?? row.comprobante?.numeroFolio ?? row.comprobanteId
+  return (
+    (row.comprobante && identificadorC31(row.comprobante)) ??
+    row.comprobante?.numeroFolio ??
+    row.comprobanteId
+  )
 }
 
 function nombreSolicitante(row: PrestamoCuaderno) {

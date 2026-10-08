@@ -29,13 +29,21 @@ export interface Carpeta {
   codigoCarpeta: string
   ubicacionFisica?: string
   estadoFisico?: string
+  fechaCreacion?: string
 }
+
+export interface CarpetaCreatePayload {
+  codigoCarpeta: string
+  ubicacionFisica: string
+  estadoFisico?: 'EN_ARCHIVO' | 'PRESTADO'
+}
+
+export type CarpetaUpdatePayload = Partial<CarpetaCreatePayload>
 
 export interface ComprobanteC31 {
   id: string
   actaEntregaId?: string | null
   tipoC31: TipoC31
-  numeroComprobante?: string | null
   montoTotal: number
   fechaElaboracion: string
   descripcion: string
@@ -48,18 +56,25 @@ export interface ComprobanteC31 {
   fechaCreacion?: string
   fechaModificacion?: string
 
-  // Relaciones 0..N cargadas junto con el comprobante
-  preventivos: C31Preventivo[]
-  devengados: C31Devengado[]
+  // Relación 1 a 1 estricta según tipoC31: solo una de las dos existe.
+  preventivo?: C31Preventivo | null
+  devengado?: C31Devengado | null
   beneficiarios: C31Beneficiario[]
   cheques: C31Cheque[]
+}
+
+/** Identificador oficial del comprobante: numeroPreventivo o numeroDevengado según corresponda. */
+export function identificadorC31(c: {
+  preventivo?: C31Preventivo | null
+  devengado?: C31Devengado | null
+}): string | undefined {
+  return c.preventivo?.numeroPreventivo ?? c.devengado?.numeroDevengado ?? undefined
 }
 
 /** Payload plano para el formulario dinámico (arrays de strings, se transforman antes de enviar) */
 export interface ComprobanteC31FormPayload {
   actaEntregaId?: string | null
   tipoC31?: TipoC31
-  numeroComprobante?: string | null
   montoTotal: number
   fechaElaboracion: string
   descripcion: string
@@ -68,8 +83,10 @@ export interface ComprobanteC31FormPayload {
   estadoFisico?: EstadoFisico
   ubicacionFisica?: string | null
   observaciones?: string | null
-  preventivos: string[] // soporta "2 en 1"
-  devengados: string[] // soporta "2 en 1"
+  // Relación 1 a 1 estricta: solo se envía uno de los dos según tipoC31.
+  // Soporta "2 en 1" como texto libre dentro del mismo campo (ej. "0012 / 0013").
+  numeroPreventivo?: string
+  numeroDevengado?: string
   beneficiarios: string[]
   cheques: string[] // opcional, puede ir vacío
   carpetas?: { carpetaId: string | number; numeroParte: number }[]

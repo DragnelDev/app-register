@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import type { ComprobanteC31 } from '@/types/c31.types'
+import { identificadorC31 } from '@/types/c31.types'
 
 const props = withDefaults(
   defineProps<{
@@ -31,16 +32,11 @@ function joinNombres(items: { nombreBeneficiario?: string }[] | undefined) {
   )
 }
 
-function joinNumeros(
-  items: { numeroPreventivo?: string; numeroDevengado?: string }[] | undefined,
+function numeroDe(
+  item: { numeroPreventivo?: string } | { numeroDevengado?: string } | null | undefined,
   key: 'numeroPreventivo' | 'numeroDevengado',
 ) {
-  return (
-    (items ?? [])
-      .map((i) => i[key])
-      .filter(Boolean)
-      .join(', ') || '—'
-  )
+  return (item as Record<string, string | undefined> | null | undefined)?.[key] || '—'
 }
 </script>
 
@@ -65,10 +61,10 @@ function joinNumeros(
         </tr>
         <tr v-for="comprobante in items" :key="comprobante.id" class="dark:bg-ink-950">
           <td class="table-cell">
-            {{ comprobante.numeroComprobante ?? comprobante.numeroFolio ?? comprobante.id }}
+            {{ identificadorC31(comprobante) ?? comprobante.numeroFolio ?? comprobante.id }}
           </td>
-          <td class="table-cell">{{ joinNumeros(comprobante.preventivos, 'numeroPreventivo') }}</td>
-          <td class="table-cell">{{ joinNumeros(comprobante.devengados, 'numeroDevengado') }}</td>
+          <td class="table-cell">{{ numeroDe(comprobante.preventivo, 'numeroPreventivo') }}</td>
+          <td class="table-cell">{{ numeroDe(comprobante.devengado, 'numeroDevengado') }}</td>
           <td class="table-cell">{{ joinNombres(comprobante.beneficiarios) }}</td>
           <td class="table-cell text-right">{{ formatMonto(comprobante.montoTotal) }}</td>
           <td v-if="!readonly" class="table-cell text-right">

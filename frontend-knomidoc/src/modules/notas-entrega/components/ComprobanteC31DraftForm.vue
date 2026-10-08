@@ -11,22 +11,26 @@ import {
   runValidators,
 } from '@/utils/validators'
 import type { ComprobanteC31FormPayload, Carpeta } from '@/types/c31.types'
+import type { TipoC31 } from '@/types/common.types'
 
 const props = defineProps<{ fechaSugerida: string }>()
 const emit = defineEmits<{ add: [payload: ComprobanteC31FormPayload] }>()
 
-function blankDraft(): ComprobanteC31FormPayload & { carpetasSeleccionadas: Carpeta[] } {
+// Cada fila del acta es de un solo tipo: PREVENTIVO o DEVENGADO (nunca ambos),
+// según la relación 1 a 1 estricta entre comprobantes_c31 y sus tablas hijas.
+type TipoFila = 'PREVENTIVO' | 'DEVENGADO'
+
+function blankDraft() {
   return {
+    tipoFila: 'PREVENTIVO' as TipoFila,
+    numeros: [''], // números de preventivo o devengado, según tipoFila; se combinan en un solo campo ("2 en 1")
     montoTotal: 0,
     fechaElaboracion: props.fechaSugerida,
     descripcion: '',
-    numeroFolio: null,
-    preventivos: [''],
-    devengados: [''],
+    numeroFolio: '' as string | null,
     beneficiarios: [''],
-    cheques: [],
-    carpetas: [],
-    carpetasSeleccionadas: [],
+    cheques: [] as string[],
+    carpetasSeleccionadas: [] as Carpeta[],
   }
 }
 
@@ -37,7 +41,7 @@ const errors = reactive({
   montoTotal: '',
   descripcion: '',
   fechaElaboracion: '',
-  prevODev: '',
+  numeros: '',
   carpetas: '',
 })
 
@@ -69,10 +73,9 @@ function validate(): boolean {
       dateNotInFuture(),
     ]) ?? ''
 
-  const tienePrev = draft.preventivos.some((p) => p.trim() !== '')
-  const tieneDev = draft.devengados.some((d) => d.trim() !== '')
-  errors.prevODev =
-    tienePrev || tieneDev ? '' : 'Debe indicar al menos un N° de preventivo o de devengado'
+  errors.numeros = draft.numeros.some((n) => n.trim() !== '')
+    ? ''
+    : `Debe indicar al menos un N° de ${draft.tipoFila === 'PREVENTIVO' ? 'preventivo' : 'devengado'}`
 
   errors.carpetas =
     draft.carpetasSeleccionadas.length === 0
@@ -83,7 +86,7 @@ function validate(): boolean {
     !errors.montoTotal &&
     !errors.descripcion &&
     !errors.fechaElaboracion &&
-    !errors.prevODev &&
+    !errors.numeros &&
     !errors.carpetas
   )
 }
@@ -91,15 +94,20 @@ function validate(): boolean {
 function handleAdd() {
   if (!validate()) return
 
+  const numeroCombinado = draft.numeros.filter((n) => n.trim() !== '').join(' / ')
+
+  const tipoC31: TipoC31 = draft.tipoFila === 'PREVENTIVO' ? 'CON_IMPUTACION' : 'SIN_IMPUTACION'
+
   const payload: ComprobanteC31FormPayload = {
+    tipoC31,
     montoTotal: draft.montoTotal,
     fechaElaboracion: draft.fechaElaboracion,
     descripcion:
       draft.descripcion.trim() ||
       'Comprobante registrado desde acta de entrega (completar descripción)',
     numeroFolio: draft.numeroFolio,
-    preventivos: draft.preventivos.filter((p) => p.trim() !== ''),
-    devengados: draft.devengados.filter((d) => d.trim() !== ''),
+    numeroPreventivo: draft.tipoFila === 'PREVENTIVO' ? numeroCombinado : undefined,
+    numeroDevengado: draft.tipoFila === 'DEVENGADO' ? numeroCombinado : undefined,
     beneficiarios: draft.beneficiarios.filter((b) => b.trim() !== ''),
     cheques: draft.cheques.filter((c) => c.trim() !== ''),
     carpetas: draft.carpetasSeleccionadas.map((c, i) => ({ carpetaId: c.id, numeroParte: i + 1 })),
@@ -112,7 +120,7 @@ function handleAdd() {
   errors.montoTotal = ''
   errors.descripcion = ''
   errors.fechaElaboracion = ''
-  errors.prevODev = ''
+  errors.numeros = ''
   errors.carpetas = ''
 }
 </script>
@@ -122,71 +130,60 @@ function handleAdd() {
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <div>
         <label class="mb-1.5 block text-sm font-medium text-ink-700 dark:text-ink-200">
-          N° de Preventivo <span class="text-ink-300">(puede añadir más de uno)</span>
+          Esta fila es de
         </label>
-        <div v-for="(_, i) in draft.preventivos" :key="i" class="mb-2 flex gap-2">
-          <BaseInput v-model="draft.preventivos[i]" placeholder="Ej: PREV-001" class="flex-1" />
-          <BaseButton
-            variant="ghost"
-            size="sm"
-            type="button"
-            @click="removeItem(draft.preventivos, i)"
-            >✕</BaseButton
-          >
+        <div class="flex gap-4 pt-2 text-sm text-ink-700 dark:text-ink-200">
+          <label class="flex items-center gap-1.5">
+            <input v-model="draft.tipoFila" type="radio" value="PREVENTIVO" />
+            Preventivo
+          </label>
+          <label class="flex items-center gap-1.5">
+            <input v-model="draft.tipoFila" type="radio" value="DEVENGADO" />
+            Devengado
+          </label>
         </div>
-        <BaseButton variant="secondary" size="sm" type="button" @click="addItem(draft.preventivos)">
-          + Agregar preventivo
-        </BaseButton>
       </div>
 
-      <div>
+      <div class="sm:col-span-2">
         <label class="mb-1.5 block text-sm font-medium text-ink-700 dark:text-ink-200">
-          N° de Devengado <span class="text-ink-300">(puede añadir más de uno)</span>
+          N° de {{ draft.tipoFila === 'PREVENTIVO' ? 'Preventivo' : 'Devengado' }}
+          <span class="text-ink-300">(puede añadir más de uno, ej. "2 en 1")</span>
         </label>
-        <div v-for="(_, i) in draft.devengados" :key="i" class="mb-2 flex gap-2">
-          <BaseInput v-model="draft.devengados[i]" placeholder="Ej: DEV-001" class="flex-1" />
-          <BaseButton
-            variant="ghost"
-            size="sm"
-            type="button"
-            @click="removeItem(draft.devengados, i)"
+        <div v-for="(_, i) in draft.numeros" :key="i" class="mb-2 flex gap-2">
+          <BaseInput v-model="draft.numeros[i]" placeholder="Ej: 001" class="flex-1" />
+          <BaseButton variant="ghost" size="sm" type="button" @click="removeItem(draft.numeros, i)"
             >✕</BaseButton
           >
         </div>
-        <BaseButton variant="secondary" size="sm" type="button" @click="addItem(draft.devengados)">
-          + Agregar devengado
+        <BaseButton variant="secondary" size="sm" type="button" @click="addItem(draft.numeros)">
+          + Agregar número
         </BaseButton>
-      </div>
-
-      <div>
-        <label class="mb-1.5 block text-sm font-medium text-ink-700 dark:text-ink-200">
-          Beneficiario <span class="text-ink-300">(puede añadir más de uno)</span>
-        </label>
-        <div v-for="(_, i) in draft.beneficiarios" :key="i" class="mb-2 flex gap-2">
-          <BaseInput
-            v-model="draft.beneficiarios[i]"
-            placeholder="Nombre del beneficiario"
-            class="flex-1"
-          />
-          <BaseButton
-            variant="ghost"
-            size="sm"
-            type="button"
-            @click="removeItem(draft.beneficiarios, i)"
-            >✕</BaseButton
-          >
-        </div>
-        <BaseButton
-          variant="secondary"
-          size="sm"
-          type="button"
-          @click="addItem(draft.beneficiarios)"
-        >
-          + Agregar beneficiario
-        </BaseButton>
+        <p v-if="errors.numeros" class="mt-1 text-xs text-red-600">{{ errors.numeros }}</p>
       </div>
     </div>
-    <p v-if="errors.prevODev" class="text-xs text-red-600">{{ errors.prevODev }}</p>
+
+    <div>
+      <label class="mb-1.5 block text-sm font-medium text-ink-700 dark:text-ink-200">
+        Beneficiario <span class="text-ink-300">(puede añadir más de uno)</span>
+      </label>
+      <div v-for="(_, i) in draft.beneficiarios" :key="i" class="mb-2 flex gap-2">
+        <BaseInput
+          v-model="draft.beneficiarios[i]"
+          placeholder="Nombre del beneficiario"
+          class="flex-1"
+        />
+        <BaseButton
+          variant="ghost"
+          size="sm"
+          type="button"
+          @click="removeItem(draft.beneficiarios, i)"
+          >✕</BaseButton
+        >
+      </div>
+      <BaseButton variant="secondary" size="sm" type="button" @click="addItem(draft.beneficiarios)">
+        + Agregar beneficiario
+      </BaseButton>
+    </div>
 
     <BaseInput
       v-model.number="draft.montoTotal"
@@ -227,8 +224,8 @@ function handleAdd() {
       class="text-xs font-medium text-ink-500 underline decoration-dotted hover:text-ink-700 dark:text-ink-400"
       @click="showDetalles = !showDetalles"
     >
-      {{ showDetalles ? 'Ocultar' : 'Completar' }} descripción y fecha de elaboración (opcional por
-      ahora)
+      {{ showDetalles ? 'Ocultar' : 'Completar' }} descripción, folio y fecha de elaboración
+      (opcional por ahora)
     </button>
     <div v-if="showDetalles" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <BaseInput
@@ -243,6 +240,7 @@ function handleAdd() {
         label="Fecha de elaboración"
         :error="errors.fechaElaboracion"
       />
+      <BaseInput v-model="draft.numeroFolio" label="N° de folio (opcional)" />
     </div>
 
     <div class="flex justify-end">

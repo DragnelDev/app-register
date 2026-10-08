@@ -50,6 +50,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { roles: ['ADMIN'] as RolUsuario[] },
   },
   {
+    path: '/carpetas',
+    name: 'carpetas',
+    component: () => import('@/modules/carpetas/views/CarpetasListView.vue'),
+    meta: { roles: ['ADMIN', 'OPERADOR_ARCHIVOS'] as RolUsuario[] },
+  },
+  {
     path: '/usuarios',
     name: 'usuarios',
     component: () => import('@/modules/usuarios/views/UsuariosListView.vue'),

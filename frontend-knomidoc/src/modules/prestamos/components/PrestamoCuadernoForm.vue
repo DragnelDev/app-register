@@ -114,7 +114,8 @@ function handleSubmit() {
         <span>
           Comprobante N°
           {{
-            comprobanteSeleccionado.numeroComprobante ??
+            comprobanteSeleccionado.preventivo?.numeroPreventivo ??
+            comprobanteSeleccionado.devengado?.numeroDevengado ??
             comprobanteSeleccionado.numeroFolio ??
             comprobanteSeleccionado.id
           }}

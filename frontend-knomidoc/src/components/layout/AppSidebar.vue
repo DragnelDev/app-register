@@ -43,6 +43,17 @@ const navGroups = computed<NavGroup[]>(() => [
     ],
   },
   {
+    title: 'Archivo Físico',
+    items: [
+      {
+        to: '/carpetas',
+        label: 'Carpetas',
+        icon: '🗂️',
+        roles: ['ADMIN', 'OPERADOR_ARCHIVOS'],
+      },
+    ],
+  },
+  {
     title: 'Préstamos Documentales',
     items: [
       {
