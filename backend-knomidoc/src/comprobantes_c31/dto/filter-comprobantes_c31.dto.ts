@@ -1,9 +1,9 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsInt, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString } from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { Type, Transform } from 'class-transformer';
 
-const ESTADOS_FISICO = ['EN_ARCHIVO', 'PRESTADO', 'ANULADO'];
+const ESTADOS_FISICO = ['EN_TRAMITE', 'EN_ARCHIVO', 'PRESTADO', 'ANULADO'];
 const TIPOS_C31 = ['CON_IMPUTACION', 'SIN_IMPUTACION'];
 
 const vacioAUndefined = ({ value }: { value: unknown }): unknown =>
@@ -13,6 +13,13 @@ const numeroOUndefined = ({ value }: { value: unknown }): unknown =>
   value === '' || value === null || value === undefined
     ? undefined
     : Number(value);
+
+/** Acepta true/false como booleano o como texto de la query string. */
+const textoABooleano = ({ value }: { value: unknown }): unknown => {
+  if (value === 'true' || value === true) return true;
+  if (value === 'false' || value === false) return false;
+  return undefined;
+};
 
 export class FilterComprobantesC31Dto extends PaginationQueryDto {
   @ApiPropertyOptional({ enum: ESTADOS_FISICO })
@@ -55,4 +62,22 @@ export class FilterComprobantesC31Dto extends PaginationQueryDto {
   @Type(() => Number)
   @IsInt()
   actaEntregaId?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'true = solo comprobantes vigentes sin acta de entrega (pendientes de vincular)',
+  })
+  @IsOptional()
+  @Transform(textoABooleano, { toClassOnly: true })
+  @IsBoolean()
+  sinActa?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'true = solo comprobantes en archivo que aún no tienen carpeta asignada',
+  })
+  @IsOptional()
+  @Transform(textoABooleano, { toClassOnly: true })
+  @IsBoolean()
+  sinCarpeta?: boolean;
 }

@@ -4,6 +4,7 @@ import App from './App.vue'
 import router from './router'
 import { useAuthStore } from './stores/auth.store'
 import { useTheme } from './composables/useTheme'
+import '@fortawesome/fontawesome-free/css/all.min.css'
 import './assets/styles/main.scss'
 
 useTheme()

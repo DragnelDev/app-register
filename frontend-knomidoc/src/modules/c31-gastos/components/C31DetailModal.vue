@@ -7,6 +7,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { useC31Store } from '@/stores/c31.store'
 import type { ComprobanteC31 } from '@/types/c31.types'
+import { identificadorC31 } from '@/types/c31.types'
 
 const props = defineProps<{
   modelValue: boolean
@@ -111,14 +112,9 @@ function cancelarEdicion() {
             Bs {{ Number(comprobante.montoTotal).toFixed(2) }} ·
             {{ comprobante.fechaElaboracion }} · Gestión {{ comprobante.gestion }}
           </p>
-          <p
-            v-if="
-              comprobante.preventivo?.numeroPreventivo || comprobante.devengado?.numeroDevengado
-            "
-            class="text-ink-600 dark:text-ink-300"
-          >
+          <p v-if="identificadorC31(comprobante)" class="text-ink-600 dark:text-ink-300">
             N° {{ comprobante.tipoC31 === 'CON_IMPUTACION' ? 'preventivo' : 'devengado' }}:
-            {{ comprobante.preventivo?.numeroPreventivo ?? comprobante.devengado?.numeroDevengado }}
+            {{ identificadorC31(comprobante) }}
           </p>
         </div>
         <div class="flex flex-col items-end gap-2">
@@ -143,11 +139,7 @@ function cancelarEdicion() {
             {{ comprobante.tipoC31 === 'CON_IMPUTACION' ? 'N° de Preventivo' : 'N° de Devengado' }}
           </h4>
           <p class="text-ink-700 dark:text-ink-300">
-            {{
-              comprobante.preventivo?.numeroPreventivo ??
-              comprobante.devengado?.numeroDevengado ??
-              '—'
-            }}
+            {{ identificadorC31(comprobante) ?? '—' }}
           </p>
         </div>
         <div>

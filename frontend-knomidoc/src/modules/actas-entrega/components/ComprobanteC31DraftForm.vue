@@ -20,13 +20,11 @@ type TipoFila = 'PREVENTIVO' | 'DEVENGADO'
 
 function blankDraft() {
   return {
-    tipoC31: 'CON_IMPUTACION' as TipoC31,
     tipoFila: 'PREVENTIVO' as TipoFila,
     numeros: [''], // números de preventivo o devengado, según tipoFila; soporta "2 en 1"
     beneficiarios: [''],
     cheques: [] as string[],
     montoTotal: 0,
-    numeroComprobante: '',
     descripcion: '',
     numeroFolio: '',
     fechaElaboracion: props.fechaSugerida,
@@ -69,19 +67,24 @@ function handleAdd() {
 
   const numeros = draft.numeros.filter((n) => n.trim() !== '')
 
+  // Varios N° en una misma fila se combinan en un solo campo ("2 en 1"):
+  // el backend guarda un único preventivo o devengado por comprobante.
+  const numeroCombinado = numeros.map((n) => n.trim()).join(' / ')
+  // El tipo C31 se deduce del tipo de fila: preventivo = con imputación, devengado = sin imputación.
+  const tipoC31: TipoC31 = draft.tipoFila === 'PREVENTIVO' ? 'CON_IMPUTACION' : 'SIN_IMPUTACION'
+
   const payload: ComprobanteC31FormPayload = {
-    tipoC31: draft.tipoC31,
+    tipoC31,
     montoTotal: draft.montoTotal,
     fechaElaboracion: draft.fechaElaboracion,
     descripcion:
       draft.descripcion.trim() ||
       'Comprobante registrado desde acta de entrega (completar descripción)',
-    numeroComprobante: draft.numeroComprobante.trim() || undefined,
     numeroFolio: draft.numeroFolio.trim() || undefined,
     // La ubicación física se asigna después, en otro momento; no se pide aquí.
     ubicacionFisica: undefined,
-    preventivos: draft.tipoFila === 'PREVENTIVO' ? numeros : [],
-    devengados: draft.tipoFila === 'DEVENGADO' ? numeros : [],
+    numeroPreventivo: draft.tipoFila === 'PREVENTIVO' ? numeroCombinado : undefined,
+    numeroDevengado: draft.tipoFila === 'DEVENGADO' ? numeroCombinado : undefined,
     beneficiarios: draft.beneficiarios.filter((b) => b.trim() !== ''),
     cheques: draft.cheques.filter((c) => c.trim() !== ''),
   }
@@ -101,29 +104,16 @@ function handleAdd() {
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div>
         <label class="mb-1.5 block text-sm font-medium text-ink-700 dark:text-ink-200">
-          Tipo de C31
-        </label>
-        <select
-          v-model="draft.tipoC31"
-          class="w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
-        >
-          <option value="CON_IMPUTACION">Con imputación</option>
-          <option value="SIN_IMPUTACION">Sin imputación</option>
-        </select>
-      </div>
-
-      <div>
-        <label class="mb-1.5 block text-sm font-medium text-ink-700 dark:text-ink-200">
           Esta fila es de
         </label>
         <div class="flex gap-4 pt-2 text-sm text-ink-700 dark:text-ink-200">
           <label class="flex items-center gap-1.5">
             <input v-model="draft.tipoFila" type="radio" value="PREVENTIVO" />
-            Preventivo
+            Preventivo (con imputación)
           </label>
           <label class="flex items-center gap-1.5">
             <input v-model="draft.tipoFila" type="radio" value="DEVENGADO" />
-            Devengado
+            Devengado (sin imputación)
           </label>
         </div>
       </div>
@@ -184,8 +174,7 @@ function handleAdd() {
       class="text-xs font-medium text-ink-500 underline decoration-dotted hover:text-ink-700 dark:text-ink-400"
       @click="showDetalles = !showDetalles"
     >
-      {{ showDetalles ? 'Ocultar' : 'Completar' }} descripción, N° de comprobante, folio y cheques
-      (opcional por ahora)
+      {{ showDetalles ? 'Ocultar' : 'Completar' }} descripción, folio y cheques (opcional por ahora)
     </button>
     <div v-if="showDetalles" class="space-y-4">
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -200,7 +189,6 @@ function handleAdd() {
           label="Fecha de elaboración"
           :error="errors.fechaElaboracion"
         />
-        <BaseInput v-model="draft.numeroComprobante" label="N° de comprobante (opcional)" />
         <BaseInput v-model="draft.numeroFolio" label="N° de folio (opcional)" />
       </div>
 

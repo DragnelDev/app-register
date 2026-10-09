@@ -22,6 +22,12 @@ import { ActasEntregaModule } from './actas-entrega/actas-entrega.module';
 import { APP_GUARD } from '@nestjs/core';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { DepositosModule } from './depositos/depositos.module';
+import { EstantesModule } from './estantes/estantes.module';
+import { ParametrosGestionModule } from './parametros-gestion/parametros-gestion.module';
+import { AuditoriaModule } from './auditoria/auditoria.module';
+import { ReportesModule } from './reportes/reportes.module';
+import { ResumenModule } from './resumen/resumen.module';
 
 @Module({
   imports: [
@@ -49,6 +55,12 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     PrestamosCuadernoModule,
     PrestamosNotaModule,
     PrestamosNotaDetalleModule,
+    DepositosModule,
+    EstantesModule,
+    ParametrosGestionModule,
+    AuditoriaModule,
+    ReportesModule,
+    ResumenModule,
     UploadsModule,
     AuthModule,
     ServeStaticModule.forRoot({

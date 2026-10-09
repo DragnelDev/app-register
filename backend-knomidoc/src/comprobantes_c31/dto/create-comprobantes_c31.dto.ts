@@ -160,7 +160,10 @@ export class CreateComprobantesC31Dto {
   @IsArray()
   @ArrayNotEmpty({ message: 'Debe registrar al menos un beneficiario' })
   @IsString({ each: true })
-  readonly beneficiarios: string[] = [];
+  // Sin valor por defecto: UpdateComprobantesC31Dto hereda este campo vía
+  // PartialType y un `= []` haría que todo PATCH pareciera enviar una lista
+  // vacía de beneficiarios (rechazando cualquier edición parcial).
+  readonly beneficiarios: string[] | undefined;
 
   @ApiPropertyOptional({ type: [String], example: [], description: 'Opcional' })
   @IsOptional()

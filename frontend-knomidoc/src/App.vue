@@ -13,12 +13,12 @@ const isPublicPage = computed(() => Boolean(route.meta.public))
   <!-- Páginas públicas (login) ocupan toda la pantalla sin chrome de la app -->
   <RouterView v-if="isPublicPage" />
 
-  <div v-else class="flex min-h-screen bg-transparent dark:bg-ink-950">
+  <div v-else class="flex min-h-screen bg-paper dark:bg-ink-950">
     <AppSidebar />
-    <div class="flex flex-1 flex-col">
+    <div class="flex min-w-0 flex-1 flex-col">
       <AppNavbar />
-      <main class="flex-1 px-6 py-6 lg:px-10">
-        <RouterView />
+      <main class="flex-1 px-4 py-6 sm:px-6 lg:px-10">
+        <RouterView :key="route.path" />
       </main>
       <AppFooter />
     </div>

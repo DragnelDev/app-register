@@ -10,7 +10,11 @@ import {
   DataSource,
   EntityManager,
   FindOptionsWhere,
-  Like,
+  ILike,
+  IsNull,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+  Not,
   Repository,
 } from 'typeorm';
 import * as ExcelJS from 'exceljs';
@@ -238,26 +242,55 @@ export class ComprobantesC31Service {
     if (query.tipoC31) baseWhere.tipoC31 = query.tipoC31 as TipoC31;
     if (query.gestion) baseWhere.gestion = query.gestion;
     if (query.actaEntregaId) baseWhere.actaEntregaId = query.actaEntregaId;
+
+    // Rango de fechas: admite solo "desde", solo "hasta" o ambos
     if (query.fechaDesde && query.fechaHasta) {
       baseWhere.fechaElaboracion = Between(
         query.fechaDesde as unknown as Date,
         query.fechaHasta as unknown as Date,
       );
+    } else if (query.fechaDesde) {
+      baseWhere.fechaElaboracion = MoreThanOrEqual(
+        query.fechaDesde as unknown as Date,
+      );
+    } else if (query.fechaHasta) {
+      baseWhere.fechaElaboracion = LessThanOrEqual(
+        query.fechaHasta as unknown as Date,
+      );
     }
 
-    const where: FindOptionsWhere<ComprobantesC31>[] = query.search
+    // Pendientes de regularización
+    if (query.sinActa) {
+      baseWhere.actaEntregaId = IsNull();
+      // Un comprobante anulado no necesita regularizarse
+      if (!query.estadoFisico) {
+        baseWhere.estadoFisico = Not(EstadoFisicoC31.ANULADO);
+      }
+    }
+    if (query.sinCarpeta) {
+      baseWhere.estadoFisico = EstadoFisicoC31.EN_ARCHIVO;
+      baseWhere.carpetasUbicacion = { id: IsNull() };
+    }
+
+    const like = query.search ? `%${query.search}%` : undefined;
+    const where: FindOptionsWhere<ComprobantesC31>[] = like
       ? [
-          { ...baseWhere, descripcion: Like(`%${query.search}%`) },
-          { ...baseWhere, numeroFolio: Like(`%${query.search}%`) },
-          { ...baseWhere, ubicacionFisica: Like(`%${query.search}%`) },
+          { ...baseWhere, descripcion: ILike(like) },
+          { ...baseWhere, numeroFolio: ILike(like) },
+          { ...baseWhere, ubicacionFisica: ILike(like) },
           {
             ...baseWhere,
-            preventivos: { numeroPreventivo: Like(`%${query.search}%`) },
+            preventivos: { numeroPreventivo: ILike(like) },
           },
           {
             ...baseWhere,
-            devengados: { numeroDevengado: Like(`%${query.search}%`) },
+            devengados: { numeroDevengado: ILike(like) },
           },
+          {
+            ...baseWhere,
+            beneficiarios: { nombreBeneficiario: ILike(like) },
+          },
+          { ...baseWhere, cheques: { numeroCheque: ILike(like) } },
         ]
       : [baseWhere];
 

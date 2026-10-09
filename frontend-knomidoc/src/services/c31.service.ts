@@ -60,6 +60,17 @@ export const c31Service = {
       .then((r) => r.data)
   },
 
+  /** Asigna una carpeta física (y la parte n de 5) a un comprobante. */
+  asignarCarpeta(comprobanteId: string | number, carpetaId: string | number, numeroParte: number) {
+    return apiClient
+      .post('/c31-carpetas-ubicacion', {
+        comprobanteId: Number(comprobanteId),
+        carpetaId: Number(carpetaId),
+        numeroParte,
+      })
+      .then((r) => r.data)
+  },
+
   softDelete(id: string) {
     return apiClient.delete<void>(`${RESOURCE}/${id}`).then((r) => r.data)
   },

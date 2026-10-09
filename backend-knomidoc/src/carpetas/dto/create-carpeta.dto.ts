@@ -1,7 +1,8 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform, Type } from 'class-transformer';
 import {
   IsIn,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -20,14 +21,30 @@ export class CreateCarpetaDto {
   )
   readonly codigoCarpeta: string | undefined;
 
-  @ApiProperty({ example: 'Estante 4, Caja 12' })
-  @IsNotEmpty({ message: 'La ubicación física es obligatoria' })
+  @ApiPropertyOptional({
+    example: 'Caja 12',
+    description:
+      'Referencia física libre. Si se indica estanteId y se omite, se arma con el depósito y el estante.',
+  })
+  @IsOptional()
   @IsString()
   @MaxLength(150)
   @Transform(({ value }): string | undefined =>
-    typeof value === 'string' ? value.trim() : value,
+    typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined,
   )
-  readonly ubicacionFisica: string | undefined;
+  readonly ubicacionFisica?: string;
+
+  @ApiPropertyOptional({
+    example: 3,
+    description: 'Estante que contiene la carpeta',
+  })
+  @IsOptional()
+  @Transform(({ value }): unknown =>
+    value === '' || value === null ? undefined : value,
+  )
+  @Type(() => Number)
+  @IsInt()
+  readonly estanteId?: number;
 
   @ApiProperty({ enum: ESTADOS, required: false, default: 'EN_ARCHIVO' })
   @IsOptional()

@@ -29,12 +29,20 @@ export interface Carpeta {
   codigoCarpeta: string
   ubicacionFisica?: string
   estadoFisico?: string
+  estanteId?: number | null
+  estante?: {
+    id: number
+    codigo: string
+    deposito?: { id: number; codigo: string; nombre: string }
+  } | null
   fechaCreacion?: string
 }
 
 export interface CarpetaCreatePayload {
   codigoCarpeta: string
-  ubicacionFisica: string
+  /** Referencia física libre; si se indica estanteId se antepone "DEPÓSITO / ESTANTE" automáticamente */
+  ubicacionFisica?: string
+  estanteId?: number | null
   estadoFisico?: 'EN_ARCHIVO' | 'PRESTADO'
 }
 
@@ -56,19 +64,31 @@ export interface ComprobanteC31 {
   fechaCreacion?: string
   fechaModificacion?: string
 
-  // Relación 1 a 1 estricta según tipoC31: solo una de las dos existe.
-  preventivo?: C31Preventivo | null
-  devengado?: C31Devengado | null
+  // El backend devuelve listas; por la regla 1 a 1 según tipoC31 solo una de las dos trae un elemento.
+  preventivos?: C31Preventivo[]
+  devengados?: C31Devengado[]
   beneficiarios: C31Beneficiario[]
   cheques: C31Cheque[]
 }
 
+type ConIdentificadores = {
+  preventivos?: C31Preventivo[] | null
+  devengados?: C31Devengado[] | null
+}
+
+/** N° de preventivo del comprobante (si es CON_IMPUTACION). */
+export function numeroPreventivoC31(c: ConIdentificadores): string | undefined {
+  return c.preventivos?.[0]?.numeroPreventivo || undefined
+}
+
+/** N° de devengado del comprobante (si es SIN_IMPUTACION). */
+export function numeroDevengadoC31(c: ConIdentificadores): string | undefined {
+  return c.devengados?.[0]?.numeroDevengado || undefined
+}
+
 /** Identificador oficial del comprobante: numeroPreventivo o numeroDevengado según corresponda. */
-export function identificadorC31(c: {
-  preventivo?: C31Preventivo | null
-  devengado?: C31Devengado | null
-}): string | undefined {
-  return c.preventivo?.numeroPreventivo ?? c.devengado?.numeroDevengado ?? undefined
+export function identificadorC31(c: ConIdentificadores): string | undefined {
+  return numeroPreventivoC31(c) ?? numeroDevengadoC31(c)
 }
 
 /** Payload plano para el formulario dinámico (arrays de strings, se transforman antes de enviar) */
@@ -100,6 +120,10 @@ export interface C31FilterState {
   fechaHasta?: string
   gestion?: number | ''
   actaEntregaId?: string | ''
+  /** true = solo vigentes sin acta de entrega (pendientes de vincular) */
+  sinActa?: boolean
+  /** true = solo en archivo sin carpeta asignada */
+  sinCarpeta?: boolean
 }
 
 /** Resultado de una importación masiva desde Excel */

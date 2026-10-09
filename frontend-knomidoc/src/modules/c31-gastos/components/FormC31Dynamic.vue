@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { onMounted, reactive } from 'vue'
+import { parametrosGestionService } from '@/services/gestion.service'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import type { ComprobanteC31FormPayload } from '@/types/c31.types'
@@ -29,6 +30,12 @@ const form = reactive<ComprobanteC31FormPayload>({
   numeroDevengado: '',
   beneficiarios: [''],
   cheques: [],
+})
+
+// La gestión propuesta es la marcada como activa en Parámetros de gestión
+onMounted(async () => {
+  const activa = await parametrosGestionService.activa().catch(() => null)
+  if (activa?.gestion) form.gestion = activa.gestion
 })
 
 function addItem(list: string[]) {

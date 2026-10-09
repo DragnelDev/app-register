@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import type { ComprobanteC31 } from '@/types/c31.types'
-import { identificadorC31 } from '@/types/c31.types'
+import { identificadorC31, numeroPreventivoC31, numeroDevengadoC31 } from '@/types/c31.types'
 
 const props = withDefaults(
   defineProps<{
@@ -31,13 +31,6 @@ function joinNombres(items: { nombreBeneficiario?: string }[] | undefined) {
       .join(', ') || '—'
   )
 }
-
-function numeroDe(
-  item: { numeroPreventivo?: string } | { numeroDevengado?: string } | null | undefined,
-  key: 'numeroPreventivo' | 'numeroDevengado',
-) {
-  return (item as Record<string, string | undefined> | null | undefined)?.[key] || '—'
-}
 </script>
 
 <template>
@@ -63,8 +56,8 @@ function numeroDe(
           <td class="table-cell">
             {{ identificadorC31(comprobante) ?? comprobante.numeroFolio ?? comprobante.id }}
           </td>
-          <td class="table-cell">{{ numeroDe(comprobante.preventivo, 'numeroPreventivo') }}</td>
-          <td class="table-cell">{{ numeroDe(comprobante.devengado, 'numeroDevengado') }}</td>
+          <td class="table-cell">{{ numeroPreventivoC31(comprobante) ?? '—' }}</td>
+          <td class="table-cell">{{ numeroDevengadoC31(comprobante) ?? '—' }}</td>
           <td class="table-cell">{{ joinNombres(comprobante.beneficiarios) }}</td>
           <td class="table-cell text-right">{{ formatMonto(comprobante.montoTotal) }}</td>
           <td v-if="!readonly" class="table-cell text-right">

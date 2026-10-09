@@ -3,7 +3,7 @@ import { ref, watch, onBeforeUnmount } from 'vue'
 import { c31Service } from '@/services/c31.service'
 import { extractApiErrorMessage } from '@/utils/http-error'
 import type { ComprobanteC31 } from '@/types/c31.types'
-import { identificadorC31 } from '@/types/c31.types'
+import { identificadorC31, numeroPreventivoC31, numeroDevengadoC31 } from '@/types/c31.types'
 
 const props = withDefaults(
   defineProps<{
@@ -90,13 +90,6 @@ function joinNombres(items: { nombreBeneficiario?: string }[] | undefined) {
   )
 }
 
-function numeroDe(
-  item: { numeroPreventivo?: string } | { numeroDevengado?: string } | null | undefined,
-  key: 'numeroPreventivo' | 'numeroDevengado',
-) {
-  return (item as Record<string, string | undefined> | null | undefined)?.[key] || '—'
-}
-
 onBeforeUnmount(() => {
   if (debounceTimer) clearTimeout(debounceTimer)
 })
@@ -142,8 +135,8 @@ onBeforeUnmount(() => {
           {{ comprobante.descripcion }}
         </p>
         <p class="mt-0.5 text-xs text-ink-400 dark:text-ink-500">
-          Prev: {{ numeroDe(comprobante.preventivo, 'numeroPreventivo') }} · Dev:
-          {{ numeroDe(comprobante.devengado, 'numeroDevengado') }} · Beneficiario:
+          Prev: {{ numeroPreventivoC31(comprobante) ?? '—' }} · Dev:
+          {{ numeroDevengadoC31(comprobante) ?? '—' }} · Beneficiario:
           {{ joinNombres(comprobante.beneficiarios) }}
         </p>
       </button>

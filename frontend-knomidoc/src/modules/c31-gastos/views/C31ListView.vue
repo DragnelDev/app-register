@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -9,8 +9,29 @@ import C31DetailModal from '../components/C31DetailModal.vue'
 import { useC31Store } from '@/stores/c31.store'
 import { useAuthStore } from '@/stores/auth.store'
 import type { ComprobanteC31, C31FilterState } from '@/types/c31.types'
+import { identificadorC31 } from '@/types/c31.types'
 
+const route = useRoute()
 const store = useC31Store()
+
+// Las rutas /c31/con-imputacion y /c31/sin-imputacion fijan el tipo de C31
+const tipoFijo = computed(
+  () => (route.meta.tipoC31 as 'CON_IMPUTACION' | 'SIN_IMPUTACION' | undefined) ?? '',
+)
+const titulo = computed(() =>
+  tipoFijo.value === 'CON_IMPUTACION'
+    ? 'C31 Con Imputación'
+    : tipoFijo.value === 'SIN_IMPUTACION'
+      ? 'C31 Sin Imputación'
+      : 'Comprobantes C31',
+)
+const subtitulo = computed(() =>
+  tipoFijo.value === 'CON_IMPUTACION'
+    ? 'Comprobantes con preventivo: ejecución de gasto con imputación presupuestaria.'
+    : tipoFijo.value === 'SIN_IMPUTACION'
+      ? 'Comprobantes con devengado: ejecución de gasto sin imputación presupuestaria.'
+      : 'Registro, custodia y trazabilidad de ejecución de gastos.',
+)
 const auth = useAuthStore()
 const detailOpen = ref(false)
 const importing = ref(false)
@@ -68,6 +89,7 @@ async function handleImportChange(event: Event) {
 }
 
 const columns: DataTableColumn<ComprobanteC31>[] = [
+  { key: 'id', label: 'N° Prev / Dev' },
   { key: 'descripcion', label: 'Descripción', sortable: true },
   { key: 'montoTotal', label: 'Monto (Bs)', sortable: true },
   { key: 'fechaElaboracion', label: 'Fecha', sortable: true },
@@ -81,6 +103,17 @@ function openDetail(row: ComprobanteC31) {
 }
 
 onMounted(() => {
+  // Estado limpio al entrar: sin filtros heredados de otra pantalla
+  store.setFilters({
+    search: '',
+    estadoFisico: '',
+    tipoC31: tipoFijo.value,
+    fechaDesde: '',
+    fechaHasta: '',
+    gestion: '',
+    sinActa: undefined,
+    sinCarpeta: undefined,
+  })
   store.fetchGestiones()
   store.fetchList()
 })
@@ -90,10 +123,8 @@ onMounted(() => {
   <div class="space-y-4">
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-semibold">Comprobantes C31</h1>
-        <p class="text-sm text-ink-400">
-          Registro, custodia y trazabilidad de ejecución de gastos.
-        </p>
+        <h1 class="text-2xl font-semibold">{{ titulo }}</h1>
+        <p class="text-sm text-ink-500 dark:text-ink-400">{{ subtitulo }}</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <BaseButton
@@ -133,6 +164,7 @@ onMounted(() => {
     <C31FilterBar
       :model-value="store.filters"
       :gestiones="store.gestiones"
+      :lock-tipo="Boolean(tipoFijo)"
       @update:model-value="handleFiltersUpdate"
       @export="exportarExcel"
     />
@@ -152,6 +184,9 @@ onMounted(() => {
       "
       @row-click="openDetail"
     >
+      <template #cell-id="{ row }">
+        <span class="font-mono text-xs">{{ identificadorC31(row) ?? '—' }}</span>
+      </template>
       <template #cell-montoTotal="{ row }">{{ Number(row.montoTotal).toFixed(2) }}</template>
       <template #cell-estadoFisico="{ row }"><BaseBadge :estado="row.estadoFisico" /></template>
       <template #actions="{ row }">

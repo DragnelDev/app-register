@@ -1,6 +1,9 @@
 import type { RouteRecordRaw } from 'vue-router'
 import type { RolUsuario } from '@/types/common.types'
 
+const ARCHIVO: RolUsuario[] = ['ADMIN', 'OPERADOR_ARCHIVOS']
+const PRESTAMOS: RolUsuario[] = ['ADMIN', 'ENCARGADO_PRESTAMOS']
+
 // Meta.roles vacío o ausente = accesible para cualquier usuario autenticado
 export const routes: RouteRecordRaw[] = [
   {
@@ -29,19 +32,39 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/actas-entrega',
     name: 'actas-entrega',
-    component: () => import('@/modules/notas-entrega/views/NotasEntregaListView.vue'),
-    meta: { roles: ['ADMIN', 'ENCARGADO_PRESTAMOS'] as RolUsuario[] },
+    component: () => import('@/modules/actas-entrega/views/ActasEntregaListView.vue'),
+    meta: { roles: ARCHIVO },
   },
+
+  // ── Gestión SIGEP (gastos) ──
   {
     path: '/c31',
     name: 'c31-list',
     component: () => import('@/modules/c31-gastos/views/C31ListView.vue'),
   },
   {
+    path: '/c31/con-imputacion',
+    name: 'c31-con-imputacion',
+    component: () => import('@/modules/c31-gastos/views/C31ListView.vue'),
+    meta: { tipoC31: 'CON_IMPUTACION' },
+  },
+  {
+    path: '/c31/sin-imputacion',
+    name: 'c31-sin-imputacion',
+    component: () => import('@/modules/c31-gastos/views/C31ListView.vue'),
+    meta: { tipoC31: 'SIN_IMPUTACION' },
+  },
+  {
     path: '/c31/nuevo',
     name: 'c31-create',
     component: () => import('@/modules/c31-gastos/views/C31CreateView.vue'),
-    meta: { roles: ['ADMIN', 'ENCARGADO_PRESTAMOS'] as RolUsuario[] },
+    meta: { roles: ARCHIVO },
+  },
+  {
+    path: '/c31/vinculos',
+    name: 'c31-vinculos',
+    component: () => import('@/modules/c31-gastos/views/C31VinculosView.vue'),
+    meta: { roles: ARCHIVO },
   },
   {
     path: '/c31/aprobaciones',
@@ -49,12 +72,53 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/modules/c31-gastos/views/C31AprobacionesView.vue'),
     meta: { roles: ['ADMIN'] as RolUsuario[] },
   },
+
+  // ── Archivo físico ──
+  {
+    path: '/archivo/depositos',
+    name: 'depositos',
+    component: () => import('@/modules/archivo/views/DepositosListView.vue'),
+  },
+  {
+    path: '/archivo/estantes',
+    name: 'estantes',
+    component: () => import('@/modules/archivo/views/EstantesListView.vue'),
+  },
   {
     path: '/carpetas',
     name: 'carpetas',
     component: () => import('@/modules/carpetas/views/CarpetasListView.vue'),
-    meta: { roles: ['ADMIN', 'OPERADOR_ARCHIVOS'] as RolUsuario[] },
   },
+
+  // ── Préstamos documentales ──
+  {
+    path: '/prestamos/cuaderno',
+    name: 'prestamos-cuaderno',
+    component: () => import('@/modules/prestamos/views/PrestamosCuadernoView.vue'),
+    meta: { roles: PRESTAMOS },
+  },
+  {
+    path: '/prestamos/notas',
+    name: 'prestamos-notas',
+    component: () => import('@/modules/prestamos/views/PrestamosNotasView.vue'),
+    meta: { roles: PRESTAMOS },
+  },
+
+  // ── Control y análisis ──
+  {
+    path: '/reportes',
+    name: 'reportes',
+    component: () => import('@/modules/reportes/views/ReportesFinancierosView.vue'),
+    meta: { roles: ['ADMIN', 'OPERADOR_ARCHIVOS', 'CONSULTA_EXTERNA'] as RolUsuario[] },
+  },
+  {
+    path: '/auditoria',
+    name: 'auditoria',
+    component: () => import('@/modules/auditoria/views/AuditoriaView.vue'),
+    meta: { roles: ['ADMIN'] as RolUsuario[] },
+  },
+
+  // ── Administración ──
   {
     path: '/usuarios',
     name: 'usuarios',
@@ -62,16 +126,10 @@ export const routes: RouteRecordRaw[] = [
     meta: { roles: ['ADMIN'] as RolUsuario[] },
   },
   {
-    path: '/prestamos/cuaderno',
-    name: 'prestamos-cuaderno',
-    component: () => import('@/modules/prestamos/views/PrestamosCuadernoView.vue'),
-    meta: { roles: ['ADMIN', 'ENCARGADO_PRESTAMOS'] as RolUsuario[] },
-  },
-  {
-    path: '/prestamos/notas',
-    name: 'prestamos-notas',
-    component: () => import('@/modules/prestamos/views/PrestamosNotasView.vue'),
-    meta: { roles: ['ADMIN', 'ENCARGADO_PRESTAMOS'] as RolUsuario[] },
+    path: '/parametros',
+    name: 'parametros',
+    component: () => import('@/modules/parametros/views/ParametrosGestionView.vue'),
+    meta: { roles: ['ADMIN'] as RolUsuario[] },
   },
   {
     path: '/:pathMatch(.*)*',

@@ -2,7 +2,7 @@
 import { reactive, watch } from 'vue'
 import type { C31FilterState } from '@/types/c31.types'
 
-const props = defineProps<{ modelValue: C31FilterState; gestiones: number[] }>()
+const props = defineProps<{ modelValue: C31FilterState; gestiones: number[]; lockTipo?: boolean }>()
 const emit = defineEmits<{
   'update:modelValue': [value: C31FilterState]
   export: []
@@ -23,7 +23,7 @@ function apply() {
 function reset() {
   local.search = ''
   local.estadoFisico = ''
-  local.tipoC31 = ''
+  if (!props.lockTipo) local.tipoC31 = ''
   local.fechaDesde = ''
   local.fechaHasta = ''
   local.gestion = ''
@@ -38,7 +38,7 @@ function reset() {
       <input
         v-model="local.search"
         type="text"
-        placeholder="Descripción, N° comprobante, beneficiario…"
+        placeholder="Descripción, N° preventivo/devengado, beneficiario, cheque…"
         class="w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
       />
     </div>
@@ -58,6 +58,7 @@ function reset() {
       <label class="mb-1 block text-xs font-medium text-ink-500">Tipo C31</label>
       <select
         v-model="local.tipoC31"
+        :disabled="lockTipo"
         class="rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
       >
         <option value="">Todos</option>

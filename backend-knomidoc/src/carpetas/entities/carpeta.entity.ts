@@ -1,6 +1,14 @@
 import { C31CarpetasUbicacion } from 'src/c31-carpetas-ubicacion/entities/c31-carpetas-ubicacion.entity';
 import { BaseAuditoriaEntity } from 'src/common/entities/base-auditoria.entity';
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { Estante } from '../../estantes/entities/estante.entity';
 
 @Entity('carpetas')
 export class Carpeta extends BaseAuditoriaEntity {
@@ -17,9 +25,17 @@ export class Carpeta extends BaseAuditoriaEntity {
     name: 'estado_fisico',
     type: 'varchar',
     length: 20,
-    default: 'EN ARCHIVO',
+    default: 'EN_ARCHIVO',
   })
   estadoFisico?: string;
+
+  /** Estante donde se guarda físicamente la carpeta (opcional). */
+  @ManyToOne(() => Estante, (e) => e.carpetas, { nullable: true })
+  @JoinColumn({ name: 'estante_id' })
+  estante?: Estante | null;
+
+  @Column({ name: 'estante_id', type: 'integer', nullable: true })
+  estanteId?: number | null;
 
   @OneToMany(() => C31CarpetasUbicacion, (ubic) => ubic.carpeta)
   comprobantesUbicacion?: C31CarpetasUbicacion[];

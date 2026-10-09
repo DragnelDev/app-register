@@ -1,14 +1,25 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
+import BaseSelect from '@/components/ui/BaseSelect.vue'
 import CarpetaModal from '../components/CarpetaModal.vue'
 import { carpetasService } from '@/services/carpetas.service'
+import { estantesService } from '@/services/archivo.service'
+import { useAuthStore } from '@/stores/auth.store'
+import { useResumenStore } from '@/stores/resumen.store'
+import type { Estante } from '@/types/archivo.types'
 import { extractApiErrorMessage } from '@/utils/http-error'
 import type { Carpeta, CarpetaCreatePayload, CarpetaUpdatePayload } from '@/types/c31.types'
 
+const auth = useAuthStore()
+const resumen = useResumenStore()
+const route = useRoute()
+const estantes = ref<Estante[]>([])
+const estanteFiltro = ref<string | number>((route.query.estanteId as string) ?? '')
 const rows = ref<Carpeta[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -24,6 +35,7 @@ const removingId = ref<string | number | null>(null)
 
 const columns: DataTableColumn<Carpeta>[] = [
   { key: 'codigoCarpeta', label: 'Código', sortable: true },
+  { key: 'estanteId', label: 'Estante' },
   { key: 'ubicacionFisica', label: 'Ubicación física' },
   { key: 'estadoFisico', label: 'Estado' },
 ]
@@ -36,6 +48,7 @@ async function loadRows() {
       page: page.value,
       pageSize,
       search: search.value || undefined,
+      estanteId: estanteFiltro.value || undefined,
     })
     rows.value = res.data
     total.value = res.total
@@ -47,7 +60,7 @@ async function loadRows() {
 }
 
 let searchTimer: ReturnType<typeof setTimeout> | undefined
-watch(search, () => {
+watch([search, estanteFiltro], () => {
   if (searchTimer) clearTimeout(searchTimer)
   searchTimer = setTimeout(() => {
     page.value = 1
@@ -62,6 +75,7 @@ function openCreate() {
 }
 
 function openEdit(row: Carpeta) {
+  if (!auth.puedeGestionarArchivo) return
   editingCarpeta.value = row
   formError.value = ''
   modalOpen.value = true
@@ -74,6 +88,7 @@ async function handleCreate(payload: CarpetaCreatePayload) {
     await carpetasService.create(payload)
     modalOpen.value = false
     await loadRows()
+    resumen.fetch()
   } catch (err) {
     formError.value = extractApiErrorMessage(err, 'No se pudo registrar la carpeta.')
   } finally {
@@ -109,7 +124,10 @@ async function handleRemove(row: Carpeta) {
   }
 }
 
-onMounted(loadRows)
+onMounted(async () => {
+  estantes.value = await estantesService.opciones().catch(() => [])
+  await loadRows()
+})
 </script>
 
 <template>
@@ -121,10 +139,22 @@ onMounted(loadRows)
           Códigos y ubicación física del archivo, usados para asignar comprobantes C31.
         </p>
       </div>
-      <BaseButton @click="openCreate">+ Registrar carpeta</BaseButton>
+      <BaseButton v-if="auth.puedeGestionarArchivo" @click="openCreate">
+        <i class="fa-solid fa-plus" aria-hidden="true" /> Registrar carpeta
+      </BaseButton>
     </div>
 
-    <BaseInput v-model="search" placeholder="Buscar por código o ubicación…" class="max-w-xs" />
+    <div class="flex flex-wrap items-end gap-3">
+      <BaseInput v-model="search" placeholder="Buscar por código o ubicación…" class="w-72" />
+      <BaseSelect
+        v-model="estanteFiltro"
+        placeholder="Todos los estantes"
+        class="w-64"
+        :options="
+          estantes.map((e) => ({ value: e.id, label: `${e.deposito?.codigo ?? ''} / ${e.codigo}` }))
+        "
+      />
+    </div>
 
     <p v-if="listError" class="text-sm text-red-600">{{ listError }}</p>
 
@@ -146,7 +176,10 @@ onMounted(loadRows)
       <template #cell-estadoFisico="{ row }">
         <BaseBadge :estado="row.estadoFisico ?? 'EN_ARCHIVO'" />
       </template>
-      <template #actions="{ row }">
+      <template #cell-estanteId="{ row }">
+        {{ row.estante ? `${row.estante.deposito?.codigo ?? ''} / ${row.estante.codigo}` : '—' }}
+      </template>
+      <template v-if="auth.puedeGestionarArchivo" #actions="{ row }">
         <div class="flex justify-end gap-2">
           <BaseButton variant="ghost" size="sm" @click="openEdit(row)">Editar</BaseButton>
           <BaseButton
@@ -165,6 +198,7 @@ onMounted(loadRows)
     <CarpetaModal
       v-model="modalOpen"
       :carpeta="editingCarpeta"
+      :estantes="estantes"
       :saving="saving"
       :error-message="formError"
       @create="handleCreate"

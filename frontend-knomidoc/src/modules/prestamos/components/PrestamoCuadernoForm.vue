@@ -7,6 +7,7 @@ import { usuariosService } from '@/services/usuarios.service'
 import { required, runValidators } from '@/utils/validators'
 import type { PrestamoCuadernoCreatePayload } from '@/types/prestamos.types'
 import type { ComprobanteC31 } from '@/types/c31.types'
+import { identificadorC31 } from '@/types/c31.types'
 import type { UsuarioSolicitante } from '@/types/auth.types'
 
 defineProps<{ saving?: boolean }>()
@@ -114,8 +115,7 @@ function handleSubmit() {
         <span>
           Comprobante N°
           {{
-            comprobanteSeleccionado.preventivo?.numeroPreventivo ??
-            comprobanteSeleccionado.devengado?.numeroDevengado ??
+            identificadorC31(comprobanteSeleccionado) ??
             comprobanteSeleccionado.numeroFolio ??
             comprobanteSeleccionado.id
           }}

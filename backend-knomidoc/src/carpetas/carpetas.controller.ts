@@ -7,14 +7,15 @@ import {
   Param,
   Delete,
   Query,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { CarpetasService } from './carpetas.service';
 import { CreateCarpetaDto } from './dto/create-carpeta.dto';
 import { UpdateCarpetaDto } from './dto/update-carpeta.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Roles } from 'src/auth/decorators/roles.decorator';
-import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
-import { Usuario } from 'src/usuarios/entities/usuario.entity';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { FilterCarpetasDto } from './dto/filter-carpetas.dto';
+import { Usuario } from '../usuarios/entities/usuario.entity';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @ApiTags('carpetas')
@@ -33,24 +34,27 @@ export class CarpetasController {
   }
 
   @Get()
-  findAll(@Query() query: PaginationQueryDto) {
-    return this.carpetasService.findAll(query); // Pasa 'query'
+  findAll(@Query() query: FilterCarpetasDto) {
+    return this.carpetasService.findAll(query);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.carpetasService.findOne(+id);
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.carpetasService.findOne(id);
   }
 
   @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateCarpetaDto: UpdateCarpetaDto) {
-    return this.carpetasService.update(+id, updateCarpetaDto);
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateCarpetaDto: UpdateCarpetaDto,
+  ) {
+    return this.carpetasService.update(id, updateCarpetaDto);
   }
 
   @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.carpetasService.remove(+id);
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.carpetasService.remove(id);
   }
 }

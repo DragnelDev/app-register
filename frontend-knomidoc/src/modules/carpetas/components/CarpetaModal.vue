@@ -3,11 +3,14 @@ import { reactive, watch } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseSelect from '@/components/ui/BaseSelect.vue'
+import type { Estante } from '@/types/archivo.types'
 import type { Carpeta, CarpetaCreatePayload, CarpetaUpdatePayload } from '@/types/c31.types'
 
 const props = defineProps<{
   modelValue: boolean
   carpeta?: Carpeta | null
+  estantes: Estante[]
   saving?: boolean
   errorMessage?: string
 }>()
@@ -21,6 +24,7 @@ const emit = defineEmits<{
 const form = reactive({
   codigoCarpeta: '',
   ubicacionFisica: '',
+  estanteId: '' as string | number,
   estadoFisico: 'EN_ARCHIVO' as 'EN_ARCHIVO' | 'PRESTADO',
 })
 
@@ -29,23 +33,29 @@ watch(
   (carpeta) => {
     form.codigoCarpeta = carpeta?.codigoCarpeta ?? ''
     form.ubicacionFisica = carpeta?.ubicacionFisica ?? ''
+    form.estanteId = carpeta?.estanteId ?? ''
     form.estadoFisico = (carpeta?.estadoFisico as 'EN_ARCHIVO' | 'PRESTADO') ?? 'EN_ARCHIVO'
   },
   { immediate: true },
 )
 
 function handleSubmit() {
+  const estanteId = form.estanteId === '' ? null : Number(form.estanteId)
   if (props.carpeta) {
+    // Si cambia de estante, la referencia se rearma en el servidor sobre el nuevo estante
+    const cambioEstante = estanteId !== null && estanteId !== (props.carpeta.estanteId ?? null)
     const payload: CarpetaUpdatePayload = {
       codigoCarpeta: form.codigoCarpeta,
-      ubicacionFisica: form.ubicacionFisica,
+      ...(cambioEstante ? {} : { ubicacionFisica: form.ubicacionFisica }),
+      ...(estanteId !== null ? { estanteId } : {}),
       estadoFisico: form.estadoFisico,
     }
     emit('update', props.carpeta.id, payload)
   } else {
     emit('create', {
       codigoCarpeta: form.codigoCarpeta,
-      ubicacionFisica: form.ubicacionFisica,
+      ubicacionFisica: form.ubicacionFisica || undefined,
+      estanteId,
       estadoFisico: form.estadoFisico,
     })
   }
@@ -66,11 +76,24 @@ function handleSubmit() {
         placeholder="CARP-2026-001"
         required
       />
+      <BaseSelect
+        v-model="form.estanteId"
+        label="Estante"
+        placeholder="Sin estante asignado"
+        hint="Define el depósito y estante donde se guarda la carpeta."
+        :options="
+          estantes.map((e) => ({
+            value: e.id,
+            label: `${e.deposito?.codigo ?? ''} / ${e.codigo}${e.descripcion ? ' — ' + e.descripcion : ''}`,
+          }))
+        "
+      />
       <BaseInput
+        v-if="!carpeta || !form.estanteId || Number(form.estanteId) === carpeta.estanteId"
         v-model="form.ubicacionFisica"
-        label="Ubicación física"
-        placeholder="Estante 4, Caja 12"
-        required
+        :label="form.estanteId ? 'Referencia física' : 'Ubicación física'"
+        placeholder="Caja 12"
+        :required="!form.estanteId"
       />
       <div class="flex flex-col gap-1.5">
         <label class="text-sm font-medium text-ink-700 dark:text-ink-200">Estado</label>
