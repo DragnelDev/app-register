@@ -40,7 +40,7 @@ export const useC31Store = defineStore('c31', {
   getters: {
     totalPages: (state) => Math.max(1, Math.ceil(state.total / state.pageSize)),
     prestados: (state) => state.items.filter((c) => c.estadoFisico === 'PRESTADO'),
-    pendientes: (state) => state.items.filter((c) => c.estadoFisico === 'EN_ARCHIVO'),
+    pendientes: (state) => state.items.filter((c) => c.estadoFisico === 'ARCHIVADO'),
   },
 
   actions: {
@@ -74,7 +74,7 @@ export const useC31Store = defineStore('c31', {
     },
 
     async anular(id: string) {
-      const updated = await c31Service.cambiarEstadoFisico(id, 'ANULADO')
+      const updated = await c31Service.cambiarEstado(id, 'ANULADO', 'Anulado desde el listado')
       this.replaceInList(updated)
       return updated
     },
@@ -96,6 +96,14 @@ export const useC31Store = defineStore('c31', {
       await this.fetchGestiones()
       await this.fetchList()
       return resultado
+    },
+
+    /** Cambio de estado con motivo; refresca la fila y el detalle abierto. */
+    async cambiarEstado(id: string, estado: ComprobanteC31['estadoFisico'], motivo?: string) {
+      const updated = await c31Service.cambiarEstado(id, estado, motivo)
+      this.replaceInList(updated)
+      if (this.selected?.id === id) this.selected = updated
+      return updated
     },
 
     replaceInList(updated: ComprobanteC31) {

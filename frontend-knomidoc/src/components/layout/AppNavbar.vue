@@ -78,9 +78,11 @@ const pendientes = computed(() => resumen.pendientesRegularizar)
         <span class="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-amber-500" />
       </RouterLink>
 
-      <div
+      <RouterLink
         v-if="auth.usuario"
-        class="flex items-center gap-3 border-l border-ink-200 pl-3 dark:border-white/10"
+        to="/perfil"
+        class="flex items-center gap-3 rounded-lg border-l border-ink-200 pl-3 dark:border-white/10"
+        title="Mi perfil"
       >
         <div
           class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-seal-400 to-seal-600 text-xs font-bold text-white"
@@ -95,7 +97,7 @@ const pendientes = computed(() => resumen.pendientesRegularizar)
             {{ rolLabel[auth.usuario.rol] ?? auth.usuario.rol }}
           </p>
         </div>
-      </div>
+      </RouterLink>
       <BaseButton variant="ghost" size="sm" @click="handleLogout">Salir</BaseButton>
     </div>
   </header>

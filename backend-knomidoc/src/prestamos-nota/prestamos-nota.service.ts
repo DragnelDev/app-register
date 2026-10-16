@@ -16,13 +16,18 @@ import {
 } from './entities/prestamos-nota.entity';
 import {
   ComprobantesC31,
+  ESTADO_FISICO_LABELS,
   EstadoFisicoC31,
 } from '../comprobantes_c31/entities/comprobantes_c31.entity';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { paginationSkip } from '../common/utils/pagination.util';
+import { Usuario } from '../usuarios/entities/usuario.entity';
+import { registrarCambioEstado } from '../c31-historial/c31-historial.helper';
 
 const RELATIONS = {
   comprobante: { preventivos: true, devengados: true, beneficiarios: true },
+  registradoPor: true,
+  recibidoPor: true,
 };
 
 const hoy = (): string => new Date().toISOString().slice(0, 10);
@@ -44,7 +49,10 @@ export class PrestamosNotaService {
   }
 
   /** Registra un préstamo por cada comprobante indicado (todos con los datos de la nota). */
-  async create(dto: CreatePrestamosNotaDto): Promise<PrestamosNota[]> {
+  async create(
+    dto: CreatePrestamosNotaDto,
+    usuario?: Usuario,
+  ): Promise<PrestamosNota[]> {
     const comprobanteIds = [...new Set(dto.comprobanteIds)];
     const fechaPrestamo = dto.fechaPrestamo ?? hoy();
     this.validarFechas(fechaPrestamo, dto.fechaDevolucionEstimada);
@@ -65,9 +73,9 @@ export class PrestamosNotaService {
             `El comprobante ${id} ya se encuentra prestado`,
           );
         }
-        if (comprobante.estadoFisico === EstadoFisicoC31.ANULADO) {
+        if (comprobante.estadoFisico !== EstadoFisicoC31.ARCHIVADO) {
           throw new ConflictException(
-            `El comprobante ${id} está anulado y no puede prestarse`,
+            `El comprobante ${id} no puede prestarse: solo se prestan comprobantes archivados correctamente (estado actual: ${ESTADO_FISICO_LABELS[comprobante.estadoFisico as EstadoFisicoC31]})`,
           );
         }
       }
@@ -82,6 +90,7 @@ export class PrestamosNotaService {
           fechaDevolucionEstimada: dto.fechaDevolucionEstimada,
           estadoPrestamo: EstadoPrestamoNota.ENTREGADO,
           observaciones: dto.observaciones,
+          registradoPorId: usuario?.id ?? null,
         }),
       );
       const guardados = await manager.save(PrestamosNota, prestamos);
@@ -91,6 +100,17 @@ export class PrestamosNotaService {
         { id: In(comprobanteIds) },
         { estadoFisico: EstadoFisicoC31.PRESTADO },
       );
+      for (const comprobanteId of comprobanteIds) {
+        await registrarCambioEstado(manager, {
+          comprobanteId,
+          estadoAnterior: EstadoFisicoC31.ARCHIVADO,
+          estadoNuevo: EstadoFisicoC31.PRESTADO,
+          origen: 'PRESTAMO',
+          usuarioId: usuario?.id,
+          referencia: `Nota ${dto.numeroNotaSolicitud}`,
+          detalle: `Préstamo a ${dto.institucionSolicitante} (recibe ${dto.funcionarioResponsable})`,
+        });
+      }
 
       return manager.find(PrestamosNota, {
         where: { id: In(guardados.map((p) => p.id as number)) },
@@ -168,6 +188,7 @@ export class PrestamosNotaService {
   async devolver(
     id: number,
     dto: DevolverPrestamosNotaDto,
+    usuario?: Usuario,
   ): Promise<PrestamosNota> {
     return this.dataSource.transaction(async (manager) => {
       const prestamo = await manager.findOne(PrestamosNota, { where: { id } });
@@ -186,11 +207,24 @@ export class PrestamosNotaService {
 
       prestamo.estadoPrestamo = EstadoPrestamoNota.DEVUELTO;
       prestamo.fechaDevolucionReal = fechaReal;
-      if (dto.observaciones) prestamo.observaciones = dto.observaciones;
+      prestamo.condicionDevolucion = dto.condicion ?? 'CONFORME';
+      if (dto.observaciones) prestamo.observacionesDevolucion = dto.observaciones;
+      prestamo.recibidoPorId = usuario?.id ?? null;
       await manager.save(PrestamosNota, prestamo);
 
       await manager.update(ComprobantesC31, prestamo.comprobanteId, {
-        estadoFisico: EstadoFisicoC31.EN_ARCHIVO,
+        estadoFisico: EstadoFisicoC31.ARCHIVADO,
+      });
+      await registrarCambioEstado(manager, {
+        comprobanteId: prestamo.comprobanteId as number,
+        estadoAnterior: EstadoFisicoC31.PRESTADO,
+        estadoNuevo: EstadoFisicoC31.ARCHIVADO,
+        origen: 'PRESTAMO',
+        usuarioId: usuario?.id,
+        referencia: `Nota ${prestamo.numeroNotaSolicitud}`,
+        detalle:
+          `Devuelto ${prestamo.condicionDevolucion === 'CON_NOVEDAD' ? 'con novedad' : 'conforme'}` +
+          (dto.observaciones ? `: ${dto.observaciones}` : ''),
       });
 
       const completo = await manager.findOne(PrestamosNota, {

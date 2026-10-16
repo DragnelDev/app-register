@@ -1,292 +1,199 @@
 <script setup lang="ts">
-import { reactive, ref, watch, computed } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import ComprobanteC31DraftForm from './ComprobanteC31DraftForm.vue'
-import ComprobantesC31SelectedTable from '@/components/shared/ComprobantesC31SelectedTable.vue'
-import {
-  required,
-  maxLength,
-  isValidDate,
-  dateNotInFuture,
-  runValidators,
-} from '@/utils/validators'
+import { c31Service } from '@/services/c31.service'
+import { extractApiErrorMessage } from '@/utils/http-error'
+import { required, maxLength, isValidDate, runValidators } from '@/utils/validators'
+import { bs } from '@/utils/estados'
+import { identificadorC31, type ComprobanteC31 } from '@/types/c31.types'
 import type { ActaEntrega, ActaEntregaCreatePayload } from '@/types/actas-entrega.types'
-import type { ComprobanteC31FormPayload } from '@/types/c31.types'
 
 const props = defineProps<{
   modelValue: boolean
   acta?: ActaEntrega | null
   saving?: boolean
-  /** Mensaje de error proveniente del backend al intentar guardar (lo controla el padre) */
   serverError?: string
 }>()
-
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  /** payload del encabezado del acta + los comprobantes NUEVOS a crear y vincular a esta acta */
-  save: [payload: ActaEntregaCreatePayload, comprobantesNuevos: ComprobanteC31FormPayload[]]
+  save: [payload: ActaEntregaCreatePayload]
 }>()
 
-const form = reactive<ActaEntregaCreatePayload>({
+const form = reactive({
   numeroActa: '',
   unidadEmisora: 'Tesorería',
   responsableEntrega: '',
   responsableRecepcion: '',
-  fechaRecepcion: '',
+  fechaRecepcion: new Date().toISOString().slice(0, 10),
   observaciones: '',
 })
+const seleccion = ref<Set<number>>(new Set())
+const candidatos = ref<ComprobanteC31[]>([])
+const busqueda = ref('')
+const cargando = ref(false)
+const errorCarga = ref('')
+const intentado = ref(false)
 
-/** Comprobantes que el usuario ya fue añadiendo en esta sesión de edición (aún no guardados) */
-const comprobantesNuevos = ref<ComprobanteC31FormPayload[]>([])
+const soloLectura = computed(() => Boolean(props.acta && props.acta.estado !== 'BORRADOR'))
 
-// --- Validación del encabezado ---
-const errors = reactive<
-  Record<
-    | 'numeroActa'
-    | 'responsableEntrega'
-    | 'responsableRecepcion'
-    | 'fechaRecepcion'
-    | 'comprobantes',
-    string
-  >
->({
-  numeroActa: '',
-  responsableEntrega: '',
-  responsableRecepcion: '',
-  fechaRecepcion: '',
-  comprobantes: '',
-})
-const touched = reactive({
-  numeroActa: false,
-  responsableEntrega: false,
-  responsableRecepcion: false,
-  fechaRecepcion: false,
-})
-
-const rules = {
-  numeroActa: [required('El N° de acta es obligatorio'), maxLength(50)],
-  responsableEntrega: [required('El responsable de entrega es obligatorio'), maxLength(100)],
-  responsableRecepcion: [required('El responsable de recepción es obligatorio'), maxLength(100)],
-  fechaRecepcion: [
-    required('La fecha de recepción es obligatoria'),
-    isValidDate(),
-    dateNotInFuture('La fecha de recepción no puede ser una fecha futura'),
-  ],
-}
-
-function validateField(field: keyof typeof rules) {
-  errors[field] = runValidators(form[field] as string, rules[field]) ?? ''
-}
-
-const comprobantesYaGuardados = computed(() => props.acta?.comprobantesC31 ?? [])
-
-function validateComprobantes() {
-  const total = comprobantesYaGuardados.value.length + comprobantesNuevos.value.length
-  errors.comprobantes = total === 0 ? 'Debe añadir al menos un comprobante C31 al acta' : ''
-}
-
-function validateAll(): boolean {
-  ;(Object.keys(rules) as (keyof typeof rules)[]).forEach((field) => {
-    touched[field] = true
-    validateField(field)
-  })
-  validateComprobantes()
-  return (
-    !errors.numeroActa &&
-    !errors.responsableEntrega &&
-    !errors.responsableRecepcion &&
-    !errors.fechaRecepcion &&
-    !errors.comprobantes
-  )
-}
-
-function onBlur(field: keyof typeof rules) {
-  touched[field] = true
-  validateField(field)
+async function cargarCandidatos() {
+  cargando.value = true
+  errorCarga.value = ''
+  try {
+    // Firmados (En revisión) que todavía no van en ninguna acta
+    const libres = await c31Service.list({
+      estadoFisico: 'EN_REVISION',
+      sinActa: true,
+      search: busqueda.value || undefined,
+      pageSize: 100,
+    })
+    const propios = props.acta?.comprobantesC31 ?? []
+    const porId = new Map<string, ComprobanteC31>()
+    ;[...propios, ...libres.data].forEach((c) => porId.set(String(c.id), c))
+    candidatos.value = [...porId.values()]
+  } catch (err) {
+    errorCarga.value = extractApiErrorMessage(err, 'No se pudieron cargar los comprobantes.')
+  } finally {
+    cargando.value = false
+  }
 }
 
 watch(
-  () => form.numeroActa,
-  () => touched.numeroActa && validateField('numeroActa'),
-)
-watch(
-  () => form.responsableEntrega,
-  () => touched.responsableEntrega && validateField('responsableEntrega'),
-)
-watch(
-  () => form.responsableRecepcion,
-  () => touched.responsableRecepcion && validateField('responsableRecepcion'),
-)
-watch(
-  () => form.fechaRecepcion,
-  () => touched.fechaRecepcion && validateField('fechaRecepcion'),
-)
-watch(comprobantesNuevos, () => validateComprobantes(), { deep: true })
-
-// --- Carga de datos al abrir (crear o editar) ---
-watch(
-  () => props.acta,
-  (acta) => {
-    form.numeroActa = acta?.numeroActa ?? ''
-    form.unidadEmisora = acta?.unidadEmisora ?? 'Tesorería'
-    form.responsableEntrega = acta?.responsableEntrega ?? ''
-    form.responsableRecepcion = acta?.responsableRecepcion ?? ''
-    form.fechaRecepcion = acta?.fechaRecepcion ? acta.fechaRecepcion.slice(0, 10) : ''
-    form.observaciones = acta?.observaciones ?? ''
-    errors.numeroActa = ''
-    errors.responsableEntrega = ''
-    errors.responsableRecepcion = ''
-    errors.fechaRecepcion = ''
-    errors.comprobantes = ''
-    touched.numeroActa = false
-    touched.responsableEntrega = false
-    touched.responsableRecepcion = false
-    touched.fechaRecepcion = false
-    comprobantesNuevos.value = []
+  () => [props.modelValue, props.acta],
+  () => {
+    if (!props.modelValue) return
+    const a = props.acta
+    form.numeroActa = a?.numeroActa ?? ''
+    form.unidadEmisora = a?.unidadEmisora ?? 'Tesorería'
+    form.responsableEntrega = a?.responsableEntrega ?? ''
+    form.responsableRecepcion = a?.responsableRecepcion ?? ''
+    form.fechaRecepcion = a?.fechaRecepcion?.slice(0, 10) ?? new Date().toISOString().slice(0, 10)
+    form.observaciones = a?.observaciones ?? ''
+    seleccion.value = new Set((a?.comprobantesC31 ?? []).map((c) => Number(c.id)))
+    intentado.value = false
+    busqueda.value = ''
+    cargarCandidatos()
   },
   { immediate: true },
 )
 
-function addComprobante(payload: ComprobanteC31FormPayload) {
-  comprobantesNuevos.value.push(payload)
+let temporizador: ReturnType<typeof setTimeout> | undefined
+watch(busqueda, () => {
+  clearTimeout(temporizador)
+  temporizador = setTimeout(cargarCandidatos, 350)
+})
+
+function alternar(c: ComprobanteC31) {
+  if (soloLectura.value) return
+  const id = Number(c.id)
+  const s = new Set(seleccion.value)
+  s.has(id) ? s.delete(id) : s.add(id)
+  seleccion.value = s
+}
+const todosMarcados = computed(
+  () => candidatos.value.length > 0 && candidatos.value.every((c) => seleccion.value.has(Number(c.id))),
+)
+function alternarTodos() {
+  if (soloLectura.value) return
+  seleccion.value = todosMarcados.value
+    ? new Set()
+    : new Set([...seleccion.value, ...candidatos.value.map((c) => Number(c.id))])
 }
 
-function removeComprobante(index: number) {
-  comprobantesNuevos.value.splice(index, 1)
-}
+const totalSeleccionado = computed(() =>
+  candidatos.value
+    .filter((c) => seleccion.value.has(Number(c.id)))
+    .reduce((s, c) => s + Number(c.montoTotal || 0), 0),
+)
 
-function joinValues(values: string[]) {
-  return values.length > 0 ? values.join(', ') : '—'
-}
-
-function formatMonto(monto: number) {
-  return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2 }).format(monto)
-}
+const errores = computed(() => ({
+  numeroActa: runValidators(form.numeroActa, [required('El N° de acta es obligatorio'), maxLength(50)]) ?? '',
+  responsableEntrega: runValidators(form.responsableEntrega, [required('Indique quién entrega'), maxLength(150)]) ?? '',
+  responsableRecepcion: runValidators(form.responsableRecepcion, [required('Indique quién recibe'), maxLength(150)]) ?? '',
+  fechaRecepcion: runValidators(form.fechaRecepcion, [required('La fecha es obligatoria'), isValidDate()]) ?? '',
+  comprobantes: seleccion.value.size === 0 ? 'Marque al menos un comprobante a entregar' : '',
+}))
 
 function handleSubmit() {
-  if (!validateAll()) return
-  emit('save', { ...form }, comprobantesNuevos.value)
+  intentado.value = true
+  if (Object.values(errores.value).some(Boolean)) return
+  emit('save', { ...form, comprobanteIds: [...seleccion.value] })
 }
+const ver = (e: string) => (intentado.value ? e : '')
 </script>
 
 <template>
   <BaseModal
     :model-value="modelValue"
-    :title="acta ? 'Editar acta de entrega' : 'Registrar acta de entrega'"
+    :title="acta ? (soloLectura ? `Acta ${acta.numeroActa}` : 'Editar acta de entrega') : 'Registrar acta de entrega'"
     size="lg"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <form id="acta-entrega-form" class="space-y-6" @submit.prevent="handleSubmit">
-      <p
-        v-if="serverError"
-        class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40"
-      >
-        {{ serverError }}
+    <form id="acta-entrega-form" class="space-y-5" @submit.prevent="handleSubmit">
+      <p v-if="serverError" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{{ serverError }}</p>
+      <p v-if="soloLectura" class="rounded-md bg-ink-50 px-3 py-2 text-sm text-ink-600 dark:bg-white/5 dark:text-ink-300">
+        El acta está {{ acta?.estado === 'RECIBIDA' ? 'recibida' : 'anulada' }}: solo se puede consultar.
       </p>
 
       <section class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <BaseInput
-          v-model="form.numeroActa"
-          label="N° de acta"
-          placeholder="AE-2026-001"
-          required
-          :error="touched.numeroActa ? errors.numeroActa : ''"
-          @blur="onBlur('numeroActa')"
-        />
-        <BaseInput v-model="form.unidadEmisora" label="Unidad emisora" placeholder="Tesorería" />
-        <BaseInput
-          v-model="form.responsableEntrega"
-          label="Responsable de entrega"
-          required
-          :error="touched.responsableEntrega ? errors.responsableEntrega : ''"
-          @blur="onBlur('responsableEntrega')"
-        />
-        <BaseInput
-          v-model="form.responsableRecepcion"
-          label="Responsable de recepción"
-          required
-          :error="touched.responsableRecepcion ? errors.responsableRecepcion : ''"
-          @blur="onBlur('responsableRecepcion')"
-        />
-        <BaseInput
-          v-model="form.fechaRecepcion"
-          type="date"
-          label="Fecha de recepción"
-          required
-          :error="touched.fechaRecepcion ? errors.fechaRecepcion : ''"
-          @blur="onBlur('fechaRecepcion')"
-        />
-        <BaseInput v-model="form.observaciones" label="Observaciones (opcional)" />
-      </section>
-
-      <section v-if="comprobantesYaGuardados.length > 0">
-        <h3 class="mb-2 text-sm font-semibold text-ink-800 dark:text-ink-100">
-          Comprobantes ya registrados en esta acta
-        </h3>
-        <ComprobantesC31SelectedTable :items="comprobantesYaGuardados" readonly />
-        <p class="mt-1 text-xs text-ink-400 dark:text-ink-500">
-          Para completar o corregir datos de un comprobante ya guardado, hazlo desde el módulo de
-          Comprobantes C31.
-        </p>
+        <BaseInput v-model="form.numeroActa" label="N° de acta" placeholder="AE-2026-001" required :disabled="soloLectura" :error="ver(errores.numeroActa)" />
+        <BaseInput v-model="form.unidadEmisora" label="Unidad emisora" :disabled="soloLectura" />
+        <BaseInput v-model="form.responsableEntrega" label="Responsable de entrega" required :disabled="soloLectura" :error="ver(errores.responsableEntrega)" />
+        <BaseInput v-model="form.responsableRecepcion" label="Responsable de recepción (Archivo)" required :disabled="soloLectura" :error="ver(errores.responsableRecepcion)" />
+        <BaseInput v-model="form.fechaRecepcion" type="date" label="Fecha de entrega" required :disabled="soloLectura" :error="ver(errores.fechaRecepcion)" />
+        <BaseInput v-model="form.observaciones" label="Observaciones (opcional)" :disabled="soloLectura" />
       </section>
 
       <section>
-        <h3 class="mb-2 text-sm font-semibold text-ink-800 dark:text-ink-100">
-          Añadir comprobantes C31 al acta
-        </h3>
-        <p class="mb-3 text-xs text-ink-400 dark:text-ink-500">
-          Cada fila que añadas se registra como un comprobante C31 nuevo, vinculado a esta acta.
-          Cada fila es de un solo tipo (preventivo o devengado), pero puedes agregar más de un
-          número por fila (ej. "2 en 1"), varios beneficiarios y cheques opcionales. No hay límite
-          de comprobantes por acta.
-        </p>
+        <div class="mb-2 flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h3 class="text-sm font-semibold text-ink-800 dark:text-ink-100">Comprobantes a entregar</h3>
+            <p class="text-xs text-ink-500">Solo aparecen los “En revisión / firmado” que aún no están en un acta.</p>
+          </div>
+          <input
+            v-if="!soloLectura"
+            v-model="busqueda"
+            type="search"
+            placeholder="Buscar por N°, glosa o beneficiario…"
+            class="w-64 rounded-md border border-ink-200 bg-white px-3 py-1.5 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
+          />
+        </div>
 
-        <ComprobanteC31DraftForm :fecha-sugerida="form.fechaRecepcion" @add="addComprobante" />
-
-        <div
-          v-if="comprobantesNuevos.length > 0"
-          class="mt-4 overflow-hidden rounded-md border border-ink-100 dark:border-white/10"
-        >
+        <p v-if="errorCarga" class="mb-2 text-sm text-red-600">{{ errorCarga }}</p>
+        <div class="max-h-72 overflow-auto rounded-md border border-ink-100 dark:border-white/10">
           <table class="w-full border-collapse text-sm">
-            <thead
-              class="border-b border-ink-100 bg-ink-50/60 dark:border-white/10 dark:bg-ink-950/80"
-            >
+            <thead class="sticky top-0 border-b border-ink-100 bg-ink-50 dark:border-white/10 dark:bg-ink-950">
               <tr>
-                <th class="table-header-cell">N° Prev</th>
-                <th class="table-header-cell">N° Dev</th>
+                <th class="w-10 px-3 py-2"><input type="checkbox" :checked="todosMarcados" :disabled="soloLectura || !candidatos.length" aria-label="Marcar todos" @change="alternarTodos" /></th>
+                <th class="table-header-cell">N° Prev / Dev</th>
                 <th class="table-header-cell">Beneficiario</th>
                 <th class="table-header-cell text-right">Monto (Bs)</th>
-                <th class="table-header-cell text-right">Quitar</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-ink-100 dark:divide-white/10">
-              <tr v-for="(comprobante, i) in comprobantesNuevos" :key="i" class="dark:bg-ink-950">
-                <td class="table-cell">{{ joinValues(comprobante.preventivos) }}</td>
-                <td class="table-cell">{{ joinValues(comprobante.devengados) }}</td>
-                <td class="table-cell">{{ joinValues(comprobante.beneficiarios) }}</td>
-                <td class="table-cell text-right">{{ formatMonto(comprobante.montoTotal) }}</td>
-                <td class="table-cell text-right">
-                  <BaseButton variant="ghost" size="sm" type="button" @click="removeComprobante(i)">
-                    ✕
-                  </BaseButton>
-                </td>
+              <tr v-if="cargando"><td colspan="4" class="px-3 py-5 text-center text-ink-400">Cargando…</td></tr>
+              <tr v-else-if="!candidatos.length"><td colspan="4" class="px-3 py-5 text-center text-ink-400">No hay comprobantes firmados pendientes de entrega.</td></tr>
+              <tr v-for="c in candidatos" :key="c.id" class="cursor-pointer hover:bg-ink-50 dark:hover:bg-white/5" @click="alternar(c)">
+                <td class="px-3 py-2"><input type="checkbox" :checked="seleccion.has(Number(c.id))" :disabled="soloLectura" @click.stop @change="alternar(c)" /></td>
+                <td class="table-cell font-mono text-xs">{{ identificadorC31(c) ?? c.id }}</td>
+                <td class="table-cell">{{ c.beneficiarios.map((b) => b.nombreBeneficiario).join(', ') || '—' }}</td>
+                <td class="table-cell text-right">{{ bs(c.montoTotal) }}</td>
               </tr>
             </tbody>
           </table>
         </div>
-        <p v-if="errors.comprobantes" class="mt-1 text-xs text-red-600">
-          {{ errors.comprobantes }}
+        <p class="mt-1 text-xs text-ink-600 dark:text-ink-300">
+          {{ seleccion.size }} marcado(s) · Total Bs {{ bs(totalSeleccionado) }}
         </p>
+        <p v-if="intentado && errores.comprobantes" class="mt-1 text-xs text-red-600">{{ errores.comprobantes }}</p>
       </section>
     </form>
 
     <template #footer>
-      <BaseButton variant="secondary" @click="emit('update:modelValue', false)"
-        >Cancelar</BaseButton
-      >
-      <BaseButton type="submit" form="acta-entrega-form" :loading="saving">Guardar</BaseButton>
+      <BaseButton variant="secondary" @click="emit('update:modelValue', false)">{{ soloLectura ? 'Cerrar' : 'Cancelar' }}</BaseButton>
+      <BaseButton v-if="!soloLectura" type="submit" form="acta-entrega-form" :loading="saving">Guardar acta</BaseButton>
     </template>
   </BaseModal>
 </template>

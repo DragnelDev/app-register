@@ -7,6 +7,7 @@ export interface Usuario {
   email: string
   cargo?: string | null
   unidadOArea?: string | null
+  telefono?: string | null
   rol: RolUsuario
   activo: boolean
 }
@@ -55,4 +56,34 @@ export interface UsuarioCreatePayload {
 export type UsuarioUpdatePayload = Partial<Omit<UsuarioCreatePayload, 'password'>> & {
   password?: string // solo si se quiere resetear
   activo?: boolean
+}
+
+export interface PerfilActividad {
+  comprobantesRegistrados: number
+  cambiosDeEstado: number
+  recientes: {
+    comprobanteId: number
+    fecha: string
+    estadoNuevo: string
+    origen: string
+    referencia: string | null
+  }[]
+}
+
+export interface Perfil extends Usuario {
+  fechaCreacion?: string
+  actividad: PerfilActividad
+}
+
+export interface PerfilUpdatePayload {
+  nombreCompleto?: string
+  email?: string
+  cargo?: string
+  unidadOArea?: string
+  telefono?: string
+}
+
+export interface CambiarPasswordPayload {
+  passwordActual: string
+  passwordNueva: string
 }

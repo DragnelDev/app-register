@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import DevolucionModal from '../components/DevolucionModal.vue'
+import type { CondicionDevolucion } from '@/types/prestamos.types'
 import { onMounted, ref } from 'vue'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
@@ -34,10 +36,20 @@ async function handleSubmit(payload: PrestamoCuadernoCreatePayload) {
   }
 }
 
-async function handleDevolver(row: PrestamoCuaderno) {
-  returningId.value = row.id
+const devolviendo = ref<PrestamoCuaderno | null>(null)
+const devolucionOpen = ref(false)
+
+function handleDevolver(row: PrestamoCuaderno) {
+  devolviendo.value = row
+  devolucionOpen.value = true
+}
+
+async function confirmarDevolucion(payload: { condicion: CondicionDevolucion; observaciones?: string }) {
+  if (!devolviendo.value) return
+  returningId.value = devolviendo.value.id
   try {
-    await store.devolverCuaderno(row.id)
+    await store.devolverCuaderno(devolviendo.value.id, payload)
+    devolucionOpen.value = false
   } finally {
     returningId.value = null
   }
@@ -100,5 +112,6 @@ onMounted(() => store.fetchCuaderno())
     <BaseModal v-model="modalOpen" title="Registrar préstamo (cuaderno bitácora)">
       <PrestamoCuadernoForm :saving="saving" @submit="handleSubmit" />
     </BaseModal>
+    <DevolucionModal v-model="devolucionOpen" :saving="returningId !== null" @confirm="confirmarDevolucion" />
   </div>
 </template>

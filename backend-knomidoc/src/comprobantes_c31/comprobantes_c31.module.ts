@@ -4,10 +4,20 @@ import { ComprobantesC31Controller } from './comprobantes_c31.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ComprobantesC31 } from './entities/comprobantes_c31.entity';
 import { Carpeta } from 'src/carpetas/entities/carpeta.entity';
+import { C31Historial } from '../c31-historial/entities/c31-historial.entity';
+import { PrestamosNota } from '../prestamos-nota/entities/prestamos-nota.entity';
+import { PrestamosCuaderno } from '../prestamos-cuaderno/entities/prestamos-cuaderno.entity';
+import { C31SeguimientoService } from './c31-seguimiento.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ComprobantesC31, Carpeta])],
+  imports: [TypeOrmModule.forFeature([
+      ComprobantesC31,
+      Carpeta,
+      C31Historial,
+      PrestamosNota,
+      PrestamosCuaderno,
+    ])],
   controllers: [ComprobantesC31Controller],
-  providers: [ComprobantesC31Service],
+  providers: [ComprobantesC31Service, C31SeguimientoService],
 })
 export class ComprobantesC31Module {}

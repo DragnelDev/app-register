@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { authService } from '@/services/auth.service'
-import type { LoginPayload, Usuario } from '@/types/auth.types'
+import type { LoginPayload, PerfilUpdatePayload, Usuario } from '@/types/auth.types'
 
 const TOKEN_STORAGE_KEY = 'knomidoc_access_token'
 const USER_STORAGE_KEY = 'knomidoc_user'
@@ -69,6 +69,14 @@ export const useAuthStore = defineStore('auth', {
       const usuario = await authService.me()
       this.usuario = usuario
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(usuario))
+    },
+
+    /** Actualiza los datos propios y deja la sesión con el usuario ya corregido. */
+    async actualizarPerfil(payload: PerfilUpdatePayload) {
+      const usuario = await authService.actualizarPerfil(payload)
+      this.usuario = { ...this.usuario, ...usuario }
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(this.usuario))
+      return this.usuario
     },
 
     async forgotPassword(email: string) {

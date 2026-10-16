@@ -34,6 +34,7 @@ const subtitulo = computed(() =>
 )
 const auth = useAuthStore()
 const detailOpen = ref(false)
+const detailTab = ref<'datos' | 'pagos' | 'seguimiento'>('datos')
 const importing = ref(false)
 const exporting = ref(false)
 const importFeedback = ref('')
@@ -97,7 +98,8 @@ const columns: DataTableColumn<ComprobanteC31>[] = [
   { key: 'estadoFisico', label: 'Estado físico' },
 ]
 
-function openDetail(row: ComprobanteC31) {
+function openDetail(row: ComprobanteC31, tab: 'datos' | 'pagos' | 'seguimiento' = 'datos') {
+  detailTab.value = tab
   store.selected = row
   detailOpen.value = true
 }
@@ -182,7 +184,7 @@ onMounted(() => {
           store.fetchList()
         }
       "
-      @row-click="openDetail"
+      @row-click="(r) => openDetail(r)"
     >
       <template #cell-id="{ row }">
         <span class="font-mono text-xs">{{ identificadorC31(row) ?? '—' }}</span>
@@ -190,10 +192,14 @@ onMounted(() => {
       <template #cell-montoTotal="{ row }">{{ Number(row.montoTotal).toFixed(2) }}</template>
       <template #cell-estadoFisico="{ row }"><BaseBadge :estado="row.estadoFisico" /></template>
       <template #actions="{ row }">
-        <BaseButton variant="ghost" size="sm" @click="openDetail(row)">Ver detalle</BaseButton>
+        <div class="flex justify-end gap-1">
+          <BaseButton variant="ghost" size="sm" @click.stop="openDetail(row)">Detalle</BaseButton>
+          <BaseButton variant="ghost" size="sm" @click.stop="openDetail(row, 'pagos')">Pagos</BaseButton>
+          <BaseButton variant="ghost" size="sm" @click.stop="openDetail(row, 'seguimiento')">Seguimiento</BaseButton>
+        </div>
       </template>
     </BaseDataTable>
 
-    <C31DetailModal v-model="detailOpen" :comprobante="store.selected" />
+    <C31DetailModal v-model="detailOpen" :comprobante="store.selected" :tab="detailTab" />
   </div>
 </template>

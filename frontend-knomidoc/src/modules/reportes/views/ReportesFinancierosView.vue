@@ -9,12 +9,8 @@ import { extractApiErrorMessage } from '@/utils/http-error'
 import type { ReporteFinanciero, ReporteFiltros } from '@/types/gestion.types'
 
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-const ESTADOS: Record<string, string> = {
-  EN_TRAMITE: 'En trámite',
-  EN_ARCHIVO: 'En archivo',
-  PRESTADO: 'Prestado',
-  ANULADO: 'Anulado',
-}
+import { ESTADO_C31_LABEL } from '@/utils/estados'
+const ESTADOS: Record<string, string> = ESTADO_C31_LABEL
 
 const filtros = reactive<ReporteFiltros>({ gestion: '', tipoC31: '', fechaDesde: '', fechaHasta: '' })
 const gestiones = ref<number[]>([])

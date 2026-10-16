@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
 import type { C31FilterState } from '@/types/c31.types'
+import { ESTADOS_C31 } from '@/utils/estados'
 
 const props = defineProps<{ modelValue: C31FilterState; gestiones: number[]; lockTipo?: boolean }>()
 const emit = defineEmits<{
@@ -38,7 +39,7 @@ function reset() {
       <input
         v-model="local.search"
         type="text"
-        placeholder="Descripción, N° preventivo/devengado, beneficiario, cheque…"
+        placeholder="Descripción, N° preventivo/devengado, beneficiario, N° de cheque…"
         class="w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
       />
     </div>
@@ -74,10 +75,7 @@ function reset() {
         class="rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
       >
         <option value="">Todos</option>
-        <option value="EN_TRAMITE">En Trámite / Revisión</option>
-        <option value="EN_ARCHIVO">En archivo</option>
-        <option value="PRESTADO">Prestado</option>
-        <option value="ANULADO">Anulado</option>
+        <option v-for="e in ESTADOS_C31" :key="e.value" :value="e.value">{{ e.label }}</option>
       </select>
     </div>
 

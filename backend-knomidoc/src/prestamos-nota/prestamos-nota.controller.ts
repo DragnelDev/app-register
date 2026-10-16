@@ -16,6 +16,8 @@ import { DevolverPrestamosNotaDto } from './dto/devolver-prestamos-nota.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { FilterPrestamosNotaDto } from './dto/filter-prestamos-nota.dto';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Usuario } from '../usuarios/entities/usuario.entity';
 
 @ApiTags('prestamos-nota')
 @ApiBearerAuth()
@@ -25,8 +27,8 @@ export class PrestamosNotaController {
 
   @Roles('ADMIN', 'ENCARGADO_PRESTAMOS')
   @Post()
-  create(@Body() dto: CreatePrestamosNotaDto) {
-    return this.prestamosNotaService.create(dto);
+  create(@Body() dto: CreatePrestamosNotaDto, @CurrentUser() usuario: Usuario) {
+    return this.prestamosNotaService.create(dto, usuario);
   }
 
   @Get()
@@ -53,8 +55,9 @@ export class PrestamosNotaController {
   devolver(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: DevolverPrestamosNotaDto,
+    @CurrentUser() usuario: Usuario,
   ) {
-    return this.prestamosNotaService.devolver(id, dto);
+    return this.prestamosNotaService.devolver(id, dto, usuario);
   }
 
   @Roles('ADMIN')

@@ -20,6 +20,8 @@ import { ComprobantesC31Service } from './comprobantes_c31.service';
 import { CreateComprobantesC31Dto } from './dto/create-comprobantes_c31.dto';
 import { UpdateComprobantesC31Dto } from './dto/update-comprobantes_c31.dto';
 import { FilterComprobantesC31Dto } from './dto/filter-comprobantes_c31.dto';
+import { CambiarEstadoC31Dto } from './dto/cambiar-estado-comprobantes_c31.dto';
+import { C31SeguimientoService } from './c31-seguimiento.service';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Usuario } from '../usuarios/entities/usuario.entity';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -30,6 +32,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 export class ComprobantesC31Controller {
   constructor(
     private readonly comprobantesC31Service: ComprobantesC31Service,
+    private readonly seguimientoService: C31SeguimientoService,
   ) {}
 
   @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
@@ -83,6 +86,22 @@ export class ComprobantesC31Controller {
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.comprobantesC31Service.findOne(id);
+  }
+
+  /** Bitácora de estados y detalle de préstamos del comprobante. */
+  @Get(':id/seguimiento')
+  seguimiento(@Param('id', ParseIntPipe) id: number) {
+    return this.seguimientoService.obtener(id);
+  }
+
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Patch(':id/estado')
+  cambiarEstado(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CambiarEstadoC31Dto,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    return this.comprobantesC31Service.cambiarEstado(id, dto, usuario);
   }
 
   @Roles('ADMIN', 'OPERADOR_ARCHIVOS')

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
+import { CambiarPasswordDto, UpdatePerfilDto } from './dto/perfil.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Usuario } from './entities/usuario.entity';
 import { ILike, Like, Not, Repository } from 'typeorm';
@@ -24,6 +25,7 @@ const SELECT_SAFE = {
   email: true,
   cargo: true,
   unidadOArea: true,
+  telefono: true,
   rol: true,
   activo: true,
   fechaCreacion: true,
@@ -190,6 +192,37 @@ export class UsuariosService {
 
     await this.usuariosRepository.save(usuario);
     return this.findOne(id);
+  }
+
+  /** Perfil propio: datos editables por el mismo usuario (no incluye rol ni estado). */
+  async actualizarPerfil(id: number, dto: UpdatePerfilDto): Promise<Usuario> {
+    const usuario = await this.usuariosRepository.findOneBy({ id });
+    if (!usuario) throw new NotFoundException('El usuario no existe');
+    if (dto.email && dto.email !== usuario.email) {
+      await this.validarUnicidad(undefined, dto.email, id);
+    }
+    const cambios = Object.fromEntries(
+      Object.entries(dto).filter(([, v]) => v !== undefined),
+    );
+    await this.usuariosRepository.update(id, cambios);
+    return this.findOne(id);
+  }
+
+  async cambiarPassword(id: number, dto: CambiarPasswordDto): Promise<void> {
+    const usuario = await this.usuariosRepository.findOne({
+      where: { id },
+      select: { id: true, password: true },
+    });
+    if (!usuario) throw new NotFoundException('El usuario no existe');
+    if (!usuario.validatePassword(dto.passwordActual as string)) {
+      throw new UnauthorizedException('La contraseña actual no es correcta');
+    }
+    if (dto.passwordActual === dto.passwordNueva) {
+      throw new ConflictException(
+        'La nueva contraseña debe ser distinta de la actual',
+      );
+    }
+    await this.actualizarPasswordYLimpiarToken(id, dto.passwordNueva as string);
   }
 
   async updateEstado(id: number, activo: boolean): Promise<Usuario> {

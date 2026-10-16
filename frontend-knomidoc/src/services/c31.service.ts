@@ -5,7 +5,9 @@ import type {
   ComprobanteC31FormPayload,
   C31FilterState,
   C31ImportResult,
+  C31Seguimiento,
 } from '@/types/c31.types'
+import type { EstadoFisico } from '@/types/common.types'
 
 const RESOURCE = '/comprobantes-c31'
 
@@ -25,7 +27,6 @@ function normalizeComprobanteC31(payload: ComprobanteC31): ComprobanteC31 {
     preventivos: payload.preventivos ?? [],
     devengados: payload.devengados ?? [],
     beneficiarios: payload.beneficiarios ?? [],
-    cheques: payload.cheques ?? [],
   }
 }
 
@@ -53,11 +54,16 @@ export const c31Service = {
     return apiClient.patch<ComprobanteC31>(`${RESOURCE}/${id}`, payload).then((r) => r.data)
   },
 
-  /** Solo permite fijar EN_ARCHIVO o ANULADO (PRESTADO lo gestiona el módulo de préstamos). */
-  cambiarEstadoFisico(id: string, estadoFisico: 'EN_ARCHIVO' | 'ANULADO') {
+  /** Cambio de estado manual; EN_ARCHIVO y PRESTADO los fija el sistema (acta / préstamos). */
+  cambiarEstado(id: string, estado: EstadoFisico, motivo?: string) {
     return apiClient
-      .patch<ComprobanteC31>(`${RESOURCE}/${id}`, { estadoFisico })
+      .patch<ComprobanteC31>(`${RESOURCE}/${id}/estado`, { estado, motivo })
       .then((r) => r.data)
+  },
+
+  /** Bitácora de estados y detalle de préstamos del comprobante. */
+  seguimiento(id: string | number) {
+    return apiClient.get<C31Seguimiento>(`${RESOURCE}/${id}/seguimiento`).then((r) => r.data)
   },
 
   /** Asigna una carpeta física (y la parte n de 5) a un comprobante. */

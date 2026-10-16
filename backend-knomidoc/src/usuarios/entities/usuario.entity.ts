@@ -37,6 +37,9 @@ export class Usuario extends BaseFechasEntity {
   @Column('varchar', { length: 150, name: 'unidad_o_area', nullable: true })
   unidadOArea?: string;
 
+  @Column('varchar', { length: 30, nullable: true })
+  telefono?: string | null;
+
   @Column({
     type: 'varchar',
     length: 30,

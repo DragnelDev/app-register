@@ -39,9 +39,9 @@ const metrics = computed(() => {
     },
     {
       label: 'En archivo',
-      value: r?.comprobantes.enArchivo ?? 0,
+      value: (r?.comprobantes.enArchivo ?? 0) + (r?.comprobantes.archivados ?? 0),
       icon: 'fa-warehouse',
-      detalle: `${r?.comprobantes.enTramite ?? 0} en trámite · ${r?.comprobantes.prestados ?? 0} prestados`,
+      detalle: `${r?.comprobantes.archivados ?? 0} archivados · ${r?.comprobantes.prestados ?? 0} prestados · ${r?.comprobantes.enTramite ?? 0} en trámite · ${r?.comprobantes.observados ?? 0} observados`,
       to: '/archivo/depositos',
     },
     {

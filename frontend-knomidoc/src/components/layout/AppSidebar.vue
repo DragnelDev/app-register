@@ -43,6 +43,7 @@ const navGroups = computed<NavGroup[]>(() => [
       { to: '/c31/con-imputacion', label: 'C31 Con Imputación', icon: 'fa-file-circle-check' },
       { to: '/c31/sin-imputacion', label: 'C31 Sin Imputación', icon: 'fa-file-circle-xmark' },
       { to: '/c31/nuevo', label: 'Registrar Comprobante', icon: 'fa-circle-plus', roles: ARCHIVO },
+      { to: '/pagos', label: 'Pagos', icon: 'fa-money-check-dollar' },
       {
         to: '/c31/vinculos',
         label: 'Vínculos / Regularización',

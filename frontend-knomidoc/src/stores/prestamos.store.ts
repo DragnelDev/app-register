@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import type { DevolverPrestamoCuadernoPayload, DevolverPrestamoNotaPayload } from '@/types/prestamos.types'
 import { prestamosService } from '@/services/prestamos.service'
 import type { PrestamoCuaderno, PrestamoNota } from '@/types/prestamos.types'
 
@@ -43,14 +44,14 @@ export const usePrestamosStore = defineStore('prestamos', {
       }
     },
 
-    async devolverCuaderno(id: string) {
-      const updated = await prestamosService.devolverCuaderno(id)
+    async devolverCuaderno(id: string, payload: DevolverPrestamoCuadernoPayload = {}) {
+      const updated = await prestamosService.devolverCuaderno(id, payload)
       const idx = this.cuaderno.findIndex((p) => p.id === id)
       if (idx !== -1) this.cuaderno[idx] = updated
     },
 
-    async devolverNota(id: string) {
-      const updated = await prestamosService.devolverNota(id)
+    async devolverNota(id: string, payload: DevolverPrestamoNotaPayload = {}) {
+      const updated = await prestamosService.devolverNota(id, payload)
       const idx = this.notas.findIndex((n) => n.id === id)
       if (idx !== -1) this.notas[idx] = updated
     },

@@ -9,7 +9,7 @@ import {
 import { C31Beneficiario } from '../../c31-beneficiarios/entities/c31-beneficiario.entity';
 import { C31Devengado } from '../../c31-devengados/entities/c31-devengado.entity';
 import { C31Preventivo } from '../../c31-preventivos/entities/c31-preventivo.entity';
-import { C31Cheque } from '../../c31-cheques/entities/c31-cheque.entity';
+import { C31Pago } from '../../c31-pagos/entities/c31-pago.entity';
 import { BaseAuditoriaEntity } from '../../common/entities/base-auditoria.entity';
 import { ActasEntrega } from '../../actas-entrega/entities/actas-entrega.entity';
 import { PrestamosNota } from '../../prestamos-nota/entities/prestamos-nota.entity';
@@ -21,27 +21,79 @@ export enum TipoC31 {
   SIN_IMPUTACION = 'SIN_IMPUTACION',
 }
 
-/** Estado físico del comprobante: En Trámite/Revisión, En Archivo, Prestado, Anulado. */
+/**
+ * Estado del documento físico a lo largo de su recorrido:
+ *  EN_TRAMITE  -> registrado en el sistema (reserva el correlativo), faltan firmas/sellos/respaldos.
+ *  EN_REVISION -> firmado y completo en Contabilidad/Tesorería, listo para remitirse a Archivo.
+ *  EN_ARCHIVO  -> ingresó físicamente a Archivo (acta de entrega recibida), en custodia del archivista.
+ *  ARCHIVADO   -> verificado, foliado y ubicado en su lugar final (estante / caja / carpeta).
+ *  PRESTADO    -> comprobante archivado retirado temporalmente (consulta o auditoría).
+ *  OBSERVADO   -> inconsistencias o devolución por fallas en firmas/respaldos.
+ *  ANULADO     -> revertido / dejado sin efecto en el SIGEP.
+ */
 export enum EstadoFisicoC31 {
-  /** Comprobante recién registrado, aún no entregado/archivado formalmente. */
   EN_TRAMITE = 'EN_TRAMITE',
+  EN_REVISION = 'EN_REVISION',
   EN_ARCHIVO = 'EN_ARCHIVO',
+  ARCHIVADO = 'ARCHIVADO',
   PRESTADO = 'PRESTADO',
+  OBSERVADO = 'OBSERVADO',
   ANULADO = 'ANULADO',
 }
 
-/** Etiquetas legibles de cada estado físico (uso en reportes/backoffice). */
+export const ESTADOS_FISICO_C31 = Object.values(EstadoFisicoC31);
+
+/** Etiquetas legibles de cada estado (uso en reportes/backoffice). */
 export const ESTADO_FISICO_LABELS: Record<EstadoFisicoC31, string> = {
-  [EstadoFisicoC31.EN_TRAMITE]: 'En Trámite / Revisión',
+  [EstadoFisicoC31.EN_TRAMITE]: 'En trámite (incompleto)',
+  [EstadoFisicoC31.EN_REVISION]: 'En revisión / firmado',
   [EstadoFisicoC31.EN_ARCHIVO]: 'En archivo',
+  [EstadoFisicoC31.ARCHIVADO]: 'Archivado correctamente',
   [EstadoFisicoC31.PRESTADO]: 'Prestado',
-  [EstadoFisicoC31.ANULADO]: 'Anulado',
+  [EstadoFisicoC31.OBSERVADO]: 'Observado',
+  [EstadoFisicoC31.ANULADO]: 'Revertido / anulado',
 };
 
 /**
- * Ubicación física que se asigna automáticamente a un comprobante cuando se
- * vincula a un acta de entrega (RN: al recibirse el acta, el comprobante
- * pasa a "En archivo" y queda ubicado físicamente en "ARCHIVOS GAMSL").
+ * Cambios de estado que se pueden pedir a mano (PATCH /comprobantes-c31/:id/estado).
+ * Los demás pasos los hace el sistema:
+ *  - EN_REVISION -> EN_ARCHIVO: al recibir el acta de entrega.
+ *  - ARCHIVADO <-> PRESTADO: al registrar / devolver un préstamo.
+ */
+export const TRANSICIONES_MANUALES: Record<EstadoFisicoC31, EstadoFisicoC31[]> =
+  {
+    [EstadoFisicoC31.EN_TRAMITE]: [
+      EstadoFisicoC31.EN_REVISION,
+      EstadoFisicoC31.OBSERVADO,
+      EstadoFisicoC31.ANULADO,
+    ],
+    [EstadoFisicoC31.EN_REVISION]: [
+      EstadoFisicoC31.EN_TRAMITE,
+      EstadoFisicoC31.OBSERVADO,
+      EstadoFisicoC31.ANULADO,
+    ],
+    [EstadoFisicoC31.OBSERVADO]: [
+      EstadoFisicoC31.EN_TRAMITE,
+      EstadoFisicoC31.EN_REVISION,
+      EstadoFisicoC31.ANULADO,
+    ],
+    [EstadoFisicoC31.EN_ARCHIVO]: [
+      EstadoFisicoC31.ARCHIVADO,
+      EstadoFisicoC31.OBSERVADO,
+      EstadoFisicoC31.ANULADO,
+    ],
+    [EstadoFisicoC31.ARCHIVADO]: [
+      EstadoFisicoC31.OBSERVADO,
+      EstadoFisicoC31.ANULADO,
+    ],
+    [EstadoFisicoC31.PRESTADO]: [],
+    [EstadoFisicoC31.ANULADO]: [],
+  };
+
+/**
+ * Ubicación física que se asigna automáticamente cuando el archivo recibe el
+ * acta de entrega: el comprobante pasa a "En archivo" en "ARCHIVOS GAMSL"
+ * hasta que se ubique en su carpeta definitiva.
  */
 export const UBICACION_ARCHIVO_DEFAULT = 'ARCHIVOS GAMSL';
 
@@ -101,7 +153,7 @@ export class ComprobantesC31 extends BaseAuditoriaEntity {
   })
   ubicacionFisica?: string | null;
 
-  /** Detalles del estado físico del comprobante (daños, faltantes, etc.). */
+  /** Detalles del estado físico del comprobante (daños, faltantes, motivo de observación, etc.). */
   @Column({ type: 'text', nullable: true })
   observaciones?: string | null;
 
@@ -118,8 +170,9 @@ export class ComprobantesC31 extends BaseAuditoriaEntity {
   @OneToMany(() => C31Beneficiario, (ben) => ben.comprobante, { cascade: true })
   beneficiarios: C31Beneficiario[] | undefined;
 
-  @OneToMany(() => C31Cheque, (chq) => chq.comprobante, { cascade: true })
-  cheques: C31Cheque[] | undefined;
+  /** Pagos del comprobante (cheque o pago electrónico), ligados a un beneficiario. */
+  @OneToMany(() => C31Pago, (pago) => pago.comprobante)
+  pagos?: C31Pago[];
 
   @OneToMany(() => PrestamosNota, (p) => p.comprobante)
   prestamosNota?: PrestamosNota[];

@@ -16,32 +16,11 @@ import { ArrayNotEmpty } from 'class-validator';
 
 export const TIPOS_C31 = ['CON_IMPUTACION', 'SIN_IMPUTACION'] as const;
 
-/**
- * Estados físicos que se pueden fijar manualmente al registrar/editar un
- * comprobante. EN_ARCHIVO también se fija automáticamente al vincular un
- * acta de entrega; PRESTADO lo gestiona exclusivamente el módulo de
- * préstamos y no se admite aquí.
- */
-export const ESTADOS_FISICO_EDITABLES = [
-  'EN_TRAMITE',
-  'EN_ARCHIVO',
-  'ANULADO',
-] as const;
-
 /** Convierte '' en undefined para que el campo opcional se ignore. */
 const vacioAUndefined = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' && value.trim() === '' ? undefined : value;
 
 export class CreateComprobantesC31Dto {
-  @ApiPropertyOptional({
-    example: 3,
-    description: 'ID del acta de entrega (lote de ingreso) asociada',
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  readonly actaEntregaId?: number;
-
   @ApiPropertyOptional({
     enum: TIPOS_C31,
     default: 'CON_IMPUTACION',
@@ -53,7 +32,11 @@ export class CreateComprobantesC31Dto {
   })
   readonly tipoC31?: string;
 
-  @ApiProperty({ example: 15340.5 })
+  @ApiProperty({
+    example: 15340.5,
+    description:
+      'Monto total del documento (incluye impuestos, retenciones, etc.). Los pagos a cada beneficiario se registran aparte.',
+  })
   @IsNotEmpty({ message: 'El monto total es obligatorio' })
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
@@ -114,21 +97,6 @@ export class CreateComprobantesC31Dto {
   readonly observaciones?: string;
 
   @ApiPropertyOptional({
-    enum: ESTADOS_FISICO_EDITABLES,
-    default: 'EN_TRAMITE',
-    description:
-      'Estado físico inicial del comprobante (editable). Si no se indica, ' +
-      'queda en "En Trámite / Revisión"; salvo que se registre ya vinculado ' +
-      'a un acta de entrega (actaEntregaId), en cuyo caso el sistema lo fija ' +
-      'automáticamente en "En archivo".',
-  })
-  @IsOptional()
-  @IsIn([...ESTADOS_FISICO_EDITABLES], {
-    message: `El estado físico solo puede fijarse a: ${ESTADOS_FISICO_EDITABLES.join(', ')}`,
-  })
-  readonly estadoFisico?: string;
-
-  @ApiPropertyOptional({
     example: 'PREV-2026-0001',
     description:
       'Identificador oficial cuando tipoC31 = CON_IMPUTACION. Obligatorio en ' +
@@ -164,10 +132,4 @@ export class CreateComprobantesC31Dto {
   // PartialType y un `= []` haría que todo PATCH pareciera enviar una lista
   // vacía de beneficiarios (rechazando cualquier edición parcial).
   readonly beneficiarios: string[] | undefined;
-
-  @ApiPropertyOptional({ type: [String], example: [], description: 'Opcional' })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  readonly cheques?: string[];
 }

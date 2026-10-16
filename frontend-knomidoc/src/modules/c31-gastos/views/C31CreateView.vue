@@ -3,16 +3,21 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import FormC31Dynamic from '../components/FormC31Dynamic.vue'
 import { c31Service } from '@/services/c31.service'
+import { extractApiErrorMessage } from '@/utils/http-error'
 import type { ComprobanteC31FormPayload } from '@/types/c31.types'
 
 const router = useRouter()
 const saving = ref(false)
+const serverError = ref('')
 
 async function handleSubmit(payload: ComprobanteC31FormPayload) {
   saving.value = true
+  serverError.value = ''
   try {
     await c31Service.create(payload)
     router.push({ name: 'c31-list' })
+  } catch (err) {
+    serverError.value = extractApiErrorMessage(err, 'No se pudo registrar el comprobante.')
   } finally {
     saving.value = false
   }
@@ -21,17 +26,13 @@ async function handleSubmit(payload: ComprobanteC31FormPayload) {
 
 <template>
   <div class="mx-auto max-w-3xl space-y-4">
-    <div>
+    <div class="card p-6 sm:p-8">
       <h1 class="text-2xl font-semibold text-ink-900 dark:text-white">Registrar comprobante C31</h1>
-      <p class="text-sm text-ink-500 dark:text-ink-400">
-        Soporta preventivos y devengados "2 en 1", múltiples beneficiarios y cheques opcionales.
-        Úsalo para registrar un comprobante suelto (sin acta de entrega); si el comprobante llega
-        como parte de un lote de Tesorería, agrégalo desde el acta correspondiente.
+      <p class="mb-6 mt-1 text-sm text-ink-500 dark:text-ink-400">
+        Registra el comprobante y reserva su número. Nace “En trámite”; el folio, la ubicación, los
+        pagos y las firmas se completan después desde el detalle.
       </p>
-    </div>
-
-    <div class="card p-6">
-      <FormC31Dynamic :saving="saving" @submit="handleSubmit" @cancel="router.back()" />
+      <FormC31Dynamic :saving="saving" :server-error="serverError" @submit="handleSubmit" />
     </div>
   </div>
 </template>

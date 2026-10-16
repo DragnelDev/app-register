@@ -1,37 +1,56 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
+import BaseBadge from '@/components/ui/BaseBadge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import ActaEntregaModal from '../components/ActaEntregaModal.vue'
+import ActaRecepcionModal from '../components/ActaRecepcionModal.vue'
 import { actasEntregaService } from '@/services/actas-entrega.service'
-import { c31Service } from '@/services/c31.service'
+import { useResumenStore } from '@/stores/resumen.store'
 import { extractApiErrorMessage } from '@/utils/http-error'
-import type { ActaEntrega, ActaEntregaCreatePayload } from '@/types/actas-entrega.types'
-import type { ComprobanteC31FormPayload } from '@/types/c31.types'
+import { fechaCorta } from '@/utils/estados'
+import type {
+  ActaAprobarPayload,
+  ActaEntrega,
+  ActaEntregaCreatePayload,
+  EstadoActa,
+} from '@/types/actas-entrega.types'
 
+const resumen = useResumenStore()
 const rows = ref<ActaEntrega[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = 15
+const filtroEstado = ref<EstadoActa | ''>('')
 const loading = ref(false)
 const modalOpen = ref(false)
+const recepcionOpen = ref(false)
 const saving = ref(false)
 const editingActa = ref<ActaEntrega | null>(null)
 const saveError = ref('')
+const listError = ref('')
 
 const columns: DataTableColumn<ActaEntrega>[] = [
   { key: 'numeroActa', label: 'N° de acta', sortable: true },
   { key: 'unidadEmisora', label: 'Unidad emisora' },
   { key: 'cantidadComprobantes', label: 'Comprobantes' },
-  { key: 'fechaRecepcion', label: 'Fecha de recepción', sortable: true },
+  { key: 'fechaRecepcion', label: 'Fecha', sortable: true },
+  { key: 'estado', label: 'Estado' },
 ]
 
 async function loadRows() {
   loading.value = true
+  listError.value = ''
   try {
-    const res = await actasEntregaService.list({ page: page.value, pageSize })
+    const res = await actasEntregaService.list({
+      page: page.value,
+      pageSize,
+      estado: filtroEstado.value || undefined,
+    })
     rows.value = res.data
     total.value = res.total
+  } catch (err) {
+    listError.value = extractApiErrorMessage(err, 'No se pudieron cargar las actas.')
   } finally {
     loading.value = false
   }
@@ -43,53 +62,28 @@ function openCreate() {
   modalOpen.value = true
 }
 
-async function openEdit(row: ActaEntrega) {
+async function openDetail(row: ActaEntrega) {
   saveError.value = ''
-  // El listado paginado no trae los comprobantes vinculados; se pide el detalle completo.
+  // El listado no trae los comprobantes; se pide el detalle completo.
   editingActa.value = await actasEntregaService.getById(row.id)
   modalOpen.value = true
 }
 
-/** Crea, como comprobantes C31 nuevos, cada fila añadida en el formulario y los vincula al acta. */
-async function crearComprobantesNuevos(actaId: string, comprobantes: ComprobanteC31FormPayload[]) {
-  const fallos: string[] = []
-
-  for (const comprobante of comprobantes) {
-    try {
-      await c31Service.create({ ...comprobante, actaEntregaId: actaId })
-    } catch (err) {
-      fallos.push(
-        `No se pudo registrar el comprobante (beneficiario: ${comprobante.beneficiarios.join(', ') || '—'}): ${extractApiErrorMessage(err)}`,
-      )
-    }
-  }
-
-  return fallos
+async function openRecepcion(row: ActaEntrega) {
+  saveError.value = ''
+  editingActa.value = await actasEntregaService.getById(row.id)
+  recepcionOpen.value = true
 }
 
-async function handleSave(
-  payload: ActaEntregaCreatePayload,
-  comprobantesNuevos: ComprobanteC31FormPayload[],
-) {
+async function handleSave(payload: ActaEntregaCreatePayload) {
   saving.value = true
   saveError.value = ''
   try {
-    const acta = editingActa.value
-      ? await actasEntregaService.update(editingActa.value.id, payload)
-      : await actasEntregaService.create(payload)
-
-    const fallos = await crearComprobantesNuevos(acta.id, comprobantesNuevos)
-    if (fallos.length > 0) {
-      // El acta y los comprobantes que sí se pudieron crear ya quedaron guardados
-      // (aparecerán en "Comprobantes ya registrados"). Los que fallaron deben
-      // volver a añadirse manualmente.
-      editingActa.value = await actasEntregaService.getById(acta.id)
-      saveError.value = `${fallos.join(' ')} Vuelve a añadir las filas que fallaron; las demás ya quedaron guardadas.`
-      return
-    }
-
+    if (editingActa.value) await actasEntregaService.update(editingActa.value.id, payload)
+    else await actasEntregaService.create(payload)
     modalOpen.value = false
     await loadRows()
+    resumen.fetch()
   } catch (err) {
     saveError.value = extractApiErrorMessage(err, 'No se pudo guardar el acta de entrega.')
   } finally {
@@ -97,10 +91,31 @@ async function handleSave(
   }
 }
 
-async function handleDelete(row: ActaEntrega) {
-  if (!confirm(`¿Eliminar el acta de entrega ${row.numeroActa}?`)) return
-  await actasEntregaService.remove(row.id)
-  await loadRows()
+async function handleRecepcion(payload: ActaAprobarPayload) {
+  if (!editingActa.value) return
+  saving.value = true
+  saveError.value = ''
+  try {
+    await actasEntregaService.aprobar(editingActa.value.id, payload)
+    recepcionOpen.value = false
+    await loadRows()
+    resumen.fetch()
+  } catch (err) {
+    saveError.value = extractApiErrorMessage(err, 'No se pudo aprobar la recepción.')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function handleAnular(row: ActaEntrega) {
+  if (!confirm(`¿Anular el acta ${row.numeroActa}? Sus comprobantes quedarán libres para otra acta.`)) return
+  try {
+    await actasEntregaService.anular(row.id)
+    await loadRows()
+    resumen.fetch()
+  } catch (err) {
+    listError.value = extractApiErrorMessage(err, 'No se pudo anular el acta.')
+  }
 }
 
 onMounted(loadRows)
@@ -108,15 +123,30 @@ onMounted(loadRows)
 
 <template>
   <div class="space-y-4">
-    <div class="flex items-center justify-between">
+    <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-semibold">Actas de entrega (Tesorería)</h1>
-        <p class="text-sm text-ink-400">
-          Registro de lotes de ingreso de comprobantes y control de sus filas asociadas.
+        <h1 class="text-2xl font-semibold">Actas de entrega (Tesorería → Archivo)</h1>
+        <p class="text-sm text-ink-500 dark:text-ink-400">
+          Remisión de comprobantes firmados. Al recibir el acta en Archivo, cada comprobante pasa a “En archivo”.
         </p>
       </div>
-      <BaseButton @click="openCreate">+ Registrar acta</BaseButton>
+      <div class="flex items-center gap-2">
+        <select
+          v-model="filtroEstado"
+          class="rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
+          aria-label="Filtrar por estado"
+          @change="page = 1; loadRows()"
+        >
+          <option value="">Todas</option>
+          <option value="BORRADOR">Borrador</option>
+          <option value="RECIBIDA">Recibidas</option>
+          <option value="ANULADA">Anuladas</option>
+        </select>
+        <BaseButton @click="openCreate">+ Registrar acta</BaseButton>
+      </div>
     </div>
+
+    <p v-if="listError" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{{ listError }}</p>
 
     <BaseDataTable
       :columns="columns"
@@ -125,31 +155,21 @@ onMounted(loadRows)
       :page="page"
       :total-pages="Math.max(1, Math.ceil(total / pageSize))"
       empty-message="Aún no se registraron actas de entrega."
-      @update:page="
-        (p) => {
-          page = p
-          loadRows()
-        }
-      "
-      @row-click="openEdit"
+      @update:page="(p) => { page = p; loadRows() }"
+      @row-click="openDetail"
     >
-      <template #cell-fechaRecepcion="{ row }">
-        {{ new Date(row.fechaRecepcion).toLocaleDateString('es-BO') }}
-      </template>
+      <template #cell-fechaRecepcion="{ row }">{{ fechaCorta(row.fechaRecepcion) }}</template>
+      <template #cell-estado="{ row }"><BaseBadge :estado="row.estado" /></template>
       <template #actions="{ row }">
         <div class="flex justify-end gap-2">
-          <BaseButton variant="ghost" size="sm" @click="openEdit(row)">Editar</BaseButton>
-          <BaseButton variant="danger" size="sm" @click="handleDelete(row)">Eliminar</BaseButton>
+          <BaseButton v-if="row.estado === 'BORRADOR' && row.cantidadComprobantes > 0" size="sm" @click.stop="openRecepcion(row)">Recibir</BaseButton>
+          <BaseButton variant="ghost" size="sm" @click.stop="openDetail(row)">{{ row.estado === 'BORRADOR' ? 'Editar' : 'Ver' }}</BaseButton>
+          <BaseButton v-if="row.estado === 'BORRADOR'" variant="danger" size="sm" @click.stop="handleAnular(row)">Anular</BaseButton>
         </div>
       </template>
     </BaseDataTable>
 
-    <ActaEntregaModal
-      v-model="modalOpen"
-      :acta="editingActa"
-      :saving="saving"
-      :server-error="saveError"
-      @save="handleSave"
-    />
+    <ActaEntregaModal v-model="modalOpen" :acta="editingActa" :saving="saving" :server-error="saveError" @save="handleSave" />
+    <ActaRecepcionModal v-model="recepcionOpen" :acta="editingActa" :saving="saving" :server-error="saveError" @confirm="handleRecepcion" />
   </div>
 </template>

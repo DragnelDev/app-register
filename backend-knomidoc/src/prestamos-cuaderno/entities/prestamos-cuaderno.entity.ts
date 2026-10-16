@@ -47,6 +47,10 @@ export class PrestamosCuaderno {
   })
   fechaHoraSalida: Date | undefined;
 
+  /** Fecha en que se espera recuperar el comprobante (opcional en el cuaderno). */
+  @Column({ name: 'fecha_devolucion_estimada', type: 'date', nullable: true })
+  fechaDevolucionEstimada?: string | null;
+
   @Column({ name: 'fecha_hora_devolucion', type: 'timestamp', nullable: true })
   fechaHoraDevolucion?: Date | null;
 
@@ -72,4 +76,28 @@ export class PrestamosCuaderno {
 
   @Column({ type: 'text', nullable: true })
   observaciones?: string | null;
+
+  /** Usuario del sistema que registró la salida del comprobante. */
+  @ManyToOne(() => Usuario, { nullable: true })
+  @JoinColumn({ name: 'registrado_por_id' })
+  registradoPor?: Usuario;
+
+  @Column({ name: 'registrado_por_id', type: 'integer', nullable: true })
+  registradoPorId?: number | null;
+
+  /** Usuario que recibió el comprobante al devolverse. */
+  @ManyToOne(() => Usuario, { nullable: true })
+  @JoinColumn({ name: 'recibido_por_id' })
+  recibidoPor?: Usuario;
+
+  @Column({ name: 'recibido_por_id', type: 'integer', nullable: true })
+  recibidoPorId?: number | null;
+
+  /** Estado en que volvió el comprobante: CONFORME o CON_NOVEDAD (daños, faltantes). */
+  @Column({ name: 'condicion_devolucion', type: 'varchar', length: 20, nullable: true })
+  condicionDevolucion?: string | null;
+
+  /** Observaciones hechas al recibir la devolución (las de la salida quedan en `observaciones`). */
+  @Column({ name: 'observaciones_devolucion', type: 'text', nullable: true })
+  observacionesDevolucion?: string | null;
 }

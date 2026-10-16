@@ -36,6 +36,8 @@ const seleccionado = ref<ComprobanteC31 | null>(null)
 const actaId = ref<string | number>('')
 const carpetaId = ref<string | number>('')
 const numeroParte = ref<string | number>(1)
+const numeroFolio = ref('')
+const archivar = ref(false)
 const saving = ref(false)
 const modalError = ref('')
 
@@ -93,6 +95,8 @@ function abrir(row: ComprobanteC31) {
   actaId.value = ''
   carpetaId.value = ''
   numeroParte.value = 1
+  numeroFolio.value = seleccionado.value?.numeroFolio ?? ''
+  archivar.value = false
   modalError.value = ''
   modalOpen.value = true
 }
@@ -105,9 +109,9 @@ async function guardar() {
   try {
     if (pestana.value === 'sinActa') {
       if (!actaId.value) throw new Error('Seleccione el acta de entrega')
-      // Al vincularse a un acta, el servidor lo pasa a "En archivo" (ARCHIVOS GAMSL)
-      await c31Service.update(String(c.id), { actaEntregaId: String(actaId.value) })
-      aviso.value = 'Comprobante vinculado al acta y registrado como "En archivo".'
+      // Queda en el acta (borrador); pasa a "En archivo" cuando Archivo recibe el acta
+      await actasEntregaService.agregarComprobantes(String(actaId.value), [Number(c.id)])
+      aviso.value = 'Comprobante agregado al acta. Pasará a «En archivo» cuando Archivo la reciba.'
     } else {
       if (!carpetaId.value) throw new Error('Seleccione la carpeta')
       const parte = Number(numeroParte.value)
@@ -116,9 +120,18 @@ async function guardar() {
       }
       await c31Service.asignarCarpeta(c.id, carpetaId.value, parte)
       const carpeta = carpetas.value.find((x) => String(x.id) === String(carpetaId.value))
+      if (archivar.value && !numeroFolio.value.trim()) {
+        throw new Error('Para archivarlo correctamente indique el N° de folio')
+      }
       // La columna CARPETA del Excel institucional sale de la ubicación física
-      if (carpeta) await c31Service.update(String(c.id), { ubicacionFisica: carpeta.codigoCarpeta })
-      aviso.value = `Carpeta ${carpeta?.codigoCarpeta ?? ''} asignada al comprobante.`
+      await c31Service.update(String(c.id), {
+        ...(carpeta ? { ubicacionFisica: carpeta.codigoCarpeta } : {}),
+        ...(numeroFolio.value.trim() ? { numeroFolio: numeroFolio.value.trim() } : {}),
+      })
+      if (archivar.value) await c31Service.cambiarEstado(String(c.id), 'ARCHIVADO')
+      aviso.value = archivar.value
+        ? 'Comprobante archivado correctamente.'
+        : `Carpeta ${carpeta?.codigoCarpeta ?? ''} asignada al comprobante.`
     }
     modalOpen.value = false
     await loadRows()
@@ -132,7 +145,7 @@ async function guardar() {
 
 onMounted(async () => {
   const [a, c] = await Promise.all([
-    actasEntregaService.list({ page: 1, pageSize: 100 }).catch(() => null),
+    actasEntregaService.list({ page: 1, pageSize: 100, estado: 'BORRADOR' }).catch(() => null),
     carpetasService.list({ page: 1, pageSize: 100 }).catch(() => null),
   ])
   actas.value = a?.data ?? []
@@ -146,14 +159,14 @@ onMounted(async () => {
     <div>
       <h1 class="text-2xl font-semibold">Vínculos / Regularización</h1>
       <p class="text-sm text-ink-500 dark:text-ink-400">
-        Comprobantes que aún necesitan vincularse a un acta de entrega o ubicarse en una carpeta.
+        Comprobantes firmados que aún no van en un acta de entrega, y comprobantes recibidos en archivo que falta ubicar y archivar.
       </p>
     </div>
 
     <div class="flex flex-wrap gap-2" role="tablist">
       <button
         v-for="t in [
-          { id: 'sinActa', label: 'Sin acta de entrega', n: pendientes.sinActa },
+          { id: 'sinActa', label: 'Firmados sin acta', n: pendientes.sinActa },
           { id: 'sinCarpeta', label: 'Sin carpeta asignada', n: pendientes.sinCarpeta },
         ] as { id: Pestana; label: string; n: number }[]"
         :key="t.id"
@@ -193,7 +206,7 @@ onMounted(async () => {
       :total-pages="Math.max(1, Math.ceil(total / pageSize))"
       :empty-message="
         pestana === 'sinActa'
-          ? 'No hay comprobantes pendientes de vincular a un acta.'
+          ? 'No hay comprobantes firmados pendientes de entrega.'
           : 'No hay comprobantes en archivo sin carpeta asignada.'
       "
       @update:page="(p) => { page = p; loadRows() }"
@@ -206,14 +219,14 @@ onMounted(async () => {
       <template #actions="{ row }">
         <BaseButton size="sm" @click="abrir(row)">
           <i class="fa-solid" :class="pestana === 'sinActa' ? 'fa-link' : 'fa-folder-open'" aria-hidden="true" />
-          {{ pestana === 'sinActa' ? 'Vincular a acta' : 'Asignar carpeta' }}
+          {{ pestana === 'sinActa' ? 'Agregar a acta' : 'Ubicar y archivar' }}
         </BaseButton>
       </template>
     </BaseDataTable>
 
     <BaseModal
       v-model="modalOpen"
-      :title="pestana === 'sinActa' ? 'Vincular a un acta de entrega' : 'Asignar carpeta'"
+      :title="pestana === 'sinActa' ? 'Agregar a un acta de entrega' : 'Ubicar en carpeta y archivar'"
       size="sm"
     >
       <form id="vinculo-form" class="space-y-4" @submit.prevent="guardar">
@@ -225,11 +238,11 @@ onMounted(async () => {
         <template v-if="pestana === 'sinActa'">
           <BaseSelect
             v-model="actaId"
-            label="Acta de entrega"
+            label="Acta de entrega (en borrador)"
             placeholder="Seleccione un acta…"
             required
             :options="actas.map((a) => ({ value: a.id, label: `${a.numeroActa} — ${a.fechaRecepcion?.slice(0, 10)}` }))"
-            hint="Al vincularse, el comprobante pasa a «En archivo» (ARCHIVOS GAMSL)."
+            hint="Pasa a «En archivo» cuando Archivo recibe el acta. Solo se listan actas en borrador."
           />
         </template>
         <template v-else>
@@ -241,6 +254,11 @@ onMounted(async () => {
             :options="carpetas.map((c) => ({ value: c.id, label: `${c.codigoCarpeta} — ${c.ubicacionFisica ?? ''}` }))"
           />
           <BaseInput v-model="numeroParte" type="number" label="Parte (1 a 5)" hint="Un comprobante puede ocupar hasta 5 carpetas." />
+          <BaseInput v-model="numeroFolio" label="N° de folio" />
+          <label class="flex items-center gap-2 text-sm text-ink-700 dark:text-ink-200">
+            <input v-model="archivar" type="checkbox" />
+            Marcar como «Archivado correctamente» (ya está foliado y ubicado)
+          </label>
         </template>
 
         <p v-if="modalError" class="text-sm text-red-600">{{ modalError }}</p>

@@ -1,7 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  IsArray,
   IsDateString,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -53,4 +55,16 @@ export class CreateActasEntregaDto {
   @IsString()
   @Transform(trim)
   readonly observaciones?: string;
+
+  @ApiPropertyOptional({
+    type: [Number],
+    example: [12, 15],
+    description:
+      'Comprobantes ya registrados (En revisión / firmados) que se entregan en esta acta',
+  })
+  @IsOptional()
+  @IsArray()
+  @Type(() => Number)
+  @IsInt({ each: true })
+  readonly comprobanteIds?: number[];
 }

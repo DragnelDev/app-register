@@ -1,9 +1,12 @@
 import apiClient from './api.client'
 import type {
+  CambiarPasswordPayload,
   ForgotPasswordPayload,
   LoginPayload,
   LoginResponse,
   MensajeResponse,
+  Perfil,
+  PerfilUpdatePayload,
   ResetPasswordPayload,
   Usuario,
 } from '@/types/auth.types'
@@ -23,5 +26,18 @@ export const authService = {
 
   resetPassword(payload: ResetPasswordPayload) {
     return apiClient.post<MensajeResponse>('/auth/reset-password', payload).then((r) => r.data)
+  },
+
+  // --- Perfil del usuario autenticado ---
+  perfil() {
+    return apiClient.get<Perfil>('/perfil').then((r) => r.data)
+  },
+
+  actualizarPerfil(payload: PerfilUpdatePayload) {
+    return apiClient.patch<Usuario>('/perfil', payload).then((r) => r.data)
+  },
+
+  cambiarPassword(payload: CambiarPasswordPayload) {
+    return apiClient.patch<MensajeResponse>('/perfil/password', payload).then((r) => r.data)
   },
 }

@@ -1,26 +1,38 @@
 <script setup lang="ts">
 import { ref, watch, onBeforeUnmount } from 'vue'
-import apiClient from '@/services/api.client'
+import { c31Service } from '@/services/c31.service'
 import { extractApiErrorMessage } from '@/utils/http-error'
-import type { Carpeta } from '@/types/c31.types'
-import type { PaginatedResponse } from '@/types/common.types'
+import type { ComprobanteC31 } from '@/types/c31.types'
+import { identificadorC31, numeroPreventivoC31, numeroDevengadoC31 } from '@/types/c31.types'
 
 const props = withDefaults(
   defineProps<{
     /** IDs a excluir de los resultados (ya seleccionados en el formulario actual) */
     excludeIds?: (string | number)[]
+    /** Excluye comprobantes ya APROBADOS (no se pueden reasignar a una acta) */
+    excludeAprobados?: boolean
+    /** Excluye comprobantes que ya pertenecen a otra acta de entrega */
+    excludeAsignadosAActa?: boolean
+    /** ID de la acta actual (si se está editando una), para no excluir sus propios comprobantes */
+    actaActualId?: string | number | null
+    /** Solo comprobantes archivados correctamente (los únicos que se pueden prestar) */
+    soloDisponibles?: boolean
     placeholder?: string
   }>(),
   {
     excludeIds: () => [],
-    placeholder: 'Buscar por código de carpeta…',
+    excludeAprobados: false,
+    excludeAsignadosAActa: false,
+    actaActualId: null,
+    soloDisponibles: false,
+    placeholder: 'Buscar por descripción / glosa del comprobante…',
   },
 )
 
-const emit = defineEmits<{ select: [carpeta: Carpeta] }>()
+const emit = defineEmits<{ select: [comprobante: ComprobanteC31] }>()
 
 const search = ref('')
-const results = ref<Carpeta[]>([])
+const results = ref<ComprobanteC31[]>([])
 const loading = ref(false)
 const open = ref(false)
 const errorMessage = ref('')
@@ -30,12 +42,21 @@ async function runSearch(term: string) {
   loading.value = true
   errorMessage.value = ''
   try {
-    const response = await apiClient.get<PaginatedResponse<Carpeta>>('/carpetas', {
-      params: { search: term, pageSize: 10 },
+    const res = await c31Service.list({
+      search: term,
+      pageSize: 10,
+      estadoFisico: props.soloDisponibles ? 'ARCHIVADO' : undefined,
     })
-    results.value = response.data.data.filter(
-      (c) => !props.excludeIds.some((id) => String(id) === String(c.id)),
-    )
+    results.value = res.data.filter((c) => {
+      if (props.excludeIds.some((id) => String(id) === String(c.id))) return false
+      if (
+        props.excludeAsignadosAActa &&
+        c.actaEntregaId &&
+        String(c.actaEntregaId) !== String(props.actaActualId ?? '')
+      )
+        return false
+      return true
+    })
   } catch (err) {
     errorMessage.value = extractApiErrorMessage(err, 'No se pudo buscar comprobantes.')
     results.value = []
@@ -56,11 +77,24 @@ watch(search, (term) => {
   debounceTimer = setTimeout(() => runSearch(trimmed), 350)
 })
 
-function pick(carpeta: Carpeta) {
-  emit('select', carpeta)
+function pick(comprobante: ComprobanteC31) {
+  emit('select', comprobante)
   search.value = ''
   results.value = []
   open.value = false
+}
+
+function formatMonto(monto: number) {
+  return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2 }).format(monto)
+}
+
+function joinNombres(items: { nombreBeneficiario?: string }[] | undefined) {
+  return (
+    (items ?? [])
+      .map((i) => i.nombreBeneficiario)
+      .filter(Boolean)
+      .join(', ') || '—'
+  )
 }
 
 onBeforeUnmount(() => {
@@ -88,16 +122,29 @@ onBeforeUnmount(() => {
         No se encontraron comprobantes que coincidan con la búsqueda.
       </p>
       <button
-        v-for="carpeta in results"
+        v-for="comprobante in results"
         v-else
-        :key="carpeta.id"
+        :key="comprobante.id"
         type="button"
         class="block w-full border-b border-ink-100 px-3 py-2 text-left text-sm last:border-b-0 hover:bg-ink-50 dark:border-white/10 dark:hover:bg-white/5"
-        @click="pick(carpeta)"
+        @click="pick(comprobante)"
       >
-        <p class="font-medium text-ink-800 dark:text-ink-100">{{ carpeta.codigoCarpeta }}</p>
-        <p class="mt-0.5 text-xs text-ink-500 dark:text-ink-400">
-          {{ carpeta.ubicacionFisica ?? 'Sin ubicación registrada' }}
+        <div class="flex items-center justify-between gap-2">
+          <span class="font-medium text-ink-800 dark:text-ink-100">
+            Comprobante N°
+            {{ identificadorC31(comprobante) ?? comprobante.numeroFolio ?? comprobante.id }}
+          </span>
+          <span class="whitespace-nowrap text-ink-600 dark:text-ink-300"
+            >Bs {{ formatMonto(comprobante.montoTotal) }}</span
+          >
+        </div>
+        <p class="mt-0.5 truncate text-xs text-ink-500 dark:text-ink-400">
+          {{ comprobante.descripcion }}
+        </p>
+        <p class="mt-0.5 text-xs text-ink-400 dark:text-ink-500">
+          Prev: {{ numeroPreventivoC31(comprobante) ?? '—' }} · Dev:
+          {{ numeroDevengadoC31(comprobante) ?? '—' }} · Beneficiario:
+          {{ joinNombres(comprobante.beneficiarios) }}
         </p>
       </button>
     </div>

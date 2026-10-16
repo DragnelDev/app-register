@@ -1,6 +1,7 @@
 import apiClient from './api.client'
 import type { PaginatedResponse, QueryParams } from '@/types/common.types'
 import type {
+  ActaAprobarPayload,
   ActaEntrega,
   ActaEntregaCreatePayload,
   ActaEntregaUpdatePayload,
@@ -27,5 +28,20 @@ export const actasEntregaService = {
 
   remove(id: string) {
     return apiClient.delete<void>(`${RESOURCE}/${id}`).then((r) => r.data)
+  },
+
+  /** El archivista aprueba la recepción: recibidos pasan a "En archivo", observados vuelven. */
+  aprobar(id: string, payload: ActaAprobarPayload) {
+    return apiClient.patch<ActaEntrega>(`${RESOURCE}/${id}/aprobar`, payload).then((r) => r.data)
+  },
+
+  anular(id: string) {
+    return apiClient.patch<ActaEntrega>(`${RESOURCE}/${id}/anular`).then((r) => r.data)
+  },
+
+  agregarComprobantes(id: string, comprobanteIds: number[]) {
+    return apiClient
+      .post<ActaEntrega>(`${RESOURCE}/${id}/comprobantes`, { comprobanteIds })
+      .then((r) => r.data)
   },
 }

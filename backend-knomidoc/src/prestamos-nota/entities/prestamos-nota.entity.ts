@@ -7,6 +7,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { ComprobantesC31 } from '../../comprobantes_c31/entities/comprobantes_c31.entity';
+import { Usuario } from '../../usuarios/entities/usuario.entity';
 import { PrestamosNotaDetalle } from '../../prestamos-nota-detalle/entities/prestamos-nota-detalle.entity';
 
 export enum EstadoPrestamoNota {
@@ -71,4 +72,28 @@ export class PrestamosNota {
 
   @OneToMany(() => PrestamosNotaDetalle, (detalle) => detalle.prestamoNota)
   detalles?: PrestamosNotaDetalle[];
+
+  /** Usuario del sistema que registró la salida del comprobante. */
+  @ManyToOne(() => Usuario, { nullable: true })
+  @JoinColumn({ name: 'registrado_por_id' })
+  registradoPor?: Usuario;
+
+  @Column({ name: 'registrado_por_id', type: 'integer', nullable: true })
+  registradoPorId?: number | null;
+
+  /** Usuario que recibió el comprobante al devolverse. */
+  @ManyToOne(() => Usuario, { nullable: true })
+  @JoinColumn({ name: 'recibido_por_id' })
+  recibidoPor?: Usuario;
+
+  @Column({ name: 'recibido_por_id', type: 'integer', nullable: true })
+  recibidoPorId?: number | null;
+
+  /** Estado en que volvió el comprobante: CONFORME o CON_NOVEDAD (daños, faltantes). */
+  @Column({ name: 'condicion_devolucion', type: 'varchar', length: 20, nullable: true })
+  condicionDevolucion?: string | null;
+
+  /** Observaciones hechas al recibir la devolución (las de la salida quedan en `observaciones`). */
+  @Column({ name: 'observaciones_devolucion', type: 'text', nullable: true })
+  observacionesDevolucion?: string | null;
 }

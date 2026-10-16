@@ -14,23 +14,31 @@ import {
   IsNull,
   LessThanOrEqual,
   MoreThanOrEqual,
-  Not,
   Repository,
 } from 'typeorm';
 import * as ExcelJS from 'exceljs';
 import {
   ComprobantesC31,
+  ESTADO_FISICO_LABELS,
   EstadoFisicoC31,
   TipoC31,
+  TRANSICIONES_MANUALES,
   UBICACION_ARCHIVO_DEFAULT,
 } from './entities/comprobantes_c31.entity';
 import { CreateComprobantesC31Dto } from './dto/create-comprobantes_c31.dto';
+import { CambiarEstadoC31Dto } from './dto/cambiar-estado-comprobantes_c31.dto';
 import { UpdateComprobantesC31Dto } from './dto/update-comprobantes_c31.dto';
 import { FilterComprobantesC31Dto } from './dto/filter-comprobantes_c31.dto';
 import { C31Preventivo } from '../c31-preventivos/entities/c31-preventivo.entity';
 import { C31Devengado } from '../c31-devengados/entities/c31-devengado.entity';
 import { C31Beneficiario } from '../c31-beneficiarios/entities/c31-beneficiario.entity';
-import { C31Cheque } from '../c31-cheques/entities/c31-cheque.entity';
+import {
+  C31Pago,
+  EstadoPago,
+  TipoPago,
+} from '../c31-pagos/entities/c31-pago.entity';
+import { C31CarpetasUbicacion } from '../c31-carpetas-ubicacion/entities/c31-carpetas-ubicacion.entity';
+import { registrarCambioEstado } from '../c31-historial/c31-historial.helper';
 import { ActasEntrega } from '../actas-entrega/entities/actas-entrega.entity';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { paginationSkip } from '../common/utils/pagination.util';
@@ -42,12 +50,19 @@ const RELATIONS = {
   preventivos: true,
   devengados: true,
   beneficiarios: true,
-  cheques: true,
 };
 
-/** Quita espacios y descarta los valores vacíos de una lista de textos. */
+/** Quita espacios, descarta vacíos y repetidos (sin distinguir mayúsculas) de una lista de textos. */
 function limpiarLista(valores?: string[]): string[] {
-  return (valores ?? []).map((v) => String(v).trim()).filter(Boolean);
+  const vistos = new Set<string>();
+  return (valores ?? [])
+    .map((v) => String(v).trim().replace(/\s+/g, ' '))
+    .filter((v) => {
+      const clave = v.toUpperCase();
+      if (!v || vistos.has(clave)) return false;
+      vistos.add(clave);
+      return true;
+    });
 }
 
 /** Texto de una celda de Excel (soporta texto enriquecido, fórmulas y fechas). */
@@ -123,36 +138,35 @@ export class ComprobantesC31Service {
   }
 
   /**
-   * Resuelve el estado físico y la ubicación con la que nace un comprobante:
-   *  - Si se registra ya vinculado a un acta de entrega, se considera
-   *    entregado/archivado: queda "En archivo" en "ARCHIVOS GAMSL" de forma
-   *    automática (sin importar lo que venga en el DTO).
-   *  - Si se registra suelto (sin acta), queda en el estado que indique el
-   *    usuario, o "En Trámite / Revisión" por defecto; la ubicación física
-   *    queda vacía hasta que se archive.
+   * El N° de preventivo / devengado reserva el correlativo: no puede repetirse
+   * dentro de la misma gestión (los comprobantes anulados liberan el número).
    */
-  private resolverEstadoAlCrear(dto: CreateComprobantesC31Dto): {
-    estadoFisico: EstadoFisicoC31;
-    ubicacionFisica?: string | null;
-  } {
-    if (dto.actaEntregaId) {
-      return {
-        estadoFisico: EstadoFisicoC31.EN_ARCHIVO,
-        ubicacionFisica: UBICACION_ARCHIVO_DEFAULT,
-      };
-    }
-    return {
-      estadoFisico:
-        (dto.estadoFisico as EstadoFisicoC31) ?? EstadoFisicoC31.EN_TRAMITE,
-      ubicacionFisica: dto.ubicacionFisica,
-    };
-  }
-
-  private async validarActa(manager: EntityManager, actaId?: number | null) {
-    if (!actaId) return;
-    const existe = await manager.existsBy(ActasEntrega, { id: actaId });
-    if (!existe) {
-      throw new NotFoundException(`El acta de entrega ${actaId} no existe`);
+  private async validarIdentificadorUnico(
+    manager: EntityManager,
+    tipoC31: TipoC31,
+    numero: string,
+    gestion: number,
+    excluirId?: number,
+  ) {
+    const esPreventivo = tipoC31 === TipoC31.CON_IMPUTACION;
+    const qb = manager
+      .createQueryBuilder(ComprobantesC31, 'c')
+      .innerJoin(esPreventivo ? 'c.preventivos' : 'c.devengados', 'i')
+      .where('c.gestion = :gestion', { gestion })
+      .andWhere('c.estado_fisico <> :anulado', {
+        anulado: EstadoFisicoC31.ANULADO,
+      })
+      .andWhere(
+        esPreventivo
+          ? 'UPPER(i.numero_preventivo) = UPPER(:numero)'
+          : 'UPPER(i.numero_devengado) = UPPER(:numero)',
+        { numero },
+      );
+    if (excluirId) qb.andWhere('c.id <> :excluirId', { excluirId });
+    if (await qb.getExists()) {
+      throw new ConflictException(
+        `Ya existe un comprobante con el N° de ${esPreventivo ? 'preventivo' : 'devengado'} ${numero} en la gestión ${gestion}`,
+      );
     }
   }
 
@@ -182,22 +196,28 @@ export class ComprobantesC31Service {
       numeroPreventivo,
       numeroDevengado,
     );
+    const gestion =
+      dto.gestion ?? new Date(dto.fechaElaboracion as string).getFullYear();
 
     return this.dataSource.transaction(async (manager) => {
-      await this.validarActa(manager, dto.actaEntregaId);
-      const { estadoFisico, ubicacionFisica } = this.resolverEstadoAlCrear(dto);
+      await this.validarIdentificadorUnico(
+        manager,
+        tipoC31,
+        (numeroPreventivo ?? numeroDevengado) as string,
+        gestion,
+      );
 
+      // El comprobante nace "En trámite (incompleto)": reserva el correlativo y
+      // el resto (firmas, folio, ubicación, pagos) se completa después.
       const comprobante = manager.create(ComprobantesC31, {
-        actaEntregaId: dto.actaEntregaId,
         tipoC31,
         montoTotal: dto.montoTotal,
         fechaElaboracion: dto.fechaElaboracion as unknown as Date,
         descripcion: dto.descripcion,
         numeroFolio: dto.numeroFolio,
-        gestion:
-          dto.gestion ?? new Date(dto.fechaElaboracion as string).getFullYear(),
-        estadoFisico,
-        ubicacionFisica,
+        gestion,
+        estadoFisico: EstadoFisicoC31.EN_TRAMITE,
+        ubicacionFisica: dto.ubicacionFisica,
         observaciones: dto.observaciones,
         creadoPorId: usuario.id,
         preventivos: numeroPreventivo
@@ -210,13 +230,16 @@ export class ComprobantesC31Service {
           (nombreBeneficiario) =>
             manager.create(C31Beneficiario, { nombreBeneficiario }),
         ),
-        cheques: limpiarLista(dto.cheques).map((numeroCheque) =>
-          manager.create(C31Cheque, { numeroCheque }),
-        ),
       });
 
       const guardado = await manager.save(ComprobantesC31, comprobante);
-      await this.sincronizarCantidadActa(manager, dto.actaEntregaId);
+      await registrarCambioEstado(manager, {
+        comprobanteId: guardado.id as number,
+        estadoNuevo: EstadoFisicoC31.EN_TRAMITE,
+        origen: 'REGISTRO',
+        usuarioId: usuario.id,
+        detalle: 'Comprobante registrado en el sistema',
+      });
 
       const completo = await manager.findOne(ComprobantesC31, {
         where: { id: guardado.id },
@@ -259,13 +282,10 @@ export class ComprobantesC31Service {
       );
     }
 
-    // Pendientes de regularización
+    // Pendientes de regularización: firmados (En revisión) que aún no van en un acta
     if (query.sinActa) {
       baseWhere.actaEntregaId = IsNull();
-      // Un comprobante anulado no necesita regularizarse
-      if (!query.estadoFisico) {
-        baseWhere.estadoFisico = Not(EstadoFisicoC31.ANULADO);
-      }
+      baseWhere.estadoFisico = EstadoFisicoC31.EN_REVISION;
     }
     if (query.sinCarpeta) {
       baseWhere.estadoFisico = EstadoFisicoC31.EN_ARCHIVO;
@@ -290,7 +310,7 @@ export class ComprobantesC31Service {
             ...baseWhere,
             beneficiarios: { nombreBeneficiario: ILike(like) },
           },
-          { ...baseWhere, cheques: { numeroCheque: ILike(like) } },
+          { ...baseWhere, pagos: { numeroDocumento: ILike(like) } },
         ]
       : [baseWhere];
 
@@ -321,31 +341,30 @@ export class ComprobantesC31Service {
   ): Promise<ComprobantesC31> {
     const comprobante = await this.findOne(id);
 
-    if (
-      dto.estadoFisico &&
-      comprobante.estadoFisico === EstadoFisicoC31.PRESTADO
-    ) {
+    if (comprobante.estadoFisico === EstadoFisicoC31.ANULADO) {
       throw new ConflictException(
-        'No se puede cambiar el estado físico de un comprobante prestado; registre primero su devolución',
+        'Un comprobante anulado no se puede modificar',
       );
     }
 
     // Si cambia el tipo o el identificador, el resultado final debe
     // seguir cumpliendo la relación 1 a 1 estricta con tipoC31.
-    if (
+    const prevFinal =
+      dto.numeroPreventivo !== undefined
+        ? dto.numeroPreventivo.trim() || undefined
+        : comprobante.preventivos?.[0]?.numeroPreventivo;
+    const devFinal =
+      dto.numeroDevengado !== undefined
+        ? dto.numeroDevengado.trim() || undefined
+        : comprobante.devengados?.[0]?.numeroDevengado;
+    const tipoFinal = (dto.tipoC31 as TipoC31) ?? comprobante.tipoC31;
+    const gestionFinal = dto.gestion ?? comprobante.gestion;
+    const cambiaIdentificador =
       dto.tipoC31 !== undefined ||
       dto.numeroPreventivo !== undefined ||
-      dto.numeroDevengado !== undefined
-    ) {
-      const tipoFinal = (dto.tipoC31 as TipoC31) ?? comprobante.tipoC31;
-      const prevFinal =
-        dto.numeroPreventivo !== undefined
-          ? dto.numeroPreventivo.trim() || undefined
-          : comprobante.preventivos?.[0]?.numeroPreventivo;
-      const devFinal =
-        dto.numeroDevengado !== undefined
-          ? dto.numeroDevengado.trim() || undefined
-          : comprobante.devengados?.[0]?.numeroDevengado;
+      dto.numeroDevengado !== undefined ||
+      dto.gestion !== undefined;
+    if (cambiaIdentificador) {
       this.validarTipoCoincideConIdentificador(tipoFinal, prevFinal, devFinal);
     }
     if (dto.beneficiarios !== undefined) {
@@ -357,15 +376,34 @@ export class ComprobantesC31Service {
     }
 
     return this.dataSource.transaction(async (manager) => {
-      const actaAnterior = comprobante.actaEntregaId;
-      if (dto.actaEntregaId !== undefined) {
-        await this.validarActa(manager, dto.actaEntregaId);
+      if (cambiaIdentificador) {
+        await this.validarIdentificadorUnico(
+          manager,
+          tipoFinal,
+          (tipoFinal === TipoC31.CON_IMPUTACION ? prevFinal : devFinal) as string,
+          gestionFinal as number,
+          id,
+        );
+      }
+
+      // El monto total no puede quedar por debajo de lo ya asignado en pagos
+      if (dto.montoTotal !== undefined) {
+        const fila = await manager
+          .createQueryBuilder(C31Pago, 'p')
+          .select('COALESCE(SUM(p.monto), 0)', 'suma')
+          .where('p.comprobante_id = :id', { id })
+          .andWhere('p.estado_pago <> :anulado', { anulado: EstadoPago.ANULADO })
+          .getRawOne<{ suma: string }>();
+        const pagos = Math.round(Number(fila?.suma ?? 0) * 100);
+        if (Math.round(Number(dto.montoTotal) * 100) < pagos) {
+          throw new ConflictException(
+            `El monto total no puede ser menor a los pagos registrados (Bs ${(pagos / 100).toFixed(2)})`,
+          );
+        }
       }
 
       // Campos simples
       const camposSimples: Record<string, unknown> = {};
-      if (dto.actaEntregaId !== undefined)
-        camposSimples.actaEntregaId = dto.actaEntregaId;
       if (dto.tipoC31 !== undefined) camposSimples.tipoC31 = dto.tipoC31;
       if (dto.montoTotal !== undefined)
         camposSimples.montoTotal = dto.montoTotal;
@@ -374,86 +412,44 @@ export class ComprobantesC31Service {
       if (dto.descripcion !== undefined)
         camposSimples.descripcion = dto.descripcion;
       if (dto.numeroFolio !== undefined)
-        camposSimples.numeroFolio = dto.numeroFolio;
+        camposSimples.numeroFolio = dto.numeroFolio || null;
       if (dto.gestion !== undefined) camposSimples.gestion = dto.gestion;
       if (dto.ubicacionFisica !== undefined)
-        camposSimples.ubicacionFisica = dto.ubicacionFisica;
+        camposSimples.ubicacionFisica = dto.ubicacionFisica || null;
       if (dto.observaciones !== undefined)
-        camposSimples.observaciones = dto.observaciones;
-      if (dto.estadoFisico !== undefined)
-        camposSimples.estadoFisico = dto.estadoFisico;
-
-      // RN: cuando el comprobante se vincula (o cambia) a un acta de
-      // entrega, se considera entregado/archivado automáticamente, sin
-      // importar lo que se haya enviado manualmente en el mismo request.
-      const seVinculaAActa =
-        dto.actaEntregaId !== undefined &&
-        dto.actaEntregaId !== null &&
-        dto.actaEntregaId !== actaAnterior;
-      if (seVinculaAActa) {
-        camposSimples.estadoFisico = EstadoFisicoC31.EN_ARCHIVO;
-        camposSimples.ubicacionFisica = UBICACION_ARCHIVO_DEFAULT;
-      }
+        camposSimples.observaciones = dto.observaciones || null;
 
       if (Object.keys(camposSimples).length > 0) {
         await manager.update(ComprobantesC31, id, camposSimples);
       }
 
       // Reemplazo del identificador 1 a 1 si viene en el DTO
-      if (dto.numeroPreventivo !== undefined) {
+      if (dto.numeroPreventivo !== undefined || dto.tipoC31 !== undefined) {
         await manager.delete(C31Preventivo, { comprobante: { id } });
-        const numeroPreventivo = dto.numeroPreventivo.trim();
-        if (numeroPreventivo) {
+        if (tipoFinal === TipoC31.CON_IMPUTACION && prevFinal) {
           await manager.save(
             C31Preventivo,
             manager.create(C31Preventivo, {
-              numeroPreventivo,
+              numeroPreventivo: prevFinal,
               comprobante: { id } as ComprobantesC31,
             }),
           );
         }
       }
-      if (dto.numeroDevengado !== undefined) {
+      if (dto.numeroDevengado !== undefined || dto.tipoC31 !== undefined) {
         await manager.delete(C31Devengado, { comprobante: { id } });
-        const numeroDevengado = dto.numeroDevengado.trim();
-        if (numeroDevengado) {
+        if (tipoFinal === TipoC31.SIN_IMPUTACION && devFinal) {
           await manager.save(
             C31Devengado,
             manager.create(C31Devengado, {
-              numeroDevengado,
+              numeroDevengado: devFinal,
               comprobante: { id } as ComprobantesC31,
             }),
           );
         }
       }
       if (dto.beneficiarios !== undefined) {
-        await manager.delete(C31Beneficiario, { comprobante: { id } });
-        await manager.save(
-          C31Beneficiario,
-          limpiarLista(dto.beneficiarios).map((nombreBeneficiario) =>
-            manager.create(C31Beneficiario, {
-              nombreBeneficiario,
-              comprobante: { id } as ComprobantesC31,
-            }),
-          ),
-        );
-      }
-      if (dto.cheques !== undefined) {
-        await manager.delete(C31Cheque, { comprobante: { id } });
-        await manager.save(
-          C31Cheque,
-          limpiarLista(dto.cheques).map((numeroCheque) =>
-            manager.create(C31Cheque, {
-              numeroCheque,
-              comprobante: { id } as ComprobantesC31,
-            }),
-          ),
-        );
-      }
-
-      if (dto.actaEntregaId !== undefined) {
-        await this.sincronizarCantidadActa(manager, actaAnterior);
-        await this.sincronizarCantidadActa(manager, dto.actaEntregaId);
+        await this.sincronizarBeneficiarios(manager, id, dto.beneficiarios);
       }
 
       const actualizado = await manager.findOne(ComprobantesC31, {
@@ -464,6 +460,157 @@ export class ComprobantesC31Service {
         throw new NotFoundException('El comprobante C31 no existe');
       return actualizado;
     });
+  }
+
+  /**
+   * Aplica la lista de beneficiarios sin recrearlos: los que siguen se
+   * conservan (con sus pagos), se agregan los nuevos y solo se quitan los que
+   * no tienen pagos asociados.
+   */
+  private async sincronizarBeneficiarios(
+    manager: EntityManager,
+    comprobanteId: number,
+    nombres: string[],
+  ) {
+    const deseados = limpiarLista(nombres);
+    const claves = new Set(deseados.map((n) => n.toUpperCase()));
+    const actuales = await manager.find(C31Beneficiario, {
+      where: { comprobante: { id: comprobanteId } },
+    });
+    const clavesActuales = new Set(
+      actuales.map((b) => (b.nombreBeneficiario ?? '').trim().toUpperCase()),
+    );
+
+    for (const b of actuales) {
+      if (claves.has((b.nombreBeneficiario ?? '').trim().toUpperCase())) continue;
+      const conPagos = await manager.count(C31Pago, {
+        where: { beneficiarioId: b.id },
+        withDeleted: true,
+      });
+      if (conPagos > 0) {
+        throw new ConflictException(
+          `No se puede quitar a ${b.nombreBeneficiario}: tiene pagos registrados`,
+        );
+      }
+      await manager.delete(C31Beneficiario, b.id as number);
+    }
+    for (const nombre of deseados) {
+      if (clavesActuales.has(nombre.toUpperCase())) continue;
+      await manager.save(
+        C31Beneficiario,
+        manager.create(C31Beneficiario, {
+          nombreBeneficiario: nombre,
+          comprobante: { id: comprobanteId } as ComprobantesC31,
+        }),
+      );
+    }
+  }
+
+  /** Cambio de estado manual con sus reglas (el resto de pasos los hace el sistema). */
+  async cambiarEstado(
+    id: number,
+    dto: CambiarEstadoC31Dto,
+    usuario: Usuario,
+  ): Promise<ComprobantesC31> {
+    const nuevo = dto.estado as EstadoFisicoC31;
+    const motivo = dto.motivo?.trim();
+
+    await this.dataSource.transaction(async (manager) => {
+      const comprobante = await manager.findOne(ComprobantesC31, {
+        where: { id },
+      });
+      if (!comprobante)
+        throw new NotFoundException('El comprobante C31 no existe');
+      const actual = comprobante.estadoFisico as EstadoFisicoC31;
+
+      if (actual === nuevo) {
+        throw new BadRequestException(
+          `El comprobante ya está en "${ESTADO_FISICO_LABELS[actual]}"`,
+        );
+      }
+      if (!TRANSICIONES_MANUALES[actual].includes(nuevo)) {
+        const pista =
+          actual === EstadoFisicoC31.PRESTADO
+            ? '. Registre primero la devolución del préstamo'
+            : actual === EstadoFisicoC31.ANULADO
+              ? '. Un comprobante anulado ya no cambia de estado'
+              : nuevo === EstadoFisicoC31.EN_ARCHIVO
+                ? '. Pasa a "En archivo" cuando el archivo recibe el acta de entrega'
+                : '';
+        throw new ConflictException(
+          `No se puede pasar de "${ESTADO_FISICO_LABELS[actual]}" a "${ESTADO_FISICO_LABELS[nuevo]}"${pista}`,
+        );
+      }
+      if (
+        (nuevo === EstadoFisicoC31.OBSERVADO ||
+          nuevo === EstadoFisicoC31.ANULADO) &&
+        !motivo
+      ) {
+        throw new BadRequestException(
+          nuevo === EstadoFisicoC31.OBSERVADO
+            ? 'Indique qué se observa (firma, sello o respaldo faltante)'
+            : 'Indique el motivo de la anulación',
+        );
+      }
+
+      const cambios: Record<string, unknown> = { estadoFisico: nuevo };
+
+      if (nuevo === EstadoFisicoC31.ARCHIVADO) {
+        const ubicado =
+          (comprobante.ubicacionFisica &&
+            comprobante.ubicacionFisica !== UBICACION_ARCHIVO_DEFAULT) ||
+          (await manager.countBy(C31CarpetasUbicacion, {
+            comprobante: { id },
+          })) > 0;
+        if (!comprobante.numeroFolio?.trim() || !ubicado) {
+          throw new ConflictException(
+            'Para archivarlo correctamente indique su N° de folio y su ubicación final (estante / caja / carpeta)',
+          );
+        }
+      }
+      if (nuevo === EstadoFisicoC31.OBSERVADO) cambios.observaciones = motivo;
+      if (nuevo === EstadoFisicoC31.ANULADO) {
+        const efectuados = await manager.countBy(C31Pago, {
+          comprobanteId: id,
+          estadoPago: EstadoPago.PAGADO,
+        });
+        if (efectuados > 0) {
+          throw new ConflictException(
+            'El comprobante tiene pagos efectuados: anúlelos primero en el módulo de pagos',
+          );
+        }
+        cambios.observaciones = `Anulado: ${motivo}`;
+        // Los pagos que seguían pendientes quedan sin efecto con el comprobante
+        await manager.update(
+          C31Pago,
+          { comprobanteId: id, estadoPago: EstadoPago.PENDIENTE },
+          { estadoPago: EstadoPago.ANULADO },
+        );
+      }
+
+      // Si sale del archivo, deja de pertenecer a su acta de entrega
+      const actaAnterior = comprobante.actaEntregaId;
+      const saleDelArchivo =
+        (actual === EstadoFisicoC31.EN_ARCHIVO ||
+          actual === EstadoFisicoC31.ARCHIVADO) &&
+        (nuevo === EstadoFisicoC31.OBSERVADO ||
+          nuevo === EstadoFisicoC31.EN_TRAMITE ||
+          nuevo === EstadoFisicoC31.EN_REVISION);
+      if (saleDelArchivo) cambios.actaEntregaId = null;
+
+      await manager.update(ComprobantesC31, id, cambios);
+      await registrarCambioEstado(manager, {
+        comprobanteId: id,
+        estadoAnterior: actual,
+        estadoNuevo: nuevo,
+        origen: 'MANUAL',
+        usuarioId: usuario.id,
+        detalle: motivo ?? null,
+      });
+      if (saleDelArchivo) await this.sincronizarCantidadActa(manager, actaAnterior);
+    });
+
+    return this.findOne(id);
   }
 
   async remove(id: number): Promise<ComprobantesC31> {
@@ -509,7 +656,7 @@ export class ComprobantesC31Service {
 
     const comprobantes = await this.repo.find({
       where,
-      relations: RELATIONS,
+      relations: { ...RELATIONS, pagos: true },
       order: { fechaElaboracion: 'ASC' },
     });
 
@@ -556,7 +703,14 @@ export class ComprobantesC31Service {
           c.preventivos?.[0]?.numeroPreventivo ??
           c.devengados?.[0]?.numeroDevengado ??
           '',
-        cheque: (c.cheques ?? []).map((ch) => ch.numeroCheque).join('   '),
+        cheque: (c.pagos ?? [])
+          .filter(
+            (p) =>
+              p.tipoPago === TipoPago.CHEQUE &&
+              p.estadoPago !== EstadoPago.ANULADO,
+          )
+          .map((p) => p.numeroDocumento)
+          .join('   '),
         beneficiario: (c.beneficiarios ?? [])
           .map((b) => b.nombreBeneficiario)
           .join(', '),
@@ -692,17 +846,51 @@ export class ComprobantesC31Service {
             numeroFolio,
             ubicacionFisica,
             gestion,
-            estadoFisico: EstadoFisicoC31.EN_ARCHIVO,
+            // Archivo histórico ya foliado y ubicado -> Archivado; si no, En archivo
+            estadoFisico:
+              numeroFolio && ubicacionFisica
+                ? EstadoFisicoC31.ARCHIVADO
+                : EstadoFisicoC31.EN_ARCHIVO,
             creadoPorId: usuario.id,
             preventivos: [manager.create(C31Preventivo, { numeroPreventivo })],
             beneficiarios: beneficiarios.map((nombreBeneficiario) =>
               manager.create(C31Beneficiario, { nombreBeneficiario }),
             ),
-            cheques: cheques.map((numeroCheque) =>
-              manager.create(C31Cheque, { numeroCheque }),
-            ),
           });
-          await manager.save(ComprobantesC31, comprobante);
+          const guardado = await manager.save(ComprobantesC31, comprobante);
+          await registrarCambioEstado(manager, {
+            comprobanteId: guardado.id as number,
+            estadoNuevo: guardado.estadoFisico as string,
+            origen: 'REGISTRO',
+            usuarioId: usuario.id,
+            detalle: 'Importado desde Excel',
+          });
+
+          // Cada pago se liga a un beneficiario; con varios beneficiarios no se
+          // sabe a quién corresponde cada cheque, así que se dejan en observaciones.
+          if (cheques.length > 0) {
+            if (guardado.beneficiarios?.length === 1) {
+              await manager.save(
+                C31Pago,
+                cheques.map((numeroDocumento) =>
+                  manager.create(C31Pago, {
+                    comprobanteId: guardado.id,
+                    beneficiarioId: guardado.beneficiarios?.[0].id,
+                    tipoPago: TipoPago.CHEQUE,
+                    numeroDocumento,
+                    // Con un solo cheque el monto es el del comprobante; con varios se completa después
+                    monto: cheques.length === 1 ? montoNumerico : null,
+                    estadoPago: EstadoPago.PAGADO,
+                    creadoPorId: usuario.id,
+                  }),
+                ),
+              );
+            } else {
+              await manager.update(ComprobantesC31, guardado.id as number, {
+                observaciones: `Cheques del Excel: ${cheques.join(', ')}`,
+              });
+            }
+          }
         });
 
         creados++;

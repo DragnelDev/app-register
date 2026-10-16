@@ -18,7 +18,10 @@ export interface ResumenSistema {
   comprobantes: {
     total: number;
     enTramite: number;
+    enRevision: number;
     enArchivo: number;
+    archivados: number;
+    observados: number;
     prestados: number;
     anulados: number;
     conImputacion: number;
@@ -45,7 +48,10 @@ export class ResumenService {
     const [
       total,
       enTramite,
+      enRevision,
       enArchivo,
+      archivados,
+      observados,
       prestados,
       anulados,
       conImputacion,
@@ -61,7 +67,10 @@ export class ResumenService {
     ] = await Promise.all([
       c31.count(),
       c31.countBy({ estadoFisico: EstadoFisicoC31.EN_TRAMITE }),
+      c31.countBy({ estadoFisico: EstadoFisicoC31.EN_REVISION }),
       c31.countBy({ estadoFisico: EstadoFisicoC31.EN_ARCHIVO }),
+      c31.countBy({ estadoFisico: EstadoFisicoC31.ARCHIVADO }),
+      c31.countBy({ estadoFisico: EstadoFisicoC31.OBSERVADO }),
       c31.countBy({ estadoFisico: EstadoFisicoC31.PRESTADO }),
       c31.countBy({ estadoFisico: EstadoFisicoC31.ANULADO }),
       c31.countBy({ tipoC31: 'CON_IMPUTACION' as ComprobantesC31['tipoC31'] }),
@@ -84,7 +93,10 @@ export class ResumenService {
       comprobantes: {
         total,
         enTramite,
+        enRevision,
         enArchivo,
+        archivados,
+        observados,
         prestados,
         anulados,
         conImputacion,
@@ -97,13 +109,13 @@ export class ResumenService {
     };
   }
 
-  /** Vigentes (no anulados) sin acta de entrega vinculada. */
+  /** Firmados (En revisión) que todavía no van en ningún acta de entrega. */
   contarSinActa(): Promise<number> {
     return this.dataSource
       .getRepository(ComprobantesC31)
       .createQueryBuilder('c')
       .where('c.acta_entrega_id IS NULL')
-      .andWhere("c.estado_fisico <> 'ANULADO'")
+      .andWhere("c.estado_fisico = 'EN_REVISION'")
       .getCount();
   }
 

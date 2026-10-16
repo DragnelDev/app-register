@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsOptional, IsString } from 'class-validator';
+import { IsIn, IsOptional, IsString } from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
 const vacioAUndefined = ({ value }: { value: unknown }): unknown =>
@@ -18,4 +18,10 @@ export class FilterActasEntregaDto extends PaginationQueryDto {
   @Transform(vacioAUndefined, { toClassOnly: true })
   @IsString()
   fechaHasta?: string;
+
+  @ApiPropertyOptional({ enum: ['BORRADOR', 'RECIBIDA', 'ANULADA'] })
+  @IsOptional()
+  @Transform(vacioAUndefined, { toClassOnly: true })
+  @IsIn(['BORRADOR', 'RECIBIDA', 'ANULADA'])
+  estado?: string;
 }

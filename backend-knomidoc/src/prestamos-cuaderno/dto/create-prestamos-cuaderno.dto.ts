@@ -45,6 +45,15 @@ export class CreatePrestamosCuadernoDto {
   readonly areaUnidad?: string;
 
   @ApiPropertyOptional({
+    example: '2026-07-25',
+    description: 'Fecha en que se espera la devolución',
+  })
+  @IsOptional()
+  @Transform(vacioAUndefined)
+  @IsDateString({}, { message: 'La fecha de devolución estimada debe ser válida' })
+  readonly fechaDevolucionEstimada?: string;
+
+  @ApiPropertyOptional({
     example: '2026-07-20T09:30:00',
     description: 'Si no se indica, se usa la fecha y hora actuales',
   })

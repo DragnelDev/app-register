@@ -1,183 +1,229 @@
 <script setup lang="ts">
-import { onMounted, reactive } from 'vue'
-import { parametrosGestionService } from '@/services/gestion.service'
-import BaseInput from '@/components/ui/BaseInput.vue'
-import BaseButton from '@/components/ui/BaseButton.vue'
+import { computed, reactive, ref } from 'vue'
 import type { ComprobanteC31FormPayload } from '@/types/c31.types'
 
-const emit = defineEmits<{ submit: [payload: ComprobanteC31FormPayload]; cancel: [] }>()
+/**
+ * Alta mínima del comprobante: tipo, N° de preventivo/devengado, beneficiarios,
+ * glosa, monto total del documento y fecha. El resto (folio, ubicación, pagos y
+ * estado) se completa después desde el detalle del comprobante.
+ */
+const props = defineProps<{ saving?: boolean; serverError?: string }>()
+const emit = defineEmits<{ submit: [payload: ComprobanteC31FormPayload] }>()
 
-const props = defineProps<{ saving?: boolean }>()
+const hoy = new Date().toISOString().slice(0, 10)
 
-const currentYear = new Date().getFullYear()
-
-// El formulario inicia con un elemento por lista repetible (beneficiarios,
-// cheques); numeroPreventivo/numeroDevengado son un único campo cada uno
-// (relación 1 a 1 estricta con el comprobante), y solo uno de los dos se
-// usa según tipoC31. Ambos soportan "2 en 1" como texto libre en el mismo
-// campo (ej. "0012 / 0013").
-const form = reactive<ComprobanteC31FormPayload>({
-  tipoC31: 'CON_IMPUTACION',
-  montoTotal: 0,
-  fechaElaboracion: '',
+const form = reactive({
+  tipoC31: 'CON_IMPUTACION' as 'CON_IMPUTACION' | 'SIN_IMPUTACION',
+  numero: '',
   descripcion: '',
-  numeroFolio: '',
-  gestion: currentYear,
-  estadoFisico: 'EN_TRAMITE',
-  ubicacionFisica: '',
-  observaciones: '',
-  numeroPreventivo: '',
-  numeroDevengado: '',
-  beneficiarios: [''],
-  cheques: [],
+  montoTotal: '' as string | number,
+  fechaElaboracion: hoy,
 })
+const beneficiarios = ref<string[]>([])
+const nuevoBeneficiario = ref('')
+const intentado = ref(false)
+const errorBeneficiario = ref('')
 
-// La gestión propuesta es la marcada como activa en Parámetros de gestión
-onMounted(async () => {
-  const activa = await parametrosGestionService.activa().catch(() => null)
-  if (activa?.gestion) form.gestion = activa.gestion
-})
+const etiquetaNumero = computed(() =>
+  form.tipoC31 === 'CON_IMPUTACION' ? 'N° de Preventivo' : 'N° de Devengado',
+)
 
-function addItem(list: string[]) {
-  list.push('')
+function agregarBeneficiario() {
+  const nombre = nuevoBeneficiario.value.trim().replace(/\s+/g, ' ')
+  errorBeneficiario.value = ''
+  if (!nombre) return
+  if (beneficiarios.value.some((b) => b.toUpperCase() === nombre.toUpperCase())) {
+    errorBeneficiario.value = 'Ese beneficiario ya está en la lista'
+    return
+  }
+  beneficiarios.value.push(nombre)
+  nuevoBeneficiario.value = ''
 }
 
-function removeItem(list: string[], index: number) {
-  if (list.length > 1) list.splice(index, 1)
+function quitarBeneficiario(i: number) {
+  beneficiarios.value.splice(i, 1)
 }
+
+const errores = computed(() => ({
+  numero: form.numero.trim() ? '' : `Ingrese el ${etiquetaNumero.value.toLowerCase()}`,
+  beneficiarios:
+    beneficiarios.value.length > 0 || nuevoBeneficiario.value.trim()
+      ? ''
+      : 'Agregue al menos un beneficiario',
+  descripcion: form.descripcion.trim() ? '' : 'Ingrese la descripción o glosa',
+  montoTotal: Number(form.montoTotal) > 0 ? '' : 'El monto debe ser mayor a 0',
+  fechaElaboracion: form.fechaElaboracion ? '' : 'Seleccione la fecha',
+}))
 
 function handleSubmit() {
-  const payload: ComprobanteC31FormPayload = {
-    ...form,
-    numeroPreventivo: form.tipoC31 === 'CON_IMPUTACION' ? form.numeroPreventivo : undefined,
-    numeroDevengado: form.tipoC31 === 'SIN_IMPUTACION' ? form.numeroDevengado : undefined,
-    beneficiarios: form.beneficiarios.filter(Boolean),
-    cheques: form.cheques.filter(Boolean),
-  }
-  emit('submit', payload)
+  intentado.value = true
+  // Si dejó un nombre escrito sin pulsar "Agregar", se toma como agregado
+  if (nuevoBeneficiario.value.trim()) agregarBeneficiario()
+  if (Object.values(errores.value).some(Boolean) && beneficiarios.value.length === 0) return
+  if (errores.value.numero || errores.value.descripcion || errores.value.montoTotal) return
+  if (errores.value.fechaElaboracion) return
+
+  const numero = form.numero.trim()
+  emit('submit', {
+    tipoC31: form.tipoC31,
+    numeroPreventivo: form.tipoC31 === 'CON_IMPUTACION' ? numero : undefined,
+    numeroDevengado: form.tipoC31 === 'SIN_IMPUTACION' ? numero : undefined,
+    beneficiarios: [...beneficiarios.value],
+    descripcion: form.descripcion.trim(),
+    montoTotal: Number(form.montoTotal),
+    fechaElaboracion: form.fechaElaboracion,
+  })
 }
+
+const campo =
+  'w-full rounded-md border bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-300 focus:border-seal-500 dark:bg-ink-950 dark:text-ink-100 dark:placeholder:text-ink-500'
+const borde = (error: string) =>
+  intentado.value && error
+    ? 'border-red-400'
+    : 'border-ink-200 dark:border-white/10'
+const etiqueta = 'mb-1.5 block text-xs font-semibold text-ink-700 dark:text-ink-200'
 </script>
 
 <template>
-  <form class="space-y-6" @submit.prevent="handleSubmit">
-    <section class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <BaseInput v-model="form.descripcion" label="Descripción / glosa del comprobante" required />
-      <BaseInput
-        v-model.number="form.montoTotal"
-        type="number"
-        step="0.01"
-        label="Monto total (Bs)"
-        required
-      />
-      <BaseInput
-        v-model="form.fechaElaboracion"
-        type="date"
-        label="Fecha de elaboración"
-        required
-      />
-      <BaseInput v-model.number="form.gestion" type="number" label="Gestión (año)" required />
+  <form class="space-y-5" novalidate @submit.prevent="handleSubmit">
+    <p
+      v-if="serverError"
+      class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300"
+      role="alert"
+    >
+      {{ serverError }}
+    </p>
 
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div>
-        <label class="mb-1 block text-sm font-medium text-ink-700 dark:text-ink-200"
-          >Tipo de C31</label
-        >
-        <select
-          v-model="form.tipoC31"
-          class="w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
-        >
+        <label for="tipo" :class="etiqueta">Tipo de C31 <span class="text-seal-500">*</span></label>
+        <select id="tipo" v-model="form.tipoC31" :class="[campo, borde('')]">
           <option value="CON_IMPUTACION">Con imputación</option>
           <option value="SIN_IMPUTACION">Sin imputación</option>
         </select>
       </div>
-      <BaseInput v-model="form.numeroFolio" label="N° de folio (individual, si ya está foliado)" />
-      <BaseInput
-        v-model="form.ubicacionFisica"
-        label="Ubicación física (ej. Estante 3 - Caja 12)"
-      />
-
       <div>
-        <label class="mb-1 block text-sm font-medium text-ink-700 dark:text-ink-200"
-          >Estado del comprobante</label
-        >
-        <select
-          v-model="form.estadoFisico"
-          class="w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
-        >
-          <option value="EN_TRAMITE">En Trámite / Revisión</option>
-          <option value="EN_ARCHIVO">En archivo</option>
-          <option value="ANULADO">Anulado</option>
-        </select>
-        <p class="mt-1 text-xs text-ink-400 dark:text-ink-500">
-          Por defecto queda "En Trámite / Revisión" hasta que se entregue el acta correspondiente,
-          momento en el que pasará automáticamente a "En archivo".
+        <label for="numero" :class="etiqueta">
+          {{ etiquetaNumero }} <span class="text-seal-500">*</span>
+        </label>
+        <input
+          id="numero"
+          v-model="form.numero"
+          type="text"
+          inputmode="text"
+          :class="[campo, borde(errores.numero)]"
+          placeholder="Ej: 1"
+        />
+        <p v-if="intentado && errores.numero" class="mt-1 text-xs text-red-600">
+          {{ errores.numero }}
         </p>
       </div>
-    </section>
-
-    <!-- Identificador único según tipoC31 (relación 1 a 1 estricta) -->
-    <section v-if="form.tipoC31 === 'CON_IMPUTACION'">
-      <h3 class="mb-2 text-sm font-semibold text-ink-800 dark:text-ink-100">N° de Preventivo</h3>
-      <BaseInput
-        v-model="form.numeroPreventivo"
-        placeholder='Ej: PREV-001 (soporta "2 en 1": "0012 / 0013")'
-        required
-      />
-    </section>
-
-    <section v-else>
-      <h3 class="mb-2 text-sm font-semibold text-ink-800 dark:text-ink-100">N° de Devengado</h3>
-      <BaseInput
-        v-model="form.numeroDevengado"
-        placeholder='Ej: DEV-001 (soporta "2 en 1": "0012 / 0013")'
-        required
-      />
-    </section>
-
-    <!-- Beneficiarios múltiples -->
-    <section>
-      <h3 class="mb-2 text-sm font-semibold text-ink-800 dark:text-ink-100">Beneficiarios</h3>
-      <div v-for="(_, i) in form.beneficiarios" :key="i" class="mb-2 flex gap-2">
-        <BaseInput
-          v-model="form.beneficiarios[i]"
-          placeholder="Nombre completo del beneficiario"
-          class="flex-1"
-        />
-        <BaseButton
-          variant="ghost"
-          size="sm"
-          type="button"
-          @click="removeItem(form.beneficiarios, i)"
-          >✕</BaseButton
-        >
-      </div>
-      <BaseButton variant="secondary" size="sm" type="button" @click="addItem(form.beneficiarios)">
-        + Agregar beneficiario
-      </BaseButton>
-    </section>
-
-    <!-- Cheques opcionales -->
-    <section>
-      <h3 class="mb-2 text-sm font-semibold text-ink-800 dark:text-ink-100">Cheques (opcional)</h3>
-      <div v-for="(_, i) in form.cheques" :key="i" class="mb-2 flex gap-2">
-        <BaseInput v-model="form.cheques[i]" placeholder="N° de cheque" class="flex-1" />
-        <BaseButton variant="ghost" size="sm" type="button" @click="removeItem(form.cheques, i)"
-          >✕</BaseButton
-        >
-      </div>
-      <BaseButton variant="secondary" size="sm" type="button" @click="form.cheques.push('')">
-        + Agregar cheque
-      </BaseButton>
-    </section>
-
-    <BaseInput
-      v-model="form.observaciones"
-      label="Observaciones (opcional)"
-      placeholder="Notas adicionales sobre el comprobante"
-    />
-
-    <div class="flex justify-end gap-2 border-t border-ink-100 pt-4 dark:border-white/10">
-      <BaseButton variant="secondary" type="button" @click="emit('cancel')">Cancelar</BaseButton>
-      <BaseButton type="submit" :loading="props.saving">Registrar comprobante</BaseButton>
     </div>
+
+    <div>
+      <label for="beneficiario" :class="etiqueta">
+        Beneficiario(s) <span class="text-seal-500">*</span>
+      </label>
+      <div
+        class="space-y-3 rounded-lg border bg-ink-50/60 p-4 dark:bg-white/[0.03]"
+        :class="borde(errores.beneficiarios)"
+      >
+        <div class="flex gap-2">
+          <input
+            id="beneficiario"
+            v-model="nuevoBeneficiario"
+            type="text"
+            :class="[campo, 'border-ink-200 dark:border-white/10']"
+            placeholder="Nombre completo o razón social del beneficiario..."
+            @keydown.enter.prevent="agregarBeneficiario"
+          />
+          <button
+            type="button"
+            class="shrink-0 rounded-md bg-seal-600 px-4 py-2 text-sm font-medium text-white hover:bg-seal-700"
+            @click="agregarBeneficiario"
+          >
+            Agregar
+          </button>
+        </div>
+        <p v-if="errorBeneficiario" class="text-xs text-red-600">{{ errorBeneficiario }}</p>
+
+        <ul v-if="beneficiarios.length" class="space-y-2">
+          <li
+            v-for="(nombre, i) in beneficiarios"
+            :key="nombre"
+            class="flex items-center justify-between gap-3 rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950"
+          >
+            <span class="break-words text-ink-800 dark:text-ink-100">{{ nombre }}</span>
+            <button
+              type="button"
+              class="shrink-0 rounded bg-red-500 px-3 py-1 text-xs font-medium text-white hover:bg-red-600"
+              @click="quitarBeneficiario(i)"
+            >
+              Eliminar
+            </button>
+          </li>
+        </ul>
+      </div>
+      <p v-if="intentado && errores.beneficiarios" class="mt-1 text-xs text-red-600">
+        {{ errores.beneficiarios }}
+      </p>
+    </div>
+
+    <div>
+      <label for="descripcion" :class="etiqueta">
+        Descripción / glosa del comprobante <span class="text-seal-500">*</span>
+      </label>
+      <textarea
+        id="descripcion"
+        v-model="form.descripcion"
+        rows="3"
+        :class="[campo, borde(errores.descripcion)]"
+      />
+      <p v-if="intentado && errores.descripcion" class="mt-1 text-xs text-red-600">
+        {{ errores.descripcion }}
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div>
+        <label for="monto" :class="etiqueta">
+          Monto total (Bs.) <span class="text-seal-500">*</span>
+        </label>
+        <input
+          id="monto"
+          v-model="form.montoTotal"
+          type="number"
+          step="0.01"
+          min="0"
+          :class="[campo, borde(errores.montoTotal)]"
+          placeholder="0,00"
+        />
+        <p v-if="intentado && errores.montoTotal" class="mt-1 text-xs text-red-600">
+          {{ errores.montoTotal }}
+        </p>
+        <p v-else class="mt-1 text-xs text-ink-400 dark:text-ink-500">
+          Total del documento (con impuestos). Los pagos a cada beneficiario se registran después.
+        </p>
+      </div>
+      <div>
+        <label for="fecha" :class="etiqueta">
+          Fecha de elaboración <span class="text-seal-500">*</span>
+        </label>
+        <input
+          id="fecha"
+          v-model="form.fechaElaboracion"
+          type="date"
+          :class="[campo, borde(errores.fechaElaboracion)]"
+        />
+      </div>
+    </div>
+
+    <button
+      type="submit"
+      :disabled="props.saving"
+      class="w-full rounded-md bg-seal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-seal-700 disabled:opacity-60"
+    >
+      {{ props.saving ? 'Registrando…' : 'Registrar comprobante' }}
+    </button>
   </form>
 </template>

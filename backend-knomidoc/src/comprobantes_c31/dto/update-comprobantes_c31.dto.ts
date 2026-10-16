@@ -1,16 +1,10 @@
 import { PartialType } from '@nestjs/swagger';
-import {
-  CreateComprobantesC31Dto,
-  ESTADOS_FISICO_EDITABLES,
-} from './create-comprobantes_c31.dto';
-
-/** Re-exportado para no romper a quien lo importaba desde este archivo. */
-export { ESTADOS_FISICO_EDITABLES };
+import { CreateComprobantesC31Dto } from './create-comprobantes_c31.dto';
 
 /**
- * El campo `estadoFisico` (con su validación @IsIn) ya llega heredado de
- * CreateComprobantesC31Dto vía PartialType; no se redeclara aquí para
- * evitar que la lista de estados editables quede duplicada y se desincronice.
+ * Edición parcial de los datos del comprobante. El estado no se cambia aquí:
+ * usar PATCH /comprobantes-c31/:id/estado. La vinculación a un acta la hace el
+ * módulo de actas de entrega.
  */
 export class UpdateComprobantesC31Dto extends PartialType(
   CreateComprobantesC31Dto,

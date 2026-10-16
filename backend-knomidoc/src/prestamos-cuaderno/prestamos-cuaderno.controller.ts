@@ -16,6 +16,8 @@ import { DevolverPrestamosCuadernoDto } from './dto/devolver-prestamos-cuaderno.
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { FilterPrestamosCuadernoDto } from './dto/filter-prestamos-cuaderno.dto';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Usuario } from '../usuarios/entities/usuario.entity';
 
 @ApiTags('prestamos-cuaderno')
 @ApiBearerAuth()
@@ -27,8 +29,14 @@ export class PrestamosCuadernoController {
 
   @Roles('ADMIN', 'ENCARGADO_PRESTAMOS')
   @Post()
-  create(@Body() createPrestamosCuadernoDto: CreatePrestamosCuadernoDto) {
-    return this.prestamosCuadernoService.create(createPrestamosCuadernoDto);
+  create(
+    @Body() createPrestamosCuadernoDto: CreatePrestamosCuadernoDto,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    return this.prestamosCuadernoService.create(
+      createPrestamosCuadernoDto,
+      usuario,
+    );
   }
 
   @Get()
@@ -55,8 +63,9 @@ export class PrestamosCuadernoController {
   devolver(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: DevolverPrestamosCuadernoDto,
+    @CurrentUser() usuario: Usuario,
   ) {
-    return this.prestamosCuadernoService.devolver(id, dto);
+    return this.prestamosCuadernoService.devolver(id, dto, usuario);
   }
 
   @Roles('ADMIN')

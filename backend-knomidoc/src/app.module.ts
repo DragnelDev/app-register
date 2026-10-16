@@ -9,7 +9,7 @@ import { CarpetasModule } from './carpetas/carpetas.module';
 import { C31PreventivosModule } from './c31-preventivos/c31-preventivos.module';
 import { C31DevengadosModule } from './c31-devengados/c31-devengados.module';
 import { C31BeneficiariosModule } from './c31-beneficiarios/c31-beneficiarios.module';
-import { C31ChequesModule } from './c31-cheques/c31-cheques.module';
+import { C31PagosModule } from './c31-pagos/c31-pagos.module';
 import { C31CarpetasUbicacionModule } from './c31-carpetas-ubicacion/c31-carpetas-ubicacion.module';
 import { PrestamosCuadernoModule } from './prestamos-cuaderno/prestamos-cuaderno.module';
 import { PrestamosNotaModule } from './prestamos-nota/prestamos-nota.module';
@@ -50,7 +50,7 @@ import { ResumenModule } from './resumen/resumen.module';
     C31PreventivosModule,
     C31DevengadosModule,
     C31BeneficiariosModule,
-    C31ChequesModule,
+    C31PagosModule,
     C31CarpetasUbicacionModule,
     PrestamosCuadernoModule,
     PrestamosNotaModule,

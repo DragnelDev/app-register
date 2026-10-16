@@ -73,6 +73,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { roles: ['ADMIN'] as RolUsuario[] },
   },
 
+  {
+    path: '/pagos',
+    name: 'pagos',
+    component: () => import('@/modules/pagos/views/PagosView.vue'),
+  },
+
   // ── Archivo físico ──
   {
     path: '/archivo/depositos',
@@ -130,6 +136,11 @@ export const routes: RouteRecordRaw[] = [
     name: 'parametros',
     component: () => import('@/modules/parametros/views/ParametrosGestionView.vue'),
     meta: { roles: ['ADMIN'] as RolUsuario[] },
+  },
+  {
+    path: '/perfil',
+    name: 'perfil',
+    component: () => import('@/modules/perfil/views/PerfilView.vue'),
   },
   {
     path: '/:pathMatch(.*)*',

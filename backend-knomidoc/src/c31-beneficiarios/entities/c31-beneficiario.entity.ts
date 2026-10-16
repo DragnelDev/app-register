@@ -1,9 +1,11 @@
-import { ComprobantesC31 } from 'src/comprobantes_c31/entities/comprobantes_c31.entity';
+import { ComprobantesC31 } from '../../comprobantes_c31/entities/comprobantes_c31.entity';
+import { C31Pago } from '../../c31-pagos/entities/c31-pago.entity';
 import {
   Column,
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
@@ -20,4 +22,8 @@ export class C31Beneficiario {
 
   @Column({ name: 'nombre_beneficiario', type: 'varchar', length: 200 })
   nombreBeneficiario: string | undefined;
+
+  /** Un beneficiario puede tener uno o muchos pagos. */
+  @OneToMany(() => C31Pago, (pago) => pago.beneficiario)
+  pagos?: C31Pago[];
 }

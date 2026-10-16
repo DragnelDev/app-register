@@ -13,15 +13,9 @@ export interface C31Devengado {
 }
 
 export interface C31Beneficiario {
-  id?: string
+  id?: number
   comprobanteId?: string
   nombreBeneficiario: string
-}
-
-export interface C31Cheque {
-  id?: string
-  comprobanteId?: string
-  numeroCheque: string
 }
 
 export interface Carpeta {
@@ -68,7 +62,7 @@ export interface ComprobanteC31 {
   preventivos?: C31Preventivo[]
   devengados?: C31Devengado[]
   beneficiarios: C31Beneficiario[]
-  cheques: C31Cheque[]
+  actaEntrega?: { id: number; numeroActa: string; estado: string } | null
 }
 
 type ConIdentificadores = {
@@ -91,24 +85,24 @@ export function identificadorC31(c: ConIdentificadores): string | undefined {
   return numeroPreventivoC31(c) ?? numeroDevengadoC31(c)
 }
 
-/** Payload plano para el formulario dinámico (arrays de strings, se transforman antes de enviar) */
+/**
+ * Datos con los que nace un comprobante: tipo, N° de preventivo/devengado,
+ * beneficiarios, glosa, monto total del documento y fecha. El resto (folio,
+ * ubicación, pagos, estado) se completa después.
+ */
 export interface ComprobanteC31FormPayload {
-  actaEntregaId?: string | null
   tipoC31?: TipoC31
   montoTotal: number
   fechaElaboracion: string
   descripcion: string
   numeroFolio?: string | null
   gestion?: number
-  estadoFisico?: EstadoFisico
   ubicacionFisica?: string | null
   observaciones?: string | null
   // Relación 1 a 1 estricta: solo se envía uno de los dos según tipoC31.
-  // Soporta "2 en 1" como texto libre dentro del mismo campo (ej. "0012 / 0013").
   numeroPreventivo?: string
   numeroDevengado?: string
   beneficiarios: string[]
-  cheques: string[] // opcional, puede ir vacío
   carpetas?: { carpetaId: string | number; numeroParte: number }[]
 }
 
@@ -120,7 +114,7 @@ export interface C31FilterState {
   fechaHasta?: string
   gestion?: number | ''
   actaEntregaId?: string | ''
-  /** true = solo vigentes sin acta de entrega (pendientes de vincular) */
+  /** true = solo firmados (En revisión) que aún no van en un acta */
   sinActa?: boolean
   /** true = solo en archivo sin carpeta asignada */
   sinCarpeta?: boolean
@@ -130,4 +124,47 @@ export interface C31FilterState {
 export interface C31ImportResult {
   creados: number
   errores: { fila: number; motivo: string }[]
+}
+
+/** Un préstamo del comprobante, con todo el detalle de quién, cuándo y en qué condición. */
+export interface C31PrestamoSeguimiento {
+  tipo: 'CUADERNO' | 'NOTA'
+  id: number
+  referencia: string
+  solicitante: string
+  institucionOArea: string
+  fechaSalida: string
+  fechaDevolucionEstimada: string | null
+  fechaDevolucion: string | null
+  devuelto: boolean
+  vencido: boolean
+  diasPrestado: number
+  diasVencido: number
+  registradoPor: string | null
+  recibidoPor: string | null
+  metodoVerificacion: string | null
+  evidenciaVerificacionUrl: string | null
+  observaciones: string | null
+  condicionDevolucion: 'CONFORME' | 'CON_NOVEDAD' | null
+  observacionesDevolucion: string | null
+}
+
+export interface C31HistorialItem {
+  id: number
+  fecha: string
+  estadoAnterior: string | null
+  estadoNuevo: string
+  origen: 'REGISTRO' | 'MANUAL' | 'ACTA' | 'PRESTAMO'
+  referencia: string | null
+  detalle: string | null
+  usuario: string | null
+}
+
+export interface C31Seguimiento {
+  comprobanteId: number
+  estadoFisico: string
+  acta: { id: number; numeroActa: string; estado: string } | null
+  resumenPrestamos: { total: number; activos: number; vencidos: number; conNovedad: number }
+  prestamos: C31PrestamoSeguimiento[]
+  historial: C31HistorialItem[]
 }

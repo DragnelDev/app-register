@@ -16,15 +16,19 @@ import {
 } from './entities/prestamos-cuaderno.entity';
 import {
   ComprobantesC31,
+  ESTADO_FISICO_LABELS,
   EstadoFisicoC31,
 } from '../comprobantes_c31/entities/comprobantes_c31.entity';
 import { Usuario } from '../usuarios/entities/usuario.entity';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { paginationSkip } from '../common/utils/pagination.util';
+import { registrarCambioEstado } from '../c31-historial/c31-historial.helper';
 
 const RELATIONS = {
   comprobante: { preventivos: true, devengados: true, beneficiarios: true },
   solicitante: true,
+  registradoPor: true,
+  recibidoPor: true,
 };
 
 @Injectable()
@@ -35,7 +39,10 @@ export class PrestamosCuadernoService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async create(dto: CreatePrestamosCuadernoDto): Promise<PrestamosCuaderno> {
+  async create(
+    dto: CreatePrestamosCuadernoDto,
+    usuario?: Usuario,
+  ): Promise<PrestamosCuaderno> {
     return this.dataSource.transaction(async (manager) => {
       const comprobante = await manager.findOne(ComprobantesC31, {
         where: { id: dto.comprobanteId },
@@ -46,9 +53,9 @@ export class PrestamosCuadernoService {
       if (comprobante.estadoFisico === EstadoFisicoC31.PRESTADO) {
         throw new ConflictException('El comprobante ya se encuentra prestado');
       }
-      if (comprobante.estadoFisico === EstadoFisicoC31.ANULADO) {
+      if (comprobante.estadoFisico !== EstadoFisicoC31.ARCHIVADO) {
         throw new ConflictException(
-          'El comprobante está anulado y no puede prestarse',
+          `Solo se prestan comprobantes archivados correctamente (estado actual: ${ESTADO_FISICO_LABELS[comprobante.estadoFisico as EstadoFisicoC31]})`,
         );
       }
 
@@ -76,6 +83,8 @@ export class PrestamosCuadernoService {
         fechaHoraSalida: dto.fechaHoraSalida
           ? new Date(dto.fechaHoraSalida)
           : new Date(),
+        fechaDevolucionEstimada: dto.fechaDevolucionEstimada,
+        registradoPorId: usuario?.id ?? null,
         devuelto: false,
         metodoVerificacion:
           (dto.metodoVerificacion as MetodoVerificacion) ??
@@ -87,6 +96,15 @@ export class PrestamosCuadernoService {
 
       await manager.update(ComprobantesC31, comprobante.id, {
         estadoFisico: EstadoFisicoC31.PRESTADO,
+      });
+      await registrarCambioEstado(manager, {
+        comprobanteId: comprobante.id as number,
+        estadoAnterior: EstadoFisicoC31.ARCHIVADO,
+        estadoNuevo: EstadoFisicoC31.PRESTADO,
+        origen: 'PRESTAMO',
+        usuarioId: usuario?.id,
+        referencia: 'Cuaderno de salida',
+        detalle: `Salida a ${solicitante.nombreCompleto} (${areaUnidad})`,
       });
 
       const completo = await manager.findOne(PrestamosCuaderno, {
@@ -165,6 +183,8 @@ export class PrestamosCuadernoService {
     if (dto.areaUnidad !== undefined) cambios.areaUnidad = dto.areaUnidad;
     if (dto.fechaHoraSalida !== undefined)
       cambios.fechaHoraSalida = new Date(dto.fechaHoraSalida);
+    if (dto.fechaDevolucionEstimada !== undefined)
+      cambios.fechaDevolucionEstimada = dto.fechaDevolucionEstimada;
     if (dto.metodoVerificacion !== undefined)
       cambios.metodoVerificacion = dto.metodoVerificacion;
     if (dto.evidenciaVerificacionUrl !== undefined)
@@ -182,6 +202,7 @@ export class PrestamosCuadernoService {
   async devolver(
     id: number,
     dto: DevolverPrestamosCuadernoDto,
+    usuario?: Usuario,
   ): Promise<PrestamosCuaderno> {
     return this.dataSource.transaction(async (manager) => {
       const prestamo = await manager.findOne(PrestamosCuaderno, {
@@ -206,11 +227,24 @@ export class PrestamosCuadernoService {
 
       prestamo.devuelto = true;
       prestamo.fechaHoraDevolucion = fechaHoraDevolucion;
-      if (dto.observaciones) prestamo.observaciones = dto.observaciones;
+      prestamo.condicionDevolucion = dto.condicion ?? 'CONFORME';
+      if (dto.observaciones) prestamo.observacionesDevolucion = dto.observaciones;
+      prestamo.recibidoPorId = usuario?.id ?? null;
       await manager.save(PrestamosCuaderno, prestamo);
 
       await manager.update(ComprobantesC31, prestamo.comprobanteId, {
-        estadoFisico: EstadoFisicoC31.EN_ARCHIVO,
+        estadoFisico: EstadoFisicoC31.ARCHIVADO,
+      });
+      await registrarCambioEstado(manager, {
+        comprobanteId: prestamo.comprobanteId as number,
+        estadoAnterior: EstadoFisicoC31.PRESTADO,
+        estadoNuevo: EstadoFisicoC31.ARCHIVADO,
+        origen: 'PRESTAMO',
+        usuarioId: usuario?.id,
+        referencia: 'Cuaderno de salida',
+        detalle:
+          `Devuelto ${prestamo.condicionDevolucion === 'CON_NOVEDAD' ? 'con novedad' : 'conforme'}` +
+          (dto.observaciones ? `: ${dto.observaciones}` : ''),
       });
 
       const completo = await manager.findOne(PrestamosCuaderno, {

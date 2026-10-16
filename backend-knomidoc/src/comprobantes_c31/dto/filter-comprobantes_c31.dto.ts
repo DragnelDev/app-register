@@ -2,8 +2,9 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString } from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { Type, Transform } from 'class-transformer';
+import { ESTADOS_FISICO_C31 } from '../entities/comprobantes_c31.entity';
 
-const ESTADOS_FISICO = ['EN_TRAMITE', 'EN_ARCHIVO', 'PRESTADO', 'ANULADO'];
+const ESTADOS_FISICO: string[] = ESTADOS_FISICO_C31;
 const TIPOS_C31 = ['CON_IMPUTACION', 'SIN_IMPUTACION'];
 
 const vacioAUndefined = ({ value }: { value: unknown }): unknown =>
@@ -65,7 +66,7 @@ export class FilterComprobantesC31Dto extends PaginationQueryDto {
 
   @ApiPropertyOptional({
     description:
-      'true = solo comprobantes vigentes sin acta de entrega (pendientes de vincular)',
+      'true = solo comprobantes firmados (En revisión) que aún no están en un acta de entrega',
   })
   @IsOptional()
   @Transform(textoABooleano, { toClassOnly: true })

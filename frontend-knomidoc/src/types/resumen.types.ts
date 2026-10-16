@@ -3,7 +3,10 @@ export interface ResumenSistema {
   comprobantes: {
     total: number
     enTramite: number
+    enRevision: number
     enArchivo: number
+    archivados: number
+    observados: number
     prestados: number
     anulados: number
     conImputacion: number
