@@ -44,43 +44,77 @@ function quitarBeneficiario(i: number) {
   beneficiarios.value.splice(i, 1)
 }
 
-const errores = computed(() => ({
-  numero: form.numero.trim() ? '' : `Ingrese el ${etiquetaNumero.value.toLowerCase()}`,
-  beneficiarios:
-    beneficiarios.value.length > 0 || nuevoBeneficiario.value.trim()
+const CODIGO = /^[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ .\/\-_]+$/
+
+// Solo el N° es obligatorio; lo demás, si se llena, debe ser válido.
+const errores = computed(() => {
+  const n = form.numero.trim()
+  const monto = String(form.montoTotal).trim()
+  const anio = form.fechaElaboracion ? Number(form.fechaElaboracion.slice(0, 4)) : null
+  return {
+    numero: !n
+      ? `Ingrese el ${etiquetaNumero.value.toLowerCase()}`
+      : n.length > 50
+        ? 'Máximo 50 caracteres'
+        : !CODIGO.test(n)
+          ? 'Solo letras, números, espacios y . / - _'
+          : '',
+    beneficiarios: '',
+    descripcion:
+      form.descripcion.trim() && form.descripcion.trim().length < 5
+        ? 'La descripción es demasiado corta'
+        : form.descripcion.length > 2000
+          ? 'Máximo 2000 caracteres'
+          : '',
+    montoTotal: !monto
       ? ''
-      : 'Agregue al menos un beneficiario',
-  descripcion: form.descripcion.trim() ? '' : 'Ingrese la descripción o glosa',
-  montoTotal: Number(form.montoTotal) > 0 ? '' : 'El monto debe ser mayor a 0',
-  fechaElaboracion: form.fechaElaboracion ? '' : 'Seleccione la fecha',
-}))
+      : !(Number(monto) > 0)
+        ? 'El monto debe ser mayor a 0'
+        : !/^\d+(\.\d{1,2})?$/.test(monto)
+          ? 'Hasta 2 decimales'
+          : Number(monto) > 999999999999.99
+            ? 'El monto es demasiado grande'
+            : '',
+    fechaElaboracion:
+      anio !== null && (anio < 2000 || anio > new Date().getFullYear() + 1)
+        ? 'La fecha está fuera de un rango razonable'
+        : '',
+  }
+})
+
+/** Lo que falta para que el comprobante nazca "En revisión / firmado". */
+const faltantes = computed(
+  () =>
+    [
+      !(beneficiarios.value.length || nuevoBeneficiario.value.trim()) && 'beneficiarios',
+      !form.descripcion.trim() && 'glosa',
+      !(Number(form.montoTotal) > 0) && 'monto total',
+      !form.fechaElaboracion && 'fecha',
+    ].filter(Boolean) as string[],
+)
 
 function handleSubmit() {
   intentado.value = true
   // Si dejó un nombre escrito sin pulsar "Agregar", se toma como agregado
   if (nuevoBeneficiario.value.trim()) agregarBeneficiario()
-  if (Object.values(errores.value).some(Boolean) && beneficiarios.value.length === 0) return
-  if (errores.value.numero || errores.value.descripcion || errores.value.montoTotal) return
-  if (errores.value.fechaElaboracion) return
+  if (Object.values(errores.value).some(Boolean)) return
 
   const numero = form.numero.trim()
   emit('submit', {
     tipoC31: form.tipoC31,
     numeroPreventivo: form.tipoC31 === 'CON_IMPUTACION' ? numero : undefined,
     numeroDevengado: form.tipoC31 === 'SIN_IMPUTACION' ? numero : undefined,
-    beneficiarios: [...beneficiarios.value],
-    descripcion: form.descripcion.trim(),
-    montoTotal: Number(form.montoTotal),
-    fechaElaboracion: form.fechaElaboracion,
+    beneficiarios: beneficiarios.value.length ? [...beneficiarios.value] : undefined,
+    descripcion: form.descripcion.trim() || undefined,
+    montoTotal: Number(form.montoTotal) > 0 ? Number(form.montoTotal) : undefined,
+    fechaElaboracion: form.fechaElaboracion || undefined,
   })
 }
 
 const campo =
   'w-full rounded-md border bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-300 focus:border-seal-500 dark:bg-ink-950 dark:text-ink-100 dark:placeholder:text-ink-500'
 const borde = (error: string) =>
-  intentado.value && error
-    ? 'border-red-400'
-    : 'border-ink-200 dark:border-white/10'
+  intentado.value && error ? 'border-red-400' : 'border-ink-200 dark:border-white/10'
 const etiqueta = 'mb-1.5 block text-xs font-semibold text-ink-700 dark:text-ink-200'
 </script>
 
@@ -92,6 +126,25 @@ const etiqueta = 'mb-1.5 block text-xs font-semibold text-ink-700 dark:text-ink-
       role="alert"
     >
       {{ serverError }}
+    </p>
+
+    <p
+      class="rounded-md px-3 py-2 text-xs"
+      :class="
+        faltantes.length
+          ? 'bg-amber-50 text-amber-800 dark:bg-amber-400/10 dark:text-amber-200'
+          : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200'
+      "
+      role="status"
+    >
+      <template v-if="faltantes.length">
+        Con solo el N° se registra <strong>En trámite</strong>. Faltan: {{ faltantes.join(', ') }}.
+        Al completarlos pasa solo a <strong>En revisión / firmado</strong>.
+      </template>
+      <template v-else
+        >Con todos los datos el comprobante se registra como
+        <strong>En revisión / firmado</strong>.</template
+      >
     </p>
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -121,12 +174,10 @@ const etiqueta = 'mb-1.5 block text-xs font-semibold text-ink-700 dark:text-ink-
     </div>
 
     <div>
-      <label for="beneficiario" :class="etiqueta">
-        Beneficiario(s) <span class="text-seal-500">*</span>
-      </label>
+      <label for="beneficiario" :class="etiqueta"> Beneficiario(s) </label>
       <div
         class="space-y-3 rounded-lg border bg-ink-50/60 p-4 dark:bg-white/[0.03]"
-        :class="borde(errores.beneficiarios)"
+        :class="borde('')"
       >
         <div class="flex gap-2">
           <input
@@ -135,6 +186,7 @@ const etiqueta = 'mb-1.5 block text-xs font-semibold text-ink-700 dark:text-ink-
             type="text"
             :class="[campo, 'border-ink-200 dark:border-white/10']"
             placeholder="Nombre completo o razón social del beneficiario..."
+            maxlength="200"
             @keydown.enter.prevent="agregarBeneficiario"
           />
           <button
@@ -164,15 +216,10 @@ const etiqueta = 'mb-1.5 block text-xs font-semibold text-ink-700 dark:text-ink-
           </li>
         </ul>
       </div>
-      <p v-if="intentado && errores.beneficiarios" class="mt-1 text-xs text-red-600">
-        {{ errores.beneficiarios }}
-      </p>
     </div>
 
     <div>
-      <label for="descripcion" :class="etiqueta">
-        Descripción / glosa del comprobante <span class="text-seal-500">*</span>
-      </label>
+      <label for="descripcion" :class="etiqueta"> Descripción / glosa del comprobante </label>
       <textarea
         id="descripcion"
         v-model="form.descripcion"
@@ -186,9 +233,7 @@ const etiqueta = 'mb-1.5 block text-xs font-semibold text-ink-700 dark:text-ink-
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div>
-        <label for="monto" :class="etiqueta">
-          Monto total (Bs.) <span class="text-seal-500">*</span>
-        </label>
+        <label for="monto" :class="etiqueta"> Monto total (Bs.) </label>
         <input
           id="monto"
           v-model="form.montoTotal"
@@ -206,15 +251,16 @@ const etiqueta = 'mb-1.5 block text-xs font-semibold text-ink-700 dark:text-ink-
         </p>
       </div>
       <div>
-        <label for="fecha" :class="etiqueta">
-          Fecha de elaboración <span class="text-seal-500">*</span>
-        </label>
+        <label for="fecha" :class="etiqueta"> Fecha de elaboración </label>
         <input
           id="fecha"
           v-model="form.fechaElaboracion"
           type="date"
           :class="[campo, borde(errores.fechaElaboracion)]"
         />
+        <p v-if="intentado && errores.fechaElaboracion" class="mt-1 text-xs text-red-600">
+          {{ errores.fechaElaboracion }}
+        </p>
       </div>
     </div>
 

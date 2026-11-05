@@ -37,14 +37,15 @@ export class ParametrosGestionService {
       withDeleted: true,
     });
     if (existente > 0) {
-      throw new ConflictException(`La gestión ${dto.gestion} ya está registrada`);
+      throw new ConflictException(
+        `La gestión ${dto.gestion} ya está registrada`,
+      );
     }
     const hayActiva = await this.repo.countBy({ activa: true });
     return this.repo.save(
       this.repo.create({
         ...dto,
-        fechaApertura:
-          dto.fechaApertura ?? `${dto.gestion}-01-01`,
+        fechaApertura: dto.fechaApertura ?? `${dto.gestion}-01-01`,
         estado: EstadoGestion.ABIERTA,
         // La primera gestión que se registra queda activa automáticamente
         activa: hayActiva === 0,
@@ -63,9 +64,13 @@ export class ParametrosGestionService {
       .addSelect('COUNT(*)', 'total')
       .groupBy('c.gestion')
       .getRawMany<{ gestion: number; total: string }>();
-    const conteo = new Map(filas.map((f) => [Number(f.gestion), Number(f.total)]));
+    const conteo = new Map(
+      filas.map((f) => [Number(f.gestion), Number(f.total)]),
+    );
     return gestiones.map((g) =>
-      Object.assign(g, { totalComprobantes: conteo.get(g.gestion as number) ?? 0 }),
+      Object.assign(g, {
+        totalComprobantes: conteo.get(g.gestion as number) ?? 0,
+      }),
     );
   }
 
@@ -105,7 +110,11 @@ export class ParametrosGestionService {
       );
     }
     await this.dataSource.transaction(async (manager) => {
-      await manager.update(ParametroGestion, { activa: true }, { activa: false });
+      await manager.update(
+        ParametroGestion,
+        { activa: true },
+        { activa: false },
+      );
       await manager.update(ParametroGestion, id, { activa: true });
     });
     return this.findOne(id);

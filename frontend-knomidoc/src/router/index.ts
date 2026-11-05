@@ -33,6 +33,14 @@ router.beforeEach(async (to) => {
     }
   }
 
+  // Sin correo verificado solo se puede verificar o corregir el correo en el perfil
+  if (auth.emailPendiente && to.name !== 'verificar-email' && to.name !== 'perfil') {
+    return { name: 'verificar-email' }
+  }
+  if (!auth.emailPendiente && to.name === 'verificar-email') {
+    return { name: 'dashboard' }
+  }
+
   const requiredRoles = to.meta.roles as string[] | undefined
   if (requiredRoles && (!auth.rol || !requiredRoles.includes(auth.rol))) {
     return { name: 'dashboard' }

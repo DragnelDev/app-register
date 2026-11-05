@@ -30,7 +30,10 @@ export class ComprobanteObservadoDto {
 
 /** Revisión del archivista: qué comprobantes se reciben y cuáles se devuelven observados. */
 export class AprobarActasEntregaDto {
-  @ApiProperty({ type: [Number], description: 'Comprobantes verificados y recibidos' })
+  @ApiProperty({
+    type: [Number],
+    description: 'Comprobantes verificados y recibidos',
+  })
   @IsArray()
   @ArrayNotEmpty({ message: 'Marque al menos un comprobante recibido' })
   @Type(() => Number)
@@ -44,7 +47,10 @@ export class AprobarActasEntregaDto {
   @Type(() => ComprobanteObservadoDto)
   readonly observados?: ComprobanteObservadoDto[];
 
-  @ApiPropertyOptional({ example: '2026-10-20', description: 'Fecha real de recepción' })
+  @ApiPropertyOptional({
+    example: '2026-10-20',
+    description: 'Fecha real de recepción',
+  })
   @IsOptional()
   @IsDateString()
   readonly fechaRecepcion?: string;

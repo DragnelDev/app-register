@@ -36,6 +36,65 @@ export class MailService {
     });
   }
 
+  /**
+   * Envía un código numérico (verificación de correo o recuperación de
+   * contraseña). Si no hay SMTP configurado (MAIL_HOST vacío) y no es
+   * producción, el código se escribe en el log para poder probar el flujo.
+   */
+  async sendCodigo(
+    destinatario: string,
+    nombreCompleto: string,
+    codigo: string,
+    proposito: 'EMAIL_VERIFICACION' | 'RECUPERACION_PASSWORD',
+    minutos: number,
+  ): Promise<void> {
+    const verificacion = proposito === 'EMAIL_VERIFICACION';
+    const asunto = verificacion
+      ? 'Código de verificación de correo - KnomiDoc'
+      : 'Código para recuperar tu contraseña - KnomiDoc';
+
+    if (!process.env.MAIL_HOST) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(
+          'El servidor de correo (MAIL_HOST) no está configurado',
+        );
+      }
+      this.logger.warn(`[SIN SMTP] ${asunto} para ${destinatario}: ${codigo}`);
+      return;
+    }
+
+    const remitente =
+      process.env.MAIL_FROM ?? '"KnomiDoc" <no-reply@knomidoc.com>';
+    const html = `
+      <div style="font-family: Arial, sans-serif; font-size: 14px; color: #1f2937;">
+        <p>Hola ${nombreCompleto || 'usuario/a'},</p>
+        <p>${
+          verificacion
+            ? 'Para confirmar tu correo en <strong>KnomiDoc</strong> ingresa este código:'
+            : 'Recibimos una solicitud para restablecer tu contraseña en <strong>KnomiDoc</strong>. Ingresa este código:'
+        }</p>
+        <p style="font-size:30px;letter-spacing:8px;font-weight:bold;margin:18px 0;">${codigo}</p>
+        <p>El código vence en <strong>${minutos} minutos</strong> y solo puede usarse una vez.</p>
+        <p>Si tú no lo solicitaste, ignora este correo; nadie podrá acceder sin el código.</p>
+      </div>`;
+
+    try {
+      await this.transporter.sendMail({
+        from: remitente,
+        to: destinatario,
+        subject: asunto,
+        html,
+        text: `Tu código de KnomiDoc es ${codigo}. Vence en ${minutos} minutos.`,
+      });
+    } catch (error) {
+      this.logger.error(
+        `No se pudo enviar el código a ${destinatario}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw error;
+    }
+  }
+
   /** Envía el correo con el enlace para restablecer la contraseña. */
   async sendPasswordReset(
     destinatario: string,

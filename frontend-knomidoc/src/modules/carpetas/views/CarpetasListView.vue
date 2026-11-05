@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import IconButton from '@/components/ui/IconButton.vue'
 import { onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
@@ -181,16 +182,15 @@ onMounted(async () => {
       </template>
       <template v-if="auth.puedeGestionarArchivo" #actions="{ row }">
         <div class="flex justify-end gap-2">
-          <BaseButton variant="ghost" size="sm" @click="openEdit(row)">Editar</BaseButton>
-          <BaseButton
+          <IconButton icon="fa-pen-to-square" label="Editar" @click="openEdit(row)" />
+          <IconButton
+            icon="fa-trash-can"
+            label="Eliminar"
             variant="danger"
-            size="sm"
             :disabled="row.estadoFisico === 'PRESTADO'"
             :loading="removingId === row.id"
             @click="handleRemove(row)"
-          >
-            Eliminar
-          </BaseButton>
+          />
         </div>
       </template>
     </BaseDataTable>

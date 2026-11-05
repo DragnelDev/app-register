@@ -27,6 +27,7 @@ import {
   UBICACION_ARCHIVO_DEFAULT,
 } from '../comprobantes_c31/entities/comprobantes_c31.entity';
 import { Usuario } from '../usuarios/entities/usuario.entity';
+import { validarRangoFecha } from '../common/utils/fechas.util';
 import { registrarCambioEstado } from '../c31-historial/c31-historial.helper';
 
 const DETALLE = {
@@ -104,10 +105,15 @@ export class ActasEntregaService {
         );
       }
     }
-    await manager.update(ComprobantesC31, { id: In(ids) }, { actaEntregaId: actaId });
+    await manager.update(
+      ComprobantesC31,
+      { id: In(ids) },
+      { actaEntregaId: actaId },
+    );
   }
 
   async create(dto: CreateActasEntregaDto): Promise<ActasEntrega> {
+    validarRangoFecha('La fecha de entrega', dto.fechaRecepcion);
     await this.validarNumeroActa(dto.numeroActa);
     const { comprobanteIds, ...cabecera } = dto;
     const id = await this.dataSource.transaction(async (manager) => {
@@ -165,6 +171,7 @@ export class ActasEntregaService {
   /** Edita el encabezado y, si viene `comprobanteIds`, reemplaza la selección (solo en borrador). */
   async update(id: number, dto: UpdateActasEntregaDto): Promise<ActasEntrega> {
     const { comprobanteIds, ...cabecera } = dto;
+    validarRangoFecha('La fecha de entrega', dto.fechaRecepcion);
     await this.dataSource.transaction(async (manager) => {
       const acta = await this.cargarBorrador(manager, id);
       if (cabecera.numeroActa && cabecera.numeroActa !== acta.numeroActa) {
@@ -280,7 +287,9 @@ export class ActasEntregaService {
         });
       }
       for (const o of observados) {
-        const c = items.find((x) => x.id === o.comprobanteId) as ComprobantesC31;
+        const c = items.find(
+          (x) => x.id === o.comprobanteId,
+        ) as ComprobantesC31;
         await manager.update(ComprobantesC31, c.id as number, {
           estadoFisico: EstadoFisicoC31.OBSERVADO,
           observaciones: o.motivo,

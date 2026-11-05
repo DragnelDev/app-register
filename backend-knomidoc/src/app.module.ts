@@ -20,6 +20,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { ActasEntregaModule } from './actas-entrega/actas-entrega.module';
 import { APP_GUARD } from '@nestjs/core';
+import { EmailVerificadoGuard } from './auth/guards/email-verificado.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { DepositosModule } from './depositos/depositos.module';
@@ -74,6 +75,7 @@ import { ResumenModule } from './resumen/resumen.module';
     // Autenticación JWT en todos los endpoints (salvo los marcados con @Public())
     // y control de acceso por rol (@Roles(...)). El orden importa: primero JWT.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: EmailVerificadoGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })

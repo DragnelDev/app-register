@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, FindOptionsWhere, Like, Repository } from 'typeorm';
+import { DataSource, FindOptionsWhere, In, Like, Repository } from 'typeorm';
 import { CreatePrestamosCuadernoDto } from './dto/create-prestamos-cuaderno.dto';
 import { UpdatePrestamosCuadernoDto } from './dto/update-prestamos-cuaderno.dto';
 import { DevolverPrestamosCuadernoDto } from './dto/devolver-prestamos-cuaderno.dto';
@@ -42,23 +42,9 @@ export class PrestamosCuadernoService {
   async create(
     dto: CreatePrestamosCuadernoDto,
     usuario?: Usuario,
-  ): Promise<PrestamosCuaderno> {
+  ): Promise<PrestamosCuaderno[]> {
+    const ids = [...new Set(dto.comprobanteIds)];
     return this.dataSource.transaction(async (manager) => {
-      const comprobante = await manager.findOne(ComprobantesC31, {
-        where: { id: dto.comprobanteId },
-      });
-      if (!comprobante) {
-        throw new NotFoundException('El comprobante C31 no existe');
-      }
-      if (comprobante.estadoFisico === EstadoFisicoC31.PRESTADO) {
-        throw new ConflictException('El comprobante ya se encuentra prestado');
-      }
-      if (comprobante.estadoFisico !== EstadoFisicoC31.ARCHIVADO) {
-        throw new ConflictException(
-          `Solo se prestan comprobantes archivados correctamente (estado actual: ${ESTADO_FISICO_LABELS[comprobante.estadoFisico as EstadoFisicoC31]})`,
-        );
-      }
-
       const solicitante = await manager.findOne(Usuario, {
         where: { id: dto.solicitanteId },
       });
@@ -68,52 +54,88 @@ export class PrestamosCuadernoService {
       if (solicitante.activo === false) {
         throw new BadRequestException('El usuario solicitante está inactivo');
       }
-
       const areaUnidad = dto.areaUnidad ?? solicitante.unidadOArea;
       if (!areaUnidad) {
         throw new BadRequestException(
           'Indique el área o unidad del solicitante (su usuario no la tiene registrada)',
         );
       }
+      const salida = dto.fechaHoraSalida
+        ? new Date(dto.fechaHoraSalida)
+        : new Date();
+      if (
+        dto.fechaDevolucionEstimada &&
+        dto.fechaDevolucionEstimada < salida.toISOString().slice(0, 10)
+      ) {
+        throw new BadRequestException(
+          'La devolución estimada no puede ser anterior a la salida',
+        );
+      }
 
-      const prestamo = manager.create(PrestamosCuaderno, {
-        comprobanteId: dto.comprobanteId,
-        solicitanteId: dto.solicitanteId,
-        areaUnidad,
-        fechaHoraSalida: dto.fechaHoraSalida
-          ? new Date(dto.fechaHoraSalida)
-          : new Date(),
-        fechaDevolucionEstimada: dto.fechaDevolucionEstimada,
-        registradoPorId: usuario?.id ?? null,
-        devuelto: false,
-        metodoVerificacion:
-          (dto.metodoVerificacion as MetodoVerificacion) ??
-          MetodoVerificacion.FIRMA_MANUAL,
-        evidenciaVerificacionUrl: dto.evidenciaVerificacionUrl,
-        observaciones: dto.observaciones,
+      const comprobantes = await manager.find(ComprobantesC31, {
+        where: { id: In(ids) },
+        relations: { preventivos: true, devengados: true },
       });
-      const guardado = await manager.save(PrestamosCuaderno, prestamo);
+      const creados: number[] = [];
 
-      await manager.update(ComprobantesC31, comprobante.id, {
-        estadoFisico: EstadoFisicoC31.PRESTADO,
-      });
-      await registrarCambioEstado(manager, {
-        comprobanteId: comprobante.id as number,
-        estadoAnterior: EstadoFisicoC31.ARCHIVADO,
-        estadoNuevo: EstadoFisicoC31.PRESTADO,
-        origen: 'PRESTAMO',
-        usuarioId: usuario?.id,
-        referencia: 'Cuaderno de salida',
-        detalle: `Salida a ${solicitante.nombreCompleto} (${areaUnidad})`,
-      });
+      for (const id of ids) {
+        const comprobante = comprobantes.find((c) => c.id === id);
+        if (!comprobante) {
+          throw new NotFoundException(`El comprobante ${id} no existe`);
+        }
+        const nombre =
+          comprobante.preventivos?.[0]?.numeroPreventivo ??
+          comprobante.devengados?.[0]?.numeroDevengado ??
+          `#${id}`;
+        if (comprobante.estadoFisico === EstadoFisicoC31.PRESTADO) {
+          throw new ConflictException(
+            `El comprobante ${nombre} ya se encuentra prestado`,
+          );
+        }
+        if (comprobante.estadoFisico !== EstadoFisicoC31.ARCHIVADO) {
+          throw new ConflictException(
+            `El comprobante ${nombre} no puede prestarse: solo se prestan comprobantes archivados correctamente (estado actual: ${ESTADO_FISICO_LABELS[comprobante.estadoFisico as EstadoFisicoC31]})`,
+          );
+        }
 
-      const completo = await manager.findOne(PrestamosCuaderno, {
-        where: { id: guardado.id },
+        const guardado = await manager.save(
+          PrestamosCuaderno,
+          manager.create(PrestamosCuaderno, {
+            comprobanteId: id,
+            solicitanteId: dto.solicitanteId,
+            areaUnidad,
+            fechaHoraSalida: salida,
+            fechaDevolucionEstimada: dto.fechaDevolucionEstimada,
+            registradoPorId: usuario?.id ?? null,
+            devuelto: false,
+            metodoVerificacion:
+              (dto.metodoVerificacion as MetodoVerificacion) ??
+              MetodoVerificacion.FIRMA_MANUAL,
+            evidenciaVerificacionUrl: dto.evidenciaVerificacionUrl,
+            observaciones: dto.observaciones,
+          }),
+        );
+        creados.push(guardado.id as number);
+
+        await manager.update(ComprobantesC31, id, {
+          estadoFisico: EstadoFisicoC31.PRESTADO,
+        });
+        await registrarCambioEstado(manager, {
+          comprobanteId: id,
+          estadoAnterior: EstadoFisicoC31.ARCHIVADO,
+          estadoNuevo: EstadoFisicoC31.PRESTADO,
+          origen: 'PRESTAMO',
+          usuarioId: usuario?.id,
+          referencia: 'Cuaderno de salida',
+          detalle: `Salida a ${solicitante.nombreCompleto} (${areaUnidad})`,
+        });
+      }
+
+      return manager.find(PrestamosCuaderno, {
+        where: { id: In(creados) },
         relations: RELATIONS,
+        order: { id: 'ASC' },
       });
-      if (!completo)
-        throw new NotFoundException('No se pudo recuperar el préstamo creado');
-      return completo;
     });
   }
 
@@ -228,7 +250,8 @@ export class PrestamosCuadernoService {
       prestamo.devuelto = true;
       prestamo.fechaHoraDevolucion = fechaHoraDevolucion;
       prestamo.condicionDevolucion = dto.condicion ?? 'CONFORME';
-      if (dto.observaciones) prestamo.observacionesDevolucion = dto.observaciones;
+      if (dto.observaciones)
+        prestamo.observacionesDevolucion = dto.observaciones;
       prestamo.recibidoPorId = usuario?.id ?? null;
       await manager.save(PrestamosCuaderno, prestamo);
 

@@ -6,7 +6,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository } from 'typeorm';
 import { Deposito } from './entities/deposito.entity';
-import { CreateDepositoDto, UpdateDepositoDto } from './dto/create-deposito.dto';
+import {
+  CreateDepositoDto,
+  UpdateDepositoDto,
+} from './dto/create-deposito.dto';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { paginationSkip } from '../common/utils/pagination.util';

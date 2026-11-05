@@ -6,7 +6,7 @@ import AppSidebar from '@/components/layout/AppSidebar.vue'
 import AppFooter from '@/components/layout/AppFooter.vue'
 
 const route = useRoute()
-const isPublicPage = computed(() => Boolean(route.meta.public))
+const isPublicPage = computed(() => Boolean(route.meta.public || route.meta.fullscreen))
 </script>
 
 <template>

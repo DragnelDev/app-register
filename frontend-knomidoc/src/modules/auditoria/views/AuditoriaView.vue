@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import IconButton from '@/components/ui/IconButton.vue'
 import { onMounted, reactive, ref, watch } from 'vue'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -82,14 +83,32 @@ onMounted(async () => {
     <div>
       <h1 class="text-2xl font-semibold">Auditoría / Historial</h1>
       <p class="text-sm text-ink-500 dark:text-ink-400">
-        Bitácora de quién hizo qué y cuándo. Se registra automáticamente toda alta, edición, eliminación e inicio de sesión.
+        Bitácora de quién hizo qué y cuándo. Se registra automáticamente toda alta, edición,
+        eliminación e inicio de sesión.
       </p>
     </div>
 
     <div class="card flex flex-wrap items-end gap-3 p-4">
-      <BaseInput v-model="filtros.search" label="Buscar" placeholder="Usuario, ruta o N° de registro…" class="w-64" />
-      <BaseSelect v-model="filtros.entidad" label="Recurso" placeholder="Todos" class="w-52" :options="opciones.entidades.map((e) => ({ value: e, label: e }))" />
-      <BaseSelect v-model="filtros.accion" label="Acción" placeholder="Todas" class="w-44" :options="opciones.acciones.map((a) => ({ value: a, label: a }))" />
+      <BaseInput
+        v-model="filtros.search"
+        label="Buscar"
+        placeholder="Usuario, ruta o N° de registro…"
+        class="w-64"
+      />
+      <BaseSelect
+        v-model="filtros.entidad"
+        label="Recurso"
+        placeholder="Todos"
+        class="w-52"
+        :options="opciones.entidades.map((e) => ({ value: e, label: e }))"
+      />
+      <BaseSelect
+        v-model="filtros.accion"
+        label="Acción"
+        placeholder="Todas"
+        class="w-44"
+        :options="opciones.acciones.map((a) => ({ value: a, label: a }))"
+      />
       <BaseInput v-model="filtros.fechaDesde" type="date" label="Desde" />
       <BaseInput v-model="filtros.fechaHasta" type="date" label="Hasta" />
       <BaseButton variant="secondary" @click="limpiar">Limpiar</BaseButton>
@@ -104,33 +123,62 @@ onMounted(async () => {
       :page="page"
       :total-pages="Math.max(1, Math.ceil(total / pageSize))"
       empty-message="No hay registros de auditoría con esos filtros."
-      @update:page="(p) => { page = p; loadRows() }"
+      @update:page="
+        (p) => {
+          page = p
+          loadRows()
+        }
+      "
       @row-click="ver"
     >
       <template #cell-fecha="{ row }">{{ formatoFecha(row.fecha) }}</template>
       <template #cell-usuarioNombre="{ row }">
         {{ row.usuarioNombre ?? '—' }}
-        <span v-if="row.rol" class="block text-xs text-ink-500 dark:text-ink-400">{{ row.rol }}</span>
+        <span v-if="row.rol" class="block text-xs text-ink-500 dark:text-ink-400">{{
+          row.rol
+        }}</span>
       </template>
       <template #cell-accion="{ row }">
-        <span class="badge" :class="TONOS[row.accion] ?? 'bg-amber-50 text-amber-800 dark:bg-amber-400/15 dark:text-amber-300'">{{ row.accion }}</span>
+        <span
+          class="badge"
+          :class="
+            TONOS[row.accion] ??
+            'bg-amber-50 text-amber-800 dark:bg-amber-400/15 dark:text-amber-300'
+          "
+          >{{ row.accion }}</span
+        >
       </template>
       <template #cell-registroId="{ row }">{{ row.registroId ?? '—' }}</template>
       <template #actions="{ row }">
-        <BaseButton variant="ghost" size="sm" @click="ver(row)">Detalle</BaseButton>
+        <IconButton icon="fa-eye" label="Ver detalle" @click="ver(row)" />
       </template>
     </BaseDataTable>
 
     <BaseModal v-model="detalleOpen" title="Detalle del evento" size="md">
       <dl v-if="detalle" class="space-y-2 text-sm">
-        <div class="flex justify-between gap-4"><dt class="text-ink-500">Fecha</dt><dd>{{ formatoFecha(detalle.fecha) }}</dd></div>
-        <div class="flex justify-between gap-4"><dt class="text-ink-500">Usuario</dt><dd>{{ detalle.usuarioNombre ?? '—' }} ({{ detalle.rol ?? '—' }})</dd></div>
-        <div class="flex justify-between gap-4"><dt class="text-ink-500">Operación</dt><dd class="font-mono text-xs">{{ detalle.metodo }} {{ detalle.ruta }}</dd></div>
-        <div class="flex justify-between gap-4"><dt class="text-ink-500">IP</dt><dd>{{ detalle.ip ?? '—' }}</dd></div>
+        <div class="flex justify-between gap-4">
+          <dt class="text-ink-500">Fecha</dt>
+          <dd>{{ formatoFecha(detalle.fecha) }}</dd>
+        </div>
+        <div class="flex justify-between gap-4">
+          <dt class="text-ink-500">Usuario</dt>
+          <dd>{{ detalle.usuarioNombre ?? '—' }} ({{ detalle.rol ?? '—' }})</dd>
+        </div>
+        <div class="flex justify-between gap-4">
+          <dt class="text-ink-500">Operación</dt>
+          <dd class="font-mono text-xs">{{ detalle.metodo }} {{ detalle.ruta }}</dd>
+        </div>
+        <div class="flex justify-between gap-4">
+          <dt class="text-ink-500">IP</dt>
+          <dd>{{ detalle.ip ?? '—' }}</dd>
+        </div>
         <div>
           <dt class="mb-1 text-ink-500">Datos enviados</dt>
           <dd>
-            <pre v-if="detalle.detalle" class="max-h-64 overflow-auto rounded-md bg-ink-50 p-3 text-xs dark:bg-ink-950">{{ JSON.stringify(detalle.detalle, null, 2) }}</pre>
+            <pre
+              v-if="detalle.detalle"
+              class="max-h-64 overflow-auto rounded-md bg-ink-50 p-3 text-xs dark:bg-ink-950"
+              >{{ JSON.stringify(detalle.detalle, null, 2) }}</pre>
             <span v-else class="text-ink-500">Sin datos adicionales.</span>
           </dd>
         </div>

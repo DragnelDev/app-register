@@ -6,6 +6,7 @@ import ComprobanteC31Picker from '@/components/shared/ComprobanteC31Picker.vue'
 import { pagosService } from '@/services/pagos.service'
 import { extractApiErrorMessage } from '@/utils/http-error'
 import { bs } from '@/utils/estados'
+import { codigoDocumento, fechaRazonable, maxLength, runValidators } from '@/utils/validators'
 import { identificadorC31, type ComprobanteC31 } from '@/types/c31.types'
 import type { Pago, PagosDeComprobante, TipoPago } from '@/types/pagos.types'
 
@@ -45,7 +46,12 @@ const disponible = computed(() => {
   if (!datos.value) return null
   const propio =
     props.pago && props.pago.estadoPago !== 'ANULADO' ? Number(props.pago.monto ?? 0) : 0
-  return datos.value.resumen.montoTotal - datos.value.resumen.pagado - datos.value.resumen.pendiente + propio
+  return (
+    datos.value.resumen.montoTotal -
+    datos.value.resumen.pagado -
+    datos.value.resumen.pendiente +
+    propio
+  )
 })
 
 async function cargarComprobante(id: number) {
@@ -76,9 +82,13 @@ function mostrarError(err: unknown) {
   error.value = extractApiErrorMessage(err, 'No se pudo completar la operación.')
 }
 
-watch(() => [props.modelValue, props.pago, props.comprobanteId], () => props.modelValue && reiniciar(), {
-  immediate: true,
-})
+watch(
+  () => [props.modelValue, props.pago, props.comprobanteId],
+  () => props.modelValue && reiniciar(),
+  {
+    immediate: true,
+  },
+)
 
 function elegirComprobante(c: ComprobanteC31) {
   comprobante.value = c
@@ -97,6 +107,16 @@ async function guardar() {
   if (!(Number(form.monto) > 0)) return (error.value = 'El monto debe ser mayor a 0')
   if (form.tipoPago === 'CHEQUE' && !form.numeroDocumento.trim())
     return (error.value = 'Indique el N° de cheque')
+  if (!/^\d+(\.\d{1,2})?$/.test(String(form.monto)))
+    return (error.value = 'El monto admite hasta 2 decimales')
+  if (disponible.value !== null && Number(form.monto) > disponible.value + 0.001)
+    return (error.value = `El monto supera lo disponible para pagar (Bs ${bs(disponible.value)})`)
+  const err =
+    runValidators(form.numeroDocumento, [codigoDocumento(), maxLength(60)]) ??
+    runValidators(form.banco, [maxLength(100)]) ??
+    runValidators(form.fechaPago, [fechaRazonable()]) ??
+    runValidators(form.observaciones, [maxLength(500)])
+  if (err) return (error.value = err)
 
   saving.value = true
   try {
@@ -138,20 +158,31 @@ const etiqueta = 'mb-1 block text-xs font-semibold text-ink-700 dark:text-ink-20
     @update:model-value="emit('update:modelValue', $event)"
   >
     <form id="pago-form" class="space-y-4" @submit.prevent="guardar">
-      <p v-if="error" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">
+      <p
+        v-if="error"
+        class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300"
+      >
         {{ error }}
       </p>
 
       <div v-if="!comprobanteId && !editando">
         <label :class="etiqueta">Comprobante C31</label>
-        <ComprobanteC31Picker placeholder="Buscar por glosa, N° de preventivo/devengado o beneficiario…" @select="elegirComprobante" />
+        <ComprobanteC31Picker
+          placeholder="Buscar por glosa, N° de preventivo/devengado o beneficiario…"
+          @select="elegirComprobante"
+        />
         <p v-if="comprobante" class="mt-1 text-xs text-ink-600 dark:text-ink-300">
-          Seleccionado: N° {{ identificadorC31(comprobante) ?? comprobante.id }} · Bs {{ bs(comprobante.montoTotal) }}
+          Seleccionado: N° {{ identificadorC31(comprobante) ?? comprobante.id }} · Bs
+          {{ bs(comprobante.montoTotal) }}
         </p>
       </div>
 
-      <div v-if="datos" class="rounded-md bg-ink-50 px-3 py-2 text-xs text-ink-600 dark:bg-white/5 dark:text-ink-300">
-        Total del comprobante: <strong>Bs {{ bs(datos.resumen.montoTotal) }}</strong> · Disponible para pagar:
+      <div
+        v-if="datos"
+        class="rounded-md bg-ink-50 px-3 py-2 text-xs text-ink-600 dark:bg-white/5 dark:text-ink-300"
+      >
+        Total del comprobante: <strong>Bs {{ bs(datos.resumen.montoTotal) }}</strong> · Disponible
+        para pagar:
         <strong>Bs {{ bs(disponible) }}</strong>
       </div>
 
@@ -160,15 +191,22 @@ const etiqueta = 'mb-1 block text-xs font-semibold text-ink-700 dark:text-ink-20
           <label :class="etiqueta">Beneficiario <span class="text-seal-500">*</span></label>
           <select v-model="form.beneficiarioId" :class="campo">
             <option value="" disabled>Seleccione…</option>
-            <option v-for="b in datos.beneficiarios" :key="b.id" :value="b.id">{{ b.nombreBeneficiario }}</option>
+            <option v-for="b in datos.beneficiarios" :key="b.id" :value="b.id">
+              {{ b.nombreBeneficiario }}
+            </option>
           </select>
         </div>
 
         <div class="sm:col-span-2">
           <span :class="etiqueta">Forma de pago <span class="text-seal-500">*</span></span>
           <div class="flex gap-5 text-sm text-ink-800 dark:text-ink-100">
-            <label class="flex items-center gap-2"><input v-model="form.tipoPago" type="radio" value="CHEQUE" /> Cheque</label>
-            <label class="flex items-center gap-2"><input v-model="form.tipoPago" type="radio" value="ELECTRONICO" /> Pago electrónico</label>
+            <label class="flex items-center gap-2"
+              ><input v-model="form.tipoPago" type="radio" value="CHEQUE" /> Cheque</label
+            >
+            <label class="flex items-center gap-2"
+              ><input v-model="form.tipoPago" type="radio" value="ELECTRONICO" /> Pago
+              electrónico</label
+            >
           </div>
         </div>
 
@@ -187,7 +225,11 @@ const etiqueta = 'mb-1 block text-xs font-semibold text-ink-700 dark:text-ink-20
         <div>
           <label :class="etiqueta">Monto (Bs) <span class="text-seal-500">*</span></label>
           <input v-model="form.monto" type="number" step="0.01" min="0" :class="campo" />
-          <button type="button" class="mt-1 text-xs text-seal-600 hover:underline dark:text-seal-300" @click="usarDisponible">
+          <button
+            type="button"
+            class="mt-1 text-xs text-seal-600 hover:underline dark:text-seal-300"
+            @click="usarDisponible"
+          >
             Usar todo el disponible
           </button>
         </div>
@@ -212,8 +254,12 @@ const etiqueta = 'mb-1 block text-xs font-semibold text-ink-700 dark:text-ink-20
     </form>
 
     <template #footer>
-      <BaseButton variant="secondary" @click="emit('update:modelValue', false)">Cancelar</BaseButton>
-      <BaseButton type="submit" form="pago-form" :loading="saving" :disabled="!datos">Guardar pago</BaseButton>
+      <BaseButton variant="secondary" @click="emit('update:modelValue', false)"
+        >Cancelar</BaseButton
+      >
+      <BaseButton type="submit" form="pago-form" :loading="saving" :disabled="!datos"
+        >Guardar pago</BaseButton
+      >
     </template>
   </BaseModal>
 </template>

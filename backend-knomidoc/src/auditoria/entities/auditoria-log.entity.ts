@@ -25,7 +25,12 @@ export class AuditoriaLog {
   usuarioId?: number | null;
 
   /** Copia del nombre/usuario al momento de la acción (el usuario puede cambiar o borrarse). */
-  @Column({ name: 'usuario_nombre', type: 'varchar', length: 150, nullable: true })
+  @Column({
+    name: 'usuario_nombre',
+    type: 'varchar',
+    length: 150,
+    nullable: true,
+  })
   usuarioNombre?: string | null;
 
   @Column({ type: 'varchar', length: 30, nullable: true })

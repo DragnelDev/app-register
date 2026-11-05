@@ -18,7 +18,7 @@ export const prestamosService = {
   },
 
   createCuaderno(payload: PrestamoCuadernoCreatePayload) {
-    return apiClient.post<PrestamoCuaderno>('/prestamos-cuaderno', payload).then((r) => r.data)
+    return apiClient.post<PrestamoCuaderno[]>('/prestamos-cuaderno', payload).then((r) => r.data)
   },
 
   devolverCuaderno(id: string, payload: DevolverPrestamoCuadernoPayload = {}) {
@@ -43,5 +43,27 @@ export const prestamosService = {
     return apiClient
       .patch<PrestamoNota>(`/prestamos-nota/${id}/devolver`, payload)
       .then((r) => r.data)
+  },
+
+  /**
+   * Abre el PDF de la nota de remisión (carta) en una pestaña nueva, lista para
+   * imprimir. La pestaña se abre antes de pedir el PDF para que el navegador no
+   * la bloquee como ventana emergente.
+   */
+  async abrirNotaPdf(numeroNota: string) {
+    const ventana = window.open('', '_blank')
+    try {
+      const response = await apiClient.get('/prestamos-nota/pdf', {
+        params: { numeroNota },
+        responseType: 'blob',
+      })
+      const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
+      if (ventana) ventana.location.href = url
+      else window.location.href = url
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch (err) {
+      ventana?.close()
+      throw err
+    }
   },
 }

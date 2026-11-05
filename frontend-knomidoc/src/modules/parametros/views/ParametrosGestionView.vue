@@ -15,7 +15,11 @@ const modalOpen = ref(false)
 const saving = ref(false)
 const modalError = ref('')
 const editando = ref<ParametroGestion | null>(null)
-const form = reactive({ gestion: new Date().getFullYear() as number | string, fechaApertura: '', observaciones: '' })
+const form = reactive({
+  gestion: new Date().getFullYear() as number | string,
+  fechaApertura: '',
+  observaciones: '',
+})
 
 async function cargar() {
   loading.value = true
@@ -110,50 +114,118 @@ onMounted(cargar)
       <div>
         <h1 class="text-2xl font-semibold">Parámetros de gestión</h1>
         <p class="text-sm text-ink-500 dark:text-ink-400">
-          Años de gestión del archivo. La gestión activa se propone por defecto al registrar comprobantes.
+          Años de gestión del archivo. La gestión activa se propone por defecto al registrar
+          comprobantes.
         </p>
       </div>
-      <BaseButton @click="nueva"><i class="fa-solid fa-plus" aria-hidden="true" /> Nueva gestión</BaseButton>
+      <BaseButton @click="nueva"
+        ><i class="fa-solid fa-plus" aria-hidden="true" /> Nueva gestión</BaseButton
+      >
     </div>
 
-    <p v-if="aviso" class="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-300">{{ aviso }}</p>
+    <p
+      v-if="aviso"
+      class="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-300"
+    >
+      {{ aviso }}
+    </p>
     <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
     <p v-if="loading" class="text-sm text-ink-500">Cargando…</p>
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-      <div v-for="g in gestiones" :key="g.id" class="card flex flex-col gap-3 p-5" :class="g.activa ? 'ring-2 ring-seal-500 dark:ring-seal-300' : ''">
+      <div
+        v-for="g in gestiones"
+        :key="g.id"
+        class="card flex flex-col gap-3 p-5"
+        :class="g.activa ? 'ring-2 ring-seal-500 dark:ring-seal-300' : ''"
+      >
         <div class="flex items-start justify-between">
           <div>
             <p class="font-display text-3xl font-semibold">{{ g.gestion }}</p>
             <p class="text-xs text-ink-500 dark:text-ink-400">
               {{ g.totalComprobantes ?? 0 }} comprobantes
-              <template v-if="g.fechaApertura"> · apertura {{ g.fechaApertura.slice(0, 10) }}</template>
+              <template v-if="g.fechaApertura">
+                · apertura {{ g.fechaApertura.slice(0, 10) }}</template
+              >
               <template v-if="g.fechaCierre"> · cierre {{ g.fechaCierre.slice(0, 10) }}</template>
             </p>
           </div>
           <div class="flex flex-col items-end gap-1">
-            <span v-if="g.activa" class="badge bg-seal-100 text-seal-800 dark:bg-seal-400/15 dark:text-seal-300">Activa</span>
-            <span class="badge" :class="g.estado === 'ABIERTA' ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-300' : 'bg-ink-100 text-ink-600 dark:bg-white/10 dark:text-ink-300'">
+            <span
+              v-if="g.activa"
+              class="badge bg-seal-100 text-seal-800 dark:bg-seal-400/15 dark:text-seal-300"
+              >Activa</span
+            >
+            <span
+              class="badge"
+              :class="
+                g.estado === 'ABIERTA'
+                  ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-300'
+                  : 'bg-ink-100 text-ink-600 dark:bg-white/10 dark:text-ink-300'
+              "
+            >
               {{ g.estado === 'ABIERTA' ? 'Abierta' : 'Cerrada' }}
             </span>
           </div>
         </div>
-        <p v-if="g.observaciones" class="text-sm text-ink-600 dark:text-ink-300">{{ g.observaciones }}</p>
+        <p v-if="g.observaciones" class="text-sm text-ink-600 dark:text-ink-300">
+          {{ g.observaciones }}
+        </p>
         <div class="mt-auto flex flex-wrap gap-2">
-          <BaseButton v-if="!g.activa && g.estado === 'ABIERTA'" size="sm" @click="accion(g, 'activar')">Activar</BaseButton>
-          <BaseButton v-if="!g.activa && g.estado === 'ABIERTA'" size="sm" variant="secondary" @click="accion(g, 'cerrar')">Cerrar</BaseButton>
-          <BaseButton v-if="g.estado === 'CERRADA'" size="sm" variant="secondary" @click="accion(g, 'reabrir')">Reabrir</BaseButton>
+          <BaseButton
+            v-if="!g.activa && g.estado === 'ABIERTA'"
+            size="sm"
+            @click="accion(g, 'activar')"
+            >Activar</BaseButton
+          >
+          <BaseButton
+            v-if="!g.activa && g.estado === 'ABIERTA'"
+            size="sm"
+            variant="secondary"
+            @click="accion(g, 'cerrar')"
+            >Cerrar</BaseButton
+          >
+          <BaseButton
+            v-if="g.estado === 'CERRADA'"
+            size="sm"
+            variant="secondary"
+            @click="accion(g, 'reabrir')"
+            >Reabrir</BaseButton
+          >
           <BaseButton size="sm" variant="ghost" @click="editar(g)">Editar</BaseButton>
-          <BaseButton v-if="!g.activa && !g.totalComprobantes" size="sm" variant="danger" @click="eliminar(g)">Eliminar</BaseButton>
+          <BaseButton
+            v-if="!g.activa && !g.totalComprobantes"
+            size="sm"
+            variant="danger"
+            @click="eliminar(g)"
+            >Eliminar</BaseButton
+          >
         </div>
       </div>
-      <p v-if="!loading && !gestiones.length" class="text-sm text-ink-500">Aún no hay gestiones. Registre la primera.</p>
+      <p v-if="!loading && !gestiones.length" class="text-sm text-ink-500">
+        Aún no hay gestiones. Registre la primera.
+      </p>
     </div>
 
-    <BaseModal v-model="modalOpen" :title="editando ? `Editar gestión ${editando.gestion}` : 'Nueva gestión'" size="sm">
+    <BaseModal
+      v-model="modalOpen"
+      :title="editando ? `Editar gestión ${editando.gestion}` : 'Nueva gestión'"
+      size="sm"
+    >
       <form id="gestion-form" class="space-y-4" @submit.prevent="guardar">
-        <BaseInput v-model="form.gestion" type="number" label="Año de gestión" required :disabled="Boolean(editando)" />
-        <BaseInput v-model="form.fechaApertura" type="date" label="Fecha de apertura" hint="Opcional; por defecto el 1 de enero." />
+        <BaseInput
+          v-model="form.gestion"
+          type="number"
+          label="Año de gestión"
+          required
+          :disabled="Boolean(editando)"
+        />
+        <BaseInput
+          v-model="form.fechaApertura"
+          type="date"
+          label="Fecha de apertura"
+          hint="Opcional; por defecto el 1 de enero."
+        />
         <BaseInput v-model="form.observaciones" label="Observaciones" />
         <p v-if="modalError" class="text-sm text-red-600">{{ modalError }}</p>
       </form>

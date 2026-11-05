@@ -10,6 +10,8 @@ export interface Usuario {
   telefono?: string | null
   rol: RolUsuario
   activo: boolean
+  /** El correo se confirmó con el código enviado */
+  emailVerificado?: boolean
 }
 
 /** Listado liviano usado por el selector de "solicitante" de un préstamo por cuaderno */
@@ -35,7 +37,8 @@ export interface ForgotPasswordPayload {
 }
 
 export interface ResetPasswordPayload {
-  token: string
+  email: string
+  codigo: string
   password: string
 }
 

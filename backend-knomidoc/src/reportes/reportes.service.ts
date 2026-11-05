@@ -65,7 +65,10 @@ export class ReportesService {
           .orderBy('c.estado_fisico')
           .getRawMany<{ estado: string; cantidad: string; monto: string }>(),
         agregados(
-          this.base(filtros).select('EXTRACT(MONTH FROM c.fecha_elaboracion)', 'mes'),
+          this.base(filtros).select(
+            'EXTRACT(MONTH FROM c.fecha_elaboracion)',
+            'mes',
+          ),
         )
           .andWhere("c.estado_fisico <> 'ANULADO'")
           .groupBy('mes')
@@ -73,7 +76,10 @@ export class ReportesService {
           .getRawMany<{ mes: string; cantidad: string; monto: string }>(),
         // Comparativo entre gestiones: ignora el filtro de gestión a propósito
         agregados(
-          this.base({ ...filtros, gestion: undefined }).select('c.gestion', 'gestion'),
+          this.base({ ...filtros, gestion: undefined }).select(
+            'c.gestion',
+            'gestion',
+          ),
         )
           .andWhere("c.estado_fisico <> 'ANULADO'")
           .groupBy('c.gestion')
@@ -101,7 +107,10 @@ export class ReportesService {
         monto,
         promedio: cantidad > 0 ? Math.round((monto / cantidad) * 100) / 100 : 0,
       },
-      anulados: { cantidad: num(anulados?.cantidad), monto: num(anulados?.monto) },
+      anulados: {
+        cantidad: num(anulados?.cantidad),
+        monto: num(anulados?.monto),
+      },
       porTipo: porTipo.map((f) => ({
         tipo: f.tipo,
         cantidad: num(f.cantidad),
@@ -133,8 +142,18 @@ export class ReportesService {
   async exportarExcel(filtros: FilterReporteDto): Promise<Buffer> {
     const r = await this.financiero(filtros);
     const meses = [
-      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
     ];
     const wb = new ExcelJS.Workbook();
     const encabezado = (hoja: ExcelJS.Worksheet) => {
@@ -149,9 +168,21 @@ export class ReportesService {
       { header: 'Monto (Bs)', key: 'm', width: 18 },
     ];
     encabezado(resumen);
-    resumen.addRow({ c: 'Total vigente (sin anulados)', n: r.totales.cantidad, m: r.totales.monto });
-    resumen.addRow({ c: 'Promedio por comprobante', n: '', m: r.totales.promedio });
-    resumen.addRow({ c: 'Anulados', n: r.anulados.cantidad, m: r.anulados.monto });
+    resumen.addRow({
+      c: 'Total vigente (sin anulados)',
+      n: r.totales.cantidad,
+      m: r.totales.monto,
+    });
+    resumen.addRow({
+      c: 'Promedio por comprobante',
+      n: '',
+      m: r.totales.promedio,
+    });
+    resumen.addRow({
+      c: 'Anulados',
+      n: r.anulados.cantidad,
+      m: r.anulados.monto,
+    });
     resumen.addRow({});
     r.porTipo.forEach((t) =>
       resumen.addRow({
@@ -169,7 +200,11 @@ export class ReportesService {
     ];
     encabezado(hojaMes);
     r.porMes.forEach((f) =>
-      hojaMes.addRow({ mes: meses[f.mes - 1] ?? f.mes, n: f.cantidad, m: f.monto }),
+      hojaMes.addRow({
+        mes: meses[f.mes - 1] ?? f.mes,
+        n: f.cantidad,
+        m: f.monto,
+      }),
     );
 
     const hojaGestion = wb.addWorksheet('Por gestión');
@@ -194,8 +229,8 @@ export class ReportesService {
       hojaBen.addRow({ b: f.nombre, n: f.cantidad, m: f.monto }),
     );
 
-    [resumen, hojaMes, hojaGestion, hojaBen].forEach((h) =>
-      h.getColumn('m').numFmt = '#,##0.00',
+    [resumen, hojaMes, hojaGestion, hojaBen].forEach(
+      (h) => (h.getColumn('m').numFmt = '#,##0.00'),
     );
 
     return Buffer.from(await wb.xlsx.writeBuffer());

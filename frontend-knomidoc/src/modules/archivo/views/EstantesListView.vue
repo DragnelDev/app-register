@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import IconButton from '@/components/ui/IconButton.vue'
 import { onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
@@ -146,26 +147,50 @@ onMounted(async () => {
       :page="page"
       :total-pages="Math.max(1, Math.ceil(total / pageSize))"
       empty-message="No hay estantes que coincidan."
-      @update:page="(p) => { page = p; loadRows() }"
+      @update:page="
+        (p) => {
+          page = p
+          loadRows()
+        }
+      "
       @row-click="openEdit"
     >
-      <template #cell-depositoId="{ row }">{{ row.deposito ? `${row.deposito.codigo} — ${row.deposito.nombre}` : '—' }}</template>
+      <template #cell-depositoId="{ row }">{{
+        row.deposito ? `${row.deposito.codigo} — ${row.deposito.nombre}` : '—'
+      }}</template>
       <template #cell-descripcion="{ row }">{{ row.descripcion || '—' }}</template>
       <template #cell-niveles="{ row }">{{ row.niveles ?? '—' }}</template>
       <template #cell-totalCarpetas="{ row }">
-        <RouterLink class="font-medium text-seal-600 hover:underline dark:text-seal-300" :to="{ path: '/carpetas', query: { estanteId: row.id } }" @click.stop>
+        <RouterLink
+          class="font-medium text-seal-600 hover:underline dark:text-seal-300"
+          :to="{ path: '/carpetas', query: { estanteId: row.id } }"
+          @click.stop
+        >
           {{ row.totalCarpetas ?? 0 }}
         </RouterLink>
       </template>
       <template #cell-activo="{ row }">
-        <span class="badge" :class="row.activo ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-300' : 'bg-ink-100 text-ink-600 dark:bg-white/10 dark:text-ink-300'">
+        <span
+          class="badge"
+          :class="
+            row.activo
+              ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-300'
+              : 'bg-ink-100 text-ink-600 dark:bg-white/10 dark:text-ink-300'
+          "
+        >
           {{ row.activo ? 'Activo' : 'Inactivo' }}
         </span>
       </template>
       <template v-if="auth.puedeGestionarArchivo" #actions="{ row }">
         <div class="flex justify-end gap-2">
-          <BaseButton variant="ghost" size="sm" @click="openEdit(row)">Editar</BaseButton>
-          <BaseButton v-if="auth.isAdmin" variant="danger" size="sm" @click="handleRemove(row)">Eliminar</BaseButton>
+          <IconButton icon="fa-pen-to-square" label="Editar" @click="openEdit(row)" />
+          <IconButton
+            v-if="auth.isAdmin"
+            icon="fa-trash-can"
+            label="Eliminar"
+            variant="danger"
+            @click="handleRemove(row)"
+          />
         </div>
       </template>
     </BaseDataTable>

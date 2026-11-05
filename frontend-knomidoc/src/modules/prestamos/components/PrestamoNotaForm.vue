@@ -4,7 +4,13 @@ import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import ComprobanteC31Picker from '@/components/shared/ComprobanteC31Picker.vue'
 import ComprobantesC31SelectedTable from '@/components/shared/ComprobantesC31SelectedTable.vue'
-import { required, maxLength, runValidators } from '@/utils/validators'
+import {
+  required,
+  maxLength,
+  runValidators,
+  codigoDocumento,
+  nombrePersona,
+} from '@/utils/validators'
 import type { PrestamoNotaCreatePayload } from '@/types/prestamos.types'
 import type { ComprobanteC31 } from '@/types/c31.types'
 
@@ -36,9 +42,17 @@ const touched = reactive({
 })
 
 const rules = {
-  numeroNotaSolicitud: [required('El N° de nota de solicitud es obligatorio'), maxLength(50)],
-  institucionSolicitante: [required('La institución solicitante es obligatoria'), maxLength(100)],
-  funcionarioResponsable: [required('Indica el funcionario responsable')],
+  numeroNotaSolicitud: [
+    required('El N° de nota de solicitud es obligatorio'),
+    maxLength(100),
+    codigoDocumento(),
+  ],
+  institucionSolicitante: [required('La institución solicitante es obligatoria'), maxLength(150)],
+  funcionarioResponsable: [
+    required('Indica el funcionario responsable'),
+    nombrePersona(),
+    maxLength(150),
+  ],
 }
 
 function validateField(field: keyof typeof rules) {
@@ -61,6 +75,9 @@ function validateAll(): boolean {
     validateField(field)
   })
   validateItems()
+  if (form.fechaDevolucionEstimada && form.fechaDevolucionEstimada < form.fechaPrestamo) {
+    errors.items = 'La devolución estimada no puede ser anterior a la fecha del préstamo'
+  }
   return (
     !errors.numeroNotaSolicitud &&
     !errors.institucionSolicitante &&

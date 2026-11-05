@@ -9,6 +9,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { MSG_PASSWORD, REGEX_PASSWORD } from '../../auth/dto/codigo.dto';
 
 const trim = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
@@ -19,7 +20,11 @@ export class UpdatePerfilDto {
   @IsOptional()
   @IsNotEmpty({ message: 'El nombre completo no puede quedar vacío' })
   @IsString()
+  @MinLength(3, { message: 'El nombre debe tener al menos 3 caracteres' })
   @MaxLength(150)
+  @Matches(/^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ .,'()\-]+$/, {
+    message: "El nombre solo admite letras, espacios y . , ' ( ) -",
+  })
   @Transform(trim)
   readonly nombreCompleto?: string;
 
@@ -50,7 +55,9 @@ export class UpdatePerfilDto {
   @IsOptional()
   @IsString()
   @MaxLength(30)
-  @Matches(/^[0-9+()\-\s]*$/, { message: 'El teléfono solo admite números, +, -, ( ) y espacios' })
+  @Matches(/^[0-9+()\-\s]*$/, {
+    message: 'El teléfono solo admite números, +, -, ( ) y espacios',
+  })
   @Transform(trim)
   readonly telefono?: string;
 }
@@ -63,7 +70,6 @@ export class CambiarPasswordDto {
 
   @ApiProperty({ example: 'NuevaClave2026*' })
   @IsString()
-  @MinLength(8, { message: 'La nueva contraseña debe tener al menos 8 caracteres' })
-  @MaxLength(72)
+  @Matches(REGEX_PASSWORD, { message: MSG_PASSWORD })
   readonly passwordNueva: string | undefined;
 }

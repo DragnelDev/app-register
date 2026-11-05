@@ -19,8 +19,8 @@ const emit = defineEmits<{ remove: [id: string] }>()
 const total = computed(() => props.items.reduce((sum, c) => sum + Number(c.montoTotal || 0), 0))
 const colspan = computed(() => (props.readonly ? 5 : 6))
 
-function formatMonto(monto: number) {
-  return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2 }).format(monto)
+function formatMonto(monto: number | null) {
+  return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2 }).format(monto ?? 0)
 }
 
 function joinNombres(items: { nombreBeneficiario?: string }[] | undefined) {

@@ -9,7 +9,8 @@ import {
 import { ComprobantesC31 } from '../../comprobantes_c31/entities/comprobantes_c31.entity';
 import { Usuario } from '../../usuarios/entities/usuario.entity';
 
-export type OrigenCambioC31 = 'REGISTRO' | 'MANUAL' | 'ACTA' | 'PRESTAMO';
+export type OrigenCambioC31 =
+  'REGISTRO' | 'MANUAL' | 'ACTA' | 'PRESTAMO' | 'SISTEMA';
 
 /** Bitácora de cambios de estado de cada comprobante (quién, cuándo y por qué). */
 @Entity('c31_historial')
@@ -24,7 +25,12 @@ export class C31Historial {
   @Column({ name: 'comprobante_id', type: 'integer' })
   comprobanteId: number | undefined;
 
-  @Column({ name: 'estado_anterior', type: 'varchar', length: 20, nullable: true })
+  @Column({
+    name: 'estado_anterior',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
   estadoAnterior?: string | null;
 
   @Column({ name: 'estado_nuevo', type: 'varchar', length: 20 })

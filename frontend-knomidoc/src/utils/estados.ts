@@ -2,11 +2,31 @@ import type { EstadoFisico } from '@/types/common.types'
 
 /** Estados del C31 en el orden del recorrido del documento físico. */
 export const ESTADOS_C31: { value: EstadoFisico; label: string; ayuda: string }[] = [
-  { value: 'EN_TRAMITE', label: 'En trámite (incompleto)', ayuda: 'Registrado; faltan firmas, sellos o respaldos.' },
-  { value: 'EN_REVISION', label: 'En revisión / firmado', ayuda: 'Firmado y completo; listo para remitir a Archivo.' },
-  { value: 'EN_ARCHIVO', label: 'En archivo', ayuda: 'Ingresó a Archivo mediante acta de entrega.' },
-  { value: 'ARCHIVADO', label: 'Archivado correctamente', ayuda: 'Verificado, foliado y ubicado en su lugar final.' },
-  { value: 'PRESTADO', label: 'Prestado', ayuda: 'Retirado temporalmente para consulta o auditoría.' },
+  {
+    value: 'EN_TRAMITE',
+    label: 'En trámite (incompleto)',
+    ayuda: 'Registrado; faltan firmas, sellos o respaldos.',
+  },
+  {
+    value: 'EN_REVISION',
+    label: 'En revisión / firmado',
+    ayuda: 'Firmado y completo; listo para remitir a Archivo.',
+  },
+  {
+    value: 'EN_ARCHIVO',
+    label: 'En archivo',
+    ayuda: 'Ingresó a Archivo mediante acta de entrega.',
+  },
+  {
+    value: 'ARCHIVADO',
+    label: 'Archivado correctamente',
+    ayuda: 'Verificado, foliado y ubicado en su lugar final.',
+  },
+  {
+    value: 'PRESTADO',
+    label: 'Prestado',
+    ayuda: 'Retirado temporalmente para consulta o auditoría.',
+  },
   { value: 'OBSERVADO', label: 'Observado', ayuda: 'Inconsistencias o devolución por fallas.' },
   { value: 'ANULADO', label: 'Revertido / anulado', ayuda: 'Dejado sin efecto en el SIGEP.' },
 ]

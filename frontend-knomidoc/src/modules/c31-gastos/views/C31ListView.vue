@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import IconButton from '@/components/ui/IconButton.vue'
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
@@ -193,9 +194,17 @@ onMounted(() => {
       <template #cell-estadoFisico="{ row }"><BaseBadge :estado="row.estadoFisico" /></template>
       <template #actions="{ row }">
         <div class="flex justify-end gap-1">
-          <BaseButton variant="ghost" size="sm" @click.stop="openDetail(row)">Detalle</BaseButton>
-          <BaseButton variant="ghost" size="sm" @click.stop="openDetail(row, 'pagos')">Pagos</BaseButton>
-          <BaseButton variant="ghost" size="sm" @click.stop="openDetail(row, 'seguimiento')">Seguimiento</BaseButton>
+          <IconButton icon="fa-eye" label="Ver detalle" @click.stop="openDetail(row)" />
+          <IconButton
+            icon="fa-money-check-dollar"
+            label="Pagos"
+            @click.stop="openDetail(row, 'pagos')"
+          />
+          <IconButton
+            icon="fa-clock-rotate-left"
+            label="Seguimiento y préstamos"
+            @click.stop="openDetail(row, 'seguimiento')"
+          />
         </div>
       </template>
     </BaseDataTable>

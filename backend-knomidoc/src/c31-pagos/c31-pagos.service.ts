@@ -16,11 +16,7 @@ import {
   MoreThanOrEqual,
   Repository,
 } from 'typeorm';
-import {
-  C31Pago,
-  EstadoPago,
-  TipoPago,
-} from './entities/c31-pago.entity';
+import { C31Pago, EstadoPago, TipoPago } from './entities/c31-pago.entity';
 import { CreateC31PagoDto } from './dto/create-c31-pago.dto';
 import { UpdateC31PagoDto } from './dto/update-c31-pago.dto';
 import { FilterC31PagoDto } from './dto/filter-c31-pago.dto';
@@ -28,6 +24,7 @@ import {
   ComprobantesC31,
   EstadoFisicoC31,
 } from '../comprobantes_c31/entities/comprobantes_c31.entity';
+import { validarRangoFecha } from '../common/utils/fechas.util';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { paginationSkip } from '../common/utils/pagination.util';
 
@@ -80,9 +77,17 @@ export class C31PagosService {
     },
     excluirId?: number,
   ) {
-    if (comprobante.estadoFisico === EstadoFisicoC31.ANULADO) {
+    if (
+      comprobante.estadoFisico === EstadoFisicoC31.ANULADO &&
+      pago.estadoPago !== EstadoPago.ANULADO
+    ) {
       throw new ConflictException(
         'El comprobante está anulado: no se pueden registrar ni modificar sus pagos',
+      );
+    }
+    if (!(Number(comprobante.montoTotal) > 0)) {
+      throw new ConflictException(
+        'Complete primero el monto total del comprobante para registrar pagos',
       );
     }
     if (!comprobante.beneficiarios?.some((b) => b.id === pago.beneficiarioId)) {
@@ -95,7 +100,11 @@ export class C31PagosService {
     }
 
     if (pago.estadoPago !== EstadoPago.ANULADO) {
-      const otros = await this.sumaVigentes(manager, comprobante.id as number, excluirId);
+      const otros = await this.sumaVigentes(
+        manager,
+        comprobante.id as number,
+        excluirId,
+      );
       const total = centavos(Number(comprobante.montoTotal));
       if (centavos(otros) + centavos(pago.monto) > total) {
         const disponible = (total - centavos(otros)) / 100;
@@ -109,9 +118,14 @@ export class C31PagosService {
         const qb = manager
           .createQueryBuilder(C31Pago, 'p')
           .where('p.tipo_pago = :tipo', { tipo: pago.tipoPago })
-          .andWhere('UPPER(p.numero_documento) = UPPER(:doc)', { doc: pago.numeroDocumento })
-          .andWhere('p.estado_pago <> :anulado', { anulado: EstadoPago.ANULADO });
-        if (pago.banco) qb.andWhere('UPPER(p.banco) = UPPER(:banco)', { banco: pago.banco });
+          .andWhere('UPPER(p.numero_documento) = UPPER(:doc)', {
+            doc: pago.numeroDocumento,
+          })
+          .andWhere('p.estado_pago <> :anulado', {
+            anulado: EstadoPago.ANULADO,
+          });
+        if (pago.banco)
+          qb.andWhere('UPPER(p.banco) = UPPER(:banco)', { banco: pago.banco });
         else qb.andWhere('p.banco IS NULL');
         if (excluirId) qb.andWhere('p.id <> :excluirId', { excluirId });
         if (await qb.getExists()) {
@@ -128,13 +142,18 @@ export class C31PagosService {
       where: { id },
       relations: { beneficiarios: true },
     });
-    if (!comprobante) throw new NotFoundException('El comprobante C31 no existe');
+    if (!comprobante)
+      throw new NotFoundException('El comprobante C31 no existe');
     return comprobante;
   }
 
   async create(dto: CreateC31PagoDto): Promise<C31Pago> {
+    validarRangoFecha('La fecha de pago', dto.fechaPago);
     return this.dataSource.transaction(async (manager) => {
-      const comprobante = await this.cargarComprobante(manager, dto.comprobanteId as number);
+      const comprobante = await this.cargarComprobante(
+        manager,
+        dto.comprobanteId as number,
+      );
       const estadoPago = (dto.estadoPago as EstadoPago) ?? EstadoPago.PENDIENTE;
       const datos = {
         beneficiarioId: dto.beneficiarioId as number,
@@ -151,7 +170,8 @@ export class C31PagosService {
         manager.create(C31Pago, {
           ...datos,
           comprobanteId: comprobante.id,
-          fechaPago: dto.fechaPago ?? (estadoPago === EstadoPago.PAGADO ? hoy() : null),
+          fechaPago:
+            dto.fechaPago ?? (estadoPago === EstadoPago.PAGADO ? hoy() : null),
           observaciones: dto.observaciones ?? null,
         }),
       );
@@ -163,19 +183,26 @@ export class C31PagosService {
   }
 
   async update(id: number, dto: UpdateC31PagoDto): Promise<C31Pago> {
+    validarRangoFecha('La fecha de pago', dto.fechaPago);
     return this.dataSource.transaction(async (manager) => {
       const actual = await manager.findOne(C31Pago, { where: { id } });
       if (!actual) throw new NotFoundException('El pago no existe');
-      const comprobante = await this.cargarComprobante(manager, actual.comprobanteId as number);
+      const comprobante = await this.cargarComprobante(
+        manager,
+        actual.comprobanteId as number,
+      );
 
       const final = {
         beneficiarioId: dto.beneficiarioId ?? (actual.beneficiarioId as number),
         tipoPago: (dto.tipoPago as TipoPago) ?? (actual.tipoPago as TipoPago),
         numeroDocumento:
-          dto.numeroDocumento !== undefined ? dto.numeroDocumento : actual.numeroDocumento,
+          dto.numeroDocumento !== undefined
+            ? dto.numeroDocumento
+            : actual.numeroDocumento,
         banco: dto.banco !== undefined ? dto.banco : actual.banco,
         monto: dto.monto ?? Number(actual.monto ?? 0),
-        estadoPago: (dto.estadoPago as EstadoPago) ?? (actual.estadoPago as EstadoPago),
+        estadoPago:
+          (dto.estadoPago as EstadoPago) ?? (actual.estadoPago as EstadoPago),
       };
       // Un pago migrado sin monto no puede quedar vigente sin definirlo
       if (!(final.monto > 0) && final.estadoPago !== EstadoPago.ANULADO) {
@@ -183,16 +210,23 @@ export class C31PagosService {
       }
       await this.validar(manager, comprobante, final, id);
 
-      let fechaPago = dto.fechaPago !== undefined ? dto.fechaPago : actual.fechaPago;
-      if (final.estadoPago === EstadoPago.PAGADO && !fechaPago) fechaPago = hoy();
+      let fechaPago =
+        dto.fechaPago !== undefined ? dto.fechaPago : actual.fechaPago;
+      if (final.estadoPago === EstadoPago.PAGADO && !fechaPago)
+        fechaPago = hoy();
 
       await manager.update(C31Pago, id, {
         ...final,
         fechaPago: fechaPago ?? null,
         observaciones:
-          dto.observaciones !== undefined ? dto.observaciones : actual.observaciones,
+          dto.observaciones !== undefined
+            ? dto.observaciones
+            : actual.observaciones,
       });
-      return manager.findOneOrFail(C31Pago, { where: { id }, relations: RELATIONS });
+      return manager.findOneOrFail(C31Pago, {
+        where: { id },
+        relations: RELATIONS,
+      });
     });
   }
 
@@ -207,7 +241,10 @@ export class C31PagosService {
   }
 
   async findOne(id: number): Promise<C31Pago> {
-    const pago = await this.repo.findOne({ where: { id }, relations: RELATIONS });
+    const pago = await this.repo.findOne({
+      where: { id },
+      relations: RELATIONS,
+    });
     if (!pago) throw new NotFoundException('El pago no existe');
     return pago;
   }
@@ -219,7 +256,9 @@ export class C31PagosService {
     if (query.estadoPago) base.estadoPago = query.estadoPago as EstadoPago;
     if (query.comprobanteId) base.comprobanteId = query.comprobanteId;
     if (query.beneficiario) {
-      base.beneficiario = { nombreBeneficiario: ILike(literal(query.beneficiario.trim())) };
+      base.beneficiario = {
+        nombreBeneficiario: ILike(literal(query.beneficiario.trim())),
+      };
     }
     if (query.fechaDesde && query.fechaHasta) {
       base.fechaPago = Between(query.fechaDesde, query.fechaHasta);
@@ -243,7 +282,10 @@ export class C31PagosService {
     return [
       {
         ...conComprobante(),
-        beneficiario: { ...(base.beneficiario as object), nombreBeneficiario: like },
+        beneficiario: {
+          ...(base.beneficiario as object),
+          nombreBeneficiario: like,
+        },
       },
       { ...conComprobante(), numeroDocumento: like },
       { ...conComprobante(), banco: like },
@@ -253,7 +295,9 @@ export class C31PagosService {
     ];
   }
 
-  async findAll(query: FilterC31PagoDto): Promise<PaginatedResponseDto<C31Pago>> {
+  async findAll(
+    query: FilterC31PagoDto,
+  ): Promise<PaginatedResponseDto<C31Pago>> {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 10;
     const [data, total] = await this.repo.findAndCount({
@@ -278,8 +322,10 @@ export class C31PagosService {
       .groupBy('p.estado_pago')
       .addGroupBy('p.tipo_pago');
     if (query.gestion) qb.andWhere('c.gestion = :g', { g: query.gestion });
-    if (query.fechaDesde) qb.andWhere('p.fecha_pago >= :fd', { fd: query.fechaDesde });
-    if (query.fechaHasta) qb.andWhere('p.fecha_pago <= :fh', { fh: query.fechaHasta });
+    if (query.fechaDesde)
+      qb.andWhere('p.fecha_pago >= :fd', { fd: query.fechaDesde });
+    if (query.fechaHasta)
+      qb.andWhere('p.fecha_pago <= :fh', { fh: query.fechaHasta });
 
     const filas = await qb.getRawMany<{
       estado: string;
@@ -292,12 +338,17 @@ export class C31PagosService {
       filas
         .filter((f) => f.estado === estado)
         .reduce(
-          (a, f) => ({ cantidad: a.cantidad + num(f.cantidad), monto: a.monto + num(f.monto) }),
+          (a, f) => ({
+            cantidad: a.cantidad + num(f.cantidad),
+            monto: a.monto + num(f.monto),
+          }),
           { cantidad: 0, monto: 0 },
         );
 
     const porTipo = [TipoPago.CHEQUE, TipoPago.ELECTRONICO].map((tipo) => {
-      const vigentes = filas.filter((f) => f.tipo === tipo && f.estado !== EstadoPago.ANULADO);
+      const vigentes = filas.filter(
+        (f) => f.tipo === tipo && f.estado !== EstadoPago.ANULADO,
+      );
       return {
         tipo,
         cantidad: vigentes.reduce((s, f) => s + num(f.cantidad), 0),
@@ -324,7 +375,9 @@ export class C31PagosService {
         .innerJoin('p.comprobante', 'c')
         .where('p.estado_pago <> :anulado', { anulado: EstadoPago.ANULADO });
       if (query.search?.trim())
-        qb.andWhere('b.nombre_beneficiario ILIKE :s', { s: `%${literal(query.search.trim())}%` });
+        qb.andWhere('b.nombre_beneficiario ILIKE :s', {
+          s: `%${literal(query.search.trim())}%`,
+        });
       if (query.gestion) qb.andWhere('c.gestion = :g', { g: query.gestion });
       return qb;
     };
@@ -382,7 +435,8 @@ export class C31PagosService {
       where: { id: comprobanteId },
       relations: { beneficiarios: true },
     });
-    if (!comprobante) throw new NotFoundException('El comprobante C31 no existe');
+    if (!comprobante)
+      throw new NotFoundException('El comprobante C31 no existe');
 
     const pagos = await this.repo.find({
       where: { comprobanteId },
@@ -410,7 +464,9 @@ export class C31PagosService {
       },
       beneficiarios: (comprobante.beneficiarios ?? []).map((b) => {
         const suyos = pagos.filter((p) => p.beneficiarioId === b.id);
-        const activos = suyos.filter((p) => p.estadoPago !== EstadoPago.ANULADO);
+        const activos = suyos.filter(
+          (p) => p.estadoPago !== EstadoPago.ANULADO,
+        );
         return {
           id: b.id,
           nombreBeneficiario: b.nombreBeneficiario,

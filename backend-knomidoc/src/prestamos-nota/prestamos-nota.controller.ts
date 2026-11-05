@@ -8,6 +8,7 @@ import {
   Delete,
   ParseIntPipe,
   Query,
+  StreamableFile,
 } from '@nestjs/common';
 import { PrestamosNotaService } from './prestamos-nota.service';
 import { CreatePrestamosNotaDto } from './dto/create-prestamos-nota.dto';
@@ -34,6 +35,23 @@ export class PrestamosNotaController {
   @Get()
   findAll(@Query() query: FilterPrestamosNotaDto) {
     return this.prestamosNotaService.findAll(query);
+  }
+
+  /** Nota de remisión en PDF (carta) lista para imprimir y firmar. */
+  @Get('pdf')
+  async pdf(
+    @Query('numeroNota') numeroNota: string,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    const buffer = await this.prestamosNotaService.notaPdf(
+      (numeroNota ?? '').trim(),
+      usuario,
+    );
+    const archivo = `nota-prestamo-${(numeroNota ?? '').replace(/[^\w.-]+/g, '_')}.pdf`;
+    return new StreamableFile(buffer, {
+      type: 'application/pdf',
+      disposition: `inline; filename="${archivo}"`,
+    });
   }
 
   @Get(':id')

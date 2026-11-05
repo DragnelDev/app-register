@@ -29,8 +29,9 @@ async function handleSubmit(payload: ComprobanteC31FormPayload) {
     <div class="card p-6 sm:p-8">
       <h1 class="text-2xl font-semibold text-ink-900 dark:text-white">Registrar comprobante C31</h1>
       <p class="mb-6 mt-1 text-sm text-ink-500 dark:text-ink-400">
-        Registra el comprobante y reserva su número. Nace “En trámite”; el folio, la ubicación, los
-        pagos y las firmas se completan después desde el detalle.
+        Reserva el número del comprobante. Solo con el N° queda “En trámite”; al completar tipo,
+        beneficiarios, glosa, monto y fecha pasa a “En revisión / firmado”. El folio, la ubicación y
+        los pagos se completan después desde el detalle.
       </p>
       <FormC31Dynamic :saving="saving" :server-error="serverError" @submit="handleSubmit" />
     </div>

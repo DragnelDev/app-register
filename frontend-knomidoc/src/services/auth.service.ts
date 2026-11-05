@@ -40,4 +40,15 @@ export const authService = {
   cambiarPassword(payload: CambiarPasswordPayload) {
     return apiClient.patch<MensajeResponse>('/perfil/password', payload).then((r) => r.data)
   },
+
+  // --- Verificación del correo con código de 6 dígitos ---
+  enviarCodigoVerificacion() {
+    return apiClient.post<MensajeResponse>('/auth/verificar-email/enviar').then((r) => r.data)
+  },
+
+  verificarEmail(codigo: string) {
+    return apiClient
+      .post<{ usuario: Usuario }>('/auth/verificar-email', { codigo })
+      .then((r) => r.data.usuario)
+  },
 }

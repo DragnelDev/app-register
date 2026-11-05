@@ -1,17 +1,10 @@
 import apiClient from './api.client'
 import type { PaginatedResponse, QueryParams } from '@/types/common.types'
-import type {
-  Deposito,
-  DepositoPayload,
-  Estante,
-  EstantePayload,
-} from '@/types/archivo.types'
+import type { Deposito, DepositoPayload, Estante, EstantePayload } from '@/types/archivo.types'
 
 export const depositosService = {
   list(params: QueryParams = {}) {
-    return apiClient
-      .get<PaginatedResponse<Deposito>>('/depositos', { params })
-      .then((r) => r.data)
+    return apiClient.get<PaginatedResponse<Deposito>>('/depositos', { params }).then((r) => r.data)
   },
   opciones() {
     return apiClient.get<Deposito[]>('/depositos/opciones').then((r) => r.data)
@@ -29,9 +22,7 @@ export const depositosService = {
 
 export const estantesService = {
   list(params: QueryParams = {}) {
-    return apiClient
-      .get<PaginatedResponse<Estante>>('/estantes', { params })
-      .then((r) => r.data)
+    return apiClient.get<PaginatedResponse<Estante>>('/estantes', { params }).then((r) => r.data)
   },
   opciones(depositoId?: number) {
     return apiClient

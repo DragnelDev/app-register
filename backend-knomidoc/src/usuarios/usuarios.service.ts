@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -7,6 +8,7 @@ import {
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import { CambiarPasswordDto, UpdatePerfilDto } from './dto/perfil.dto';
+import { dominioDeCorreoExiste } from '../auth/email-domain.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Usuario } from './entities/usuario.entity';
 import { ILike, Like, Not, Repository } from 'typeorm';
@@ -28,6 +30,7 @@ const SELECT_SAFE = {
   telefono: true,
   rol: true,
   activo: true,
+  emailVerificado: true,
   fechaCreacion: true,
 } as const;
 
@@ -60,6 +63,8 @@ export class UsuariosService {
     admin.email = email;
     admin.rol = 'ADMIN';
     admin.activo = true;
+    admin.emailVerificado = true; // cuenta semilla: no depende del SMTP
+    admin.emailVerificadoEn = new Date();
     admin.password = bcrypt.hashSync(passwordPlano, SALT_ROUNDS);
 
     await this.usuariosRepository.save(admin);
@@ -92,11 +97,21 @@ export class UsuariosService {
     }
   }
 
+  /** El dominio del correo debe existir (la propiedad se confirma luego con el código). */
+  private async validarDominioCorreo(email: string) {
+    if (!(await dominioDeCorreoExiste(email))) {
+      throw new BadRequestException(
+        'El dominio del correo no existe o no recibe mensajes. Revise que esté bien escrito.',
+      );
+    }
+  }
+
   async create(createUsuarioDto: CreateUsuarioDto): Promise<Usuario> {
     const username = createUsuarioDto.username?.trim().toLowerCase() ?? '';
     const email = createUsuarioDto.email?.trim().toLowerCase() ?? '';
 
     await this.validarUnicidad(username, email);
+    await this.validarDominioCorreo(email);
 
     const passwordPlano =
       createUsuarioDto.password ?? process.env.DEFAULT_PASSWORD ?? 'Knomi2026*';
@@ -109,6 +124,7 @@ export class UsuariosService {
     usuario.username = username;
     usuario.email = email;
     usuario.activo = true;
+    usuario.emailVerificado = false; // debe confirmar su correo con un código
     usuario.password = bcrypt.hashSync(passwordPlano, SALT_ROUNDS);
 
     const guardado = await this.usuariosRepository.save(usuario);
@@ -187,7 +203,15 @@ export class UsuariosService {
       id,
     );
 
+    const cambiaCorreo = Boolean(resto.email && resto.email !== usuario.email);
+    if (cambiaCorreo) await this.validarDominioCorreo(resto.email as string);
+
     Object.assign(usuario, resto);
+    // Un correo nuevo vuelve a requerir verificación
+    if (cambiaCorreo) {
+      usuario.emailVerificado = false;
+      usuario.emailVerificadoEn = null;
+    }
     if (password) usuario.password = bcrypt.hashSync(password, SALT_ROUNDS);
 
     await this.usuariosRepository.save(usuario);
@@ -198,12 +222,18 @@ export class UsuariosService {
   async actualizarPerfil(id: number, dto: UpdatePerfilDto): Promise<Usuario> {
     const usuario = await this.usuariosRepository.findOneBy({ id });
     if (!usuario) throw new NotFoundException('El usuario no existe');
-    if (dto.email && dto.email !== usuario.email) {
+    const cambiaCorreo = Boolean(dto.email && dto.email !== usuario.email);
+    if (cambiaCorreo) {
       await this.validarUnicidad(undefined, dto.email, id);
+      await this.validarDominioCorreo(dto.email as string);
     }
-    const cambios = Object.fromEntries(
+    const cambios: Record<string, unknown> = Object.fromEntries(
       Object.entries(dto).filter(([, v]) => v !== undefined),
     );
+    if (cambiaCorreo) {
+      cambios.emailVerificado = false;
+      cambios.emailVerificadoEn = null;
+    }
     await this.usuariosRepository.update(id, cambios);
     return this.findOne(id);
   }
@@ -258,6 +288,8 @@ export class UsuariosService {
       password: true,
       rol: true,
       activo: true,
+      telefono: true,
+      emailVerificado: true,
     } as const;
 
     const usuarioOk = await this.usuariosRepository.findOne({
@@ -290,8 +322,22 @@ export class UsuariosService {
   async findByEmailActivo(email: string): Promise<Usuario | null> {
     return this.usuariosRepository.findOne({
       where: { email },
-      select: { id: true, email: true, nombreCompleto: true, activo: true },
+      select: {
+        id: true,
+        email: true,
+        nombreCompleto: true,
+        activo: true,
+        emailVerificado: true,
+      },
     });
+  }
+
+  async marcarEmailVerificado(id: number): Promise<Usuario> {
+    await this.usuariosRepository.update(id, {
+      emailVerificado: true,
+      emailVerificadoEn: new Date(),
+    });
+    return this.findOne(id);
   }
 
   /** Guarda el hash del token de recuperación y su vencimiento. */

@@ -70,15 +70,26 @@ function handleSubmit() {
         required
         :options="depositos.map((d) => ({ value: d.id, label: `${d.codigo} — ${d.nombre}` }))"
       />
-      <BaseInput v-model="form.descripcion" label="Descripción" placeholder="Pasillo B, lado izquierdo" />
-      <BaseInput v-model="form.niveles" type="number" label="Niveles / repisas" hint="Opcional, entre 1 y 50" />
+      <BaseInput
+        v-model="form.descripcion"
+        label="Descripción"
+        placeholder="Pasillo B, lado izquierdo"
+      />
+      <BaseInput
+        v-model="form.niveles"
+        type="number"
+        label="Niveles / repisas"
+        hint="Opcional, entre 1 y 50"
+      />
       <label v-if="estante" class="flex items-center gap-2 text-sm text-ink-700 dark:text-ink-200">
         <input v-model="form.activo" type="checkbox" /> Estante activo
       </label>
       <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
     </form>
     <template #footer>
-      <BaseButton variant="secondary" @click="emit('update:modelValue', false)">Cancelar</BaseButton>
+      <BaseButton variant="secondary" @click="emit('update:modelValue', false)"
+        >Cancelar</BaseButton
+      >
       <BaseButton type="submit" form="estante-form" :loading="saving">Guardar</BaseButton>
     </template>
   </BaseModal>

@@ -30,6 +30,8 @@ export const useAuthStore = defineStore('auth', {
 
   getters: {
     isAuthenticated: (state) => Boolean(state.accessToken),
+    /** Tiene sesión pero aún no confirmó su correo con el código */
+    emailPendiente: (state) => state.usuario?.emailVerificado === false,
     rol: (state) => state.usuario?.rol ?? null,
     isAdmin: (state) => state.usuario?.rol === 'ADMIN',
     /** Puede registrar actas de entrega y comprobantes C31 */
@@ -79,6 +81,23 @@ export const useAuthStore = defineStore('auth', {
       return this.usuario
     },
 
+    enviarCodigoVerificacion() {
+      return authService.enviarCodigoVerificacion()
+    },
+
+    async verificarEmail(codigo: string) {
+      const usuario = await authService.verificarEmail(codigo)
+      this.usuario = { ...this.usuario, ...usuario }
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(this.usuario))
+    },
+
+    /** El servidor avisó que el correo no está verificado (p. ej. cambió desde otra sesión). */
+    marcarEmailPendiente() {
+      if (!this.usuario) return
+      this.usuario = { ...this.usuario, emailVerificado: false }
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(this.usuario))
+    },
+
     async forgotPassword(email: string) {
       this.loading = true
       try {
@@ -88,10 +107,10 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    async resetPassword(token: string, password: string) {
+    async resetPassword(email: string, codigo: string, password: string) {
       this.loading = true
       try {
-        return await authService.resetPassword({ token, password })
+        return await authService.resetPassword({ email, codigo, password })
       } finally {
         this.loading = false
       }

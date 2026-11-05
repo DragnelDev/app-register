@@ -20,7 +20,7 @@ export interface PrestamoCuaderno {
 }
 
 export interface PrestamoCuadernoCreatePayload {
-  comprobanteId: string
+  comprobanteIds: number[]
   solicitanteId: string
   areaUnidad?: string
   fechaHoraSalida?: string

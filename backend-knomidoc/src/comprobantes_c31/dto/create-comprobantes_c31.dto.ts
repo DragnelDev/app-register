@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsArray,
   IsDateString,
   IsIn,
@@ -10,11 +11,19 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  Matches,
+  Max,
   MaxLength,
+  MinLength,
 } from 'class-validator';
-import { ArrayNotEmpty } from 'class-validator';
 
 export const TIPOS_C31 = ['CON_IMPUTACION', 'SIN_IMPUTACION'] as const;
+
+/** Letras (con tildes), números, espacios y . / - _ (N° de preventivo, devengado, folio). */
+export const CODIGO_REGEX = /^[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ .\/\-_]+$/;
+
+const trim = ({ value }: { value: unknown }): unknown =>
+  typeof value === 'string' ? value.trim() : value;
 
 /** Convierte '' en undefined para que el campo opcional se ignore. */
 const vacioAUndefined = ({ value }: { value: unknown }): unknown =>
@@ -32,32 +41,48 @@ export class CreateComprobantesC31Dto {
   })
   readonly tipoC31?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 15340.5,
     description:
-      'Monto total del documento (incluye impuestos, retenciones, etc.). Los pagos a cada beneficiario se registran aparte.',
+      'Monto total del documento (incluye impuestos, retenciones, etc.). Los pagos a cada beneficiario se registran aparte. Opcional al registrar.',
   })
-  @IsNotEmpty({ message: 'El monto total es obligatorio' })
+  @IsOptional()
+  @Transform(vacioAUndefined)
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsNumber(
+    { maxDecimalPlaces: 2 },
+    { message: 'El monto admite hasta 2 decimales' },
+  )
   @IsPositive({ message: 'El monto total debe ser mayor a 0' })
-  readonly montoTotal: number | undefined;
+  @Max(999999999999.99, { message: 'El monto total es demasiado grande' })
+  readonly montoTotal?: number;
 
-  @ApiProperty({ example: '2026-07-15' })
-  @IsNotEmpty({ message: 'La fecha de elaboración es obligatoria' })
+  @ApiPropertyOptional({ example: '2026-07-15' })
+  @IsOptional()
+  @Transform(vacioAUndefined)
   @IsDateString(
     {},
     { message: 'La fecha de elaboración debe ser una fecha válida' },
   )
-  readonly fechaElaboracion: string | undefined;
+  readonly fechaElaboracion?: string;
 
-  @ApiProperty({ example: 'Pago de servicios básicos - gestión 2026' })
-  @IsNotEmpty({ message: 'La descripción/glosa es obligatoria' })
+  @ApiPropertyOptional({ example: 'Pago de servicios básicos - gestión 2026' })
+  @IsOptional()
+  @Transform(({ value }): unknown =>
+    vacioAUndefined({ value: trim({ value }) }),
+  )
   @IsString()
-  readonly descripcion: string | undefined;
+  @MinLength(5, { message: 'La descripción es demasiado corta' })
+  @MaxLength(2000, {
+    message: 'La descripción no debe superar los 2000 caracteres',
+  })
+  readonly descripcion?: string;
 
   @ApiPropertyOptional({ example: '102', description: 'Folio individual' })
   @IsOptional()
+  @Matches(CODIGO_REGEX, {
+    message: 'El folio solo admite letras, números, espacios y . / - _',
+  })
   @Transform(({ value }): unknown => {
     const v = vacioAUndefined({ value });
     return typeof v === 'number' ? String(v) : v;
@@ -108,6 +133,10 @@ export class CreateComprobantesC31Dto {
   @Transform(vacioAUndefined)
   @IsString()
   @MaxLength(50)
+  @Matches(CODIGO_REGEX, {
+    message:
+      'El N° de preventivo solo admite letras, números, espacios y . / - _',
+  })
   readonly numeroPreventivo?: string;
 
   @ApiPropertyOptional({
@@ -122,14 +151,27 @@ export class CreateComprobantesC31Dto {
   @Transform(vacioAUndefined)
   @IsString()
   @MaxLength(50)
+  @Matches(CODIGO_REGEX, {
+    message:
+      'El N° de devengado solo admite letras, números, espacios y . / - _',
+  })
   readonly numeroDevengado?: string;
 
-  @ApiProperty({ type: [String], example: ['Juan Pérez'] })
+  @ApiPropertyOptional({ type: [String], example: ['Juan Pérez'] })
+  @IsOptional()
   @IsArray()
-  @ArrayNotEmpty({ message: 'Debe registrar al menos un beneficiario' })
+  @ArrayMaxSize(30, { message: 'No se admiten más de 30 beneficiarios' })
   @IsString({ each: true })
+  @MinLength(2, {
+    each: true,
+    message: 'Cada beneficiario debe tener al menos 2 caracteres',
+  })
+  @MaxLength(200, {
+    each: true,
+    message: 'Un beneficiario no debe superar los 200 caracteres',
+  })
   // Sin valor por defecto: UpdateComprobantesC31Dto hereda este campo vía
   // PartialType y un `= []` haría que todo PATCH pareciera enviar una lista
   // vacía de beneficiarios (rechazando cualquier edición parcial).
-  readonly beneficiarios: string[] | undefined;
+  readonly beneficiarios?: string[];
 }

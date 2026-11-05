@@ -46,9 +46,9 @@ export interface ComprobanteC31 {
   id: string
   actaEntregaId?: string | null
   tipoC31: TipoC31
-  montoTotal: number
-  fechaElaboracion: string
-  descripcion: string
+  montoTotal: number | null
+  fechaElaboracion: string | null
+  descripcion: string | null
   numeroFolio?: string | null
   gestion: number
   estadoFisico: EstadoFisico
@@ -92,9 +92,9 @@ export function identificadorC31(c: ConIdentificadores): string | undefined {
  */
 export interface ComprobanteC31FormPayload {
   tipoC31?: TipoC31
-  montoTotal: number
-  fechaElaboracion: string
-  descripcion: string
+  montoTotal?: number
+  fechaElaboracion?: string
+  descripcion?: string
   numeroFolio?: string | null
   gestion?: number
   ubicacionFisica?: string | null
@@ -102,7 +102,7 @@ export interface ComprobanteC31FormPayload {
   // Relación 1 a 1 estricta: solo se envía uno de los dos según tipoC31.
   numeroPreventivo?: string
   numeroDevengado?: string
-  beneficiarios: string[]
+  beneficiarios?: string[]
   carpetas?: { carpetaId: string | number; numeroParte: number }[]
 }
 

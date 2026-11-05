@@ -37,7 +37,9 @@ const sizeClass = {
           role="dialog"
           aria-modal="true"
         >
-          <header class="flex items-center justify-between border-b border-ink-100 px-5 py-4 dark:border-white/10">
+          <header
+            class="flex items-center justify-between border-b border-ink-100 px-5 py-4 dark:border-white/10"
+          >
             <h3 class="text-lg font-semibold text-ink-900 dark:text-white">{{ title }}</h3>
             <button
               type="button"

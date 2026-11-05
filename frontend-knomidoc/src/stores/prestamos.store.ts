@@ -1,5 +1,8 @@
 import { defineStore } from 'pinia'
-import type { DevolverPrestamoCuadernoPayload, DevolverPrestamoNotaPayload } from '@/types/prestamos.types'
+import type {
+  DevolverPrestamoCuadernoPayload,
+  DevolverPrestamoNotaPayload,
+} from '@/types/prestamos.types'
 import { prestamosService } from '@/services/prestamos.service'
 import type { PrestamoCuaderno, PrestamoNota } from '@/types/prestamos.types'
 

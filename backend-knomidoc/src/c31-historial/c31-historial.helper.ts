@@ -1,8 +1,5 @@
 import { EntityManager } from 'typeorm';
-import {
-  C31Historial,
-  OrigenCambioC31,
-} from './entities/c31-historial.entity';
+import { C31Historial, OrigenCambioC31 } from './entities/c31-historial.entity';
 
 /** Registra un cambio de estado del comprobante dentro de la transacción en curso. */
 export function registrarCambioEstado(

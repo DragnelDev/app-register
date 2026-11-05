@@ -7,16 +7,20 @@ import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { MailModule } from '../mail/mail.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { CodigoVerificacion } from './entities/codigo-verificacion.entity';
+import { VerificacionService } from './verificacion.service';
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
     UsuariosModule,
     MailModule,
+    TypeOrmModule.forFeature([CodigoVerificacion]),
     PassportModule.register({}),
     JwtModule.register({}),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, VerificacionService],
 })
 export class AuthModule {}

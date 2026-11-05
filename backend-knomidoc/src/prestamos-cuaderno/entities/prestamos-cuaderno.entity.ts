@@ -94,7 +94,12 @@ export class PrestamosCuaderno {
   recibidoPorId?: number | null;
 
   /** Estado en que volvió el comprobante: CONFORME o CON_NOVEDAD (daños, faltantes). */
-  @Column({ name: 'condicion_devolucion', type: 'varchar', length: 20, nullable: true })
+  @Column({
+    name: 'condicion_devolucion',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
   condicionDevolucion?: string | null;
 
   /** Observaciones hechas al recibir la devolución (las de la salida quedan en `observaciones`). */

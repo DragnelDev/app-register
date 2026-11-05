@@ -25,6 +25,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { public: true },
   },
   {
+    path: '/verificar-correo',
+    name: 'verificar-email',
+    component: () => import('@/modules/auth/views/VerificarCorreoView.vue'),
+    meta: { fullscreen: true },
+  },
+  {
     path: '/',
     name: 'dashboard',
     component: () => import('@/modules/dashboard/views/DashboardView.vue'),

@@ -1,22 +1,25 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import * as crypto from 'crypto';
 import { UsuariosService } from '../usuarios/usuarios.service';
-import { MailService } from '../mail/mail.service';
+import { VerificacionService } from './verificacion.service';
 import { AuthLoginDto } from './dto/auth-login.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { Usuario } from '../usuarios/entities/usuario.entity';
-
-/** Vigencia del enlace de recuperación de contraseña. */
-const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hora
 
 @Injectable()
 export class AuthService {
   constructor(
     private usuarioService: UsuariosService,
     private jwtService: JwtService,
-    private mailService: MailService,
+    private verificacion: VerificacionService,
   ) {}
+
+  private readonly logger = new Logger(AuthService.name);
 
   // src/auth/auth.service.ts
   async login(authLoginDto: AuthLoginDto): Promise<any> {
@@ -42,6 +45,8 @@ export class AuthService {
       email: usuarioOk.email,
       cargo: usuarioOk.cargo,
       unidadOArea: usuarioOk.unidadOArea,
+      telefono: usuarioOk.telefono,
+      emailVerificado: usuarioOk.emailVerificado,
       rol: usuarioOk.rol,
       activo: usuarioOk.activo,
     };
@@ -78,71 +83,93 @@ export class AuthService {
   }
 
   // ---------------------------------------------------------------------
-  // Recuperación de contraseña por correo
+  // Verificación de correo y recuperación de contraseña (código de 6 dígitos)
   // ---------------------------------------------------------------------
 
+  /** Envía al correo del usuario el código para confirmar que le pertenece. */
+  async enviarCodigoVerificacion(
+    usuario: Usuario,
+  ): Promise<{ mensaje: string }> {
+    if (usuario.emailVerificado) {
+      throw new BadRequestException('Su correo ya está verificado');
+    }
+    await this.verificacion.emitir(
+      {
+        id: usuario.id as number,
+        email: usuario.email as string,
+        nombreCompleto: usuario.nombreCompleto,
+      },
+      'EMAIL_VERIFICACION',
+    );
+    return { mensaje: `Enviamos un código de 6 dígitos a ${usuario.email}` };
+  }
+
+  /** Comprueba el código recibido y marca el correo como verificado. */
+  async verificarEmail(usuario: Usuario, codigo: string) {
+    if (usuario.emailVerificado) return { usuario };
+    await this.verificacion.validar(
+      { id: usuario.id as number, email: usuario.email as string },
+      'EMAIL_VERIFICACION',
+      codigo,
+    );
+    const actualizado = await this.usuarioService.marcarEmailVerificado(
+      usuario.id as number,
+    );
+    return { usuario: actualizado };
+  }
+
   /**
-   * Genera y envía por correo un enlace de un solo uso para restablecer la
-   * contraseña. Responde el mismo mensaje exista o no el correo, para no
-   * revelar qué correos están registrados en el sistema.
+   * Envía un código para restablecer la contraseña. Responde lo mismo exista o
+   * no el correo, para no revelar qué correos están registrados.
    */
   async forgotPassword(email: string): Promise<{ mensaje: string }> {
     const mensaje =
-      'Si el correo está registrado, en unos minutos recibirás un enlace para restablecer tu contraseña.';
-
+      'Si el correo está registrado, en unos minutos recibirás un código de 6 dígitos.';
     const usuario = await this.usuarioService.findByEmailActivo(email);
-
     if (usuario && usuario.id && usuario.activo !== false) {
-      const tokenPlano = crypto.randomBytes(32).toString('hex');
-      const tokenHash = crypto
-        .createHash('sha256')
-        .update(tokenPlano)
-        .digest('hex');
-      const expira = new Date(Date.now() + RESET_TOKEN_TTL_MS);
-
-      await this.usuarioService.guardarTokenRecuperacion(
-        usuario.id,
-        tokenHash,
-        expira,
-      );
-
-      const baseUrl = (
-        process.env.FRONTEND_URL ?? 'http://localhost:5173'
-      ).replace(/\/$/, '');
-      const enlace = `${baseUrl}/reset-password?token=${tokenPlano}`;
-
-      await this.mailService.sendPasswordReset(
-        usuario.email as string,
-        usuario.nombreCompleto ?? '',
-        enlace,
-      );
+      try {
+        await this.verificacion.emitir(
+          {
+            id: usuario.id,
+            email: usuario.email as string,
+            nombreCompleto: usuario.nombreCompleto,
+          },
+          'RECUPERACION_PASSWORD',
+          true,
+        );
+      } catch (e) {
+        // Un fallo de SMTP no debe delatar si el correo existe
+        this.logger.error('No se pudo enviar el código de recuperación', e);
+      }
     }
-
     return { mensaje };
   }
 
-  /** Valida el token recibido por correo y fija la nueva contraseña. */
+  /** Valida correo + código y fija la nueva contraseña. */
   async resetPassword(
-    token: string,
+    email: string,
+    codigo: string,
     password: string,
   ): Promise<{ mensaje: string }> {
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const usuario = await this.usuarioService.findByResetTokenHash(tokenHash);
-
-    const expirado =
-      !usuario?.resetPasswordExpires ||
-      new Date(usuario.resetPasswordExpires).getTime() < Date.now();
-
-    if (!usuario || !usuario.id || usuario.activo === false || expirado) {
-      throw new UnauthorizedException(
-        'El enlace de recuperación no es válido o ha expirado',
+    const usuario = await this.usuarioService.findByEmailActivo(email);
+    if (!usuario || !usuario.id || usuario.activo === false) {
+      throw new BadRequestException(
+        'El código no es válido o ya expiró. Solicite uno nuevo.',
       );
     }
-
+    await this.verificacion.validar(
+      { id: usuario.id, email: usuario.email as string },
+      'RECUPERACION_PASSWORD',
+      codigo,
+    );
     await this.usuarioService.actualizarPasswordYLimpiarToken(
       usuario.id,
       password,
     );
+    // Recibir el código en ese correo también prueba que es suyo
+    if (!usuario.emailVerificado) {
+      await this.usuarioService.marcarEmailVerificado(usuario.id);
+    }
     return { mensaje: 'Contraseña actualizada correctamente' };
   }
 }

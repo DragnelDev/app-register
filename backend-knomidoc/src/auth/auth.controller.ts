@@ -10,7 +10,8 @@ import { AuthService } from './auth.service';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthLoginDto } from './dto/auth-login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ResetPasswordDto, VerificarEmailDto } from './dto/codigo.dto';
+import { SinVerificacionEmail } from './decorators/sin-verificacion-email.decorator';
 import { Usuario } from '../usuarios/entities/usuario.entity';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/auth-public.decorator';
@@ -39,9 +40,31 @@ export class AuthController {
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   resetPassword(@Body() dto: ResetPasswordDto) {
-    return this.authService.resetPassword(dto.token, dto.password);
+    return this.authService.resetPassword(
+      dto.email as string,
+      dto.codigo as string,
+      dto.password as string,
+    );
   }
 
+  @SinVerificacionEmail()
+  @Post('verificar-email/enviar')
+  @HttpCode(HttpStatus.OK)
+  enviarCodigo(@CurrentUser() usuario: Usuario) {
+    return this.authService.enviarCodigoVerificacion(usuario);
+  }
+
+  @SinVerificacionEmail()
+  @Post('verificar-email')
+  @HttpCode(HttpStatus.OK)
+  verificarEmail(
+    @CurrentUser() usuario: Usuario,
+    @Body() dto: VerificarEmailDto,
+  ) {
+    return this.authService.verificarEmail(usuario, dto.codigo as string);
+  }
+
+  @SinVerificacionEmail()
   @Get('me')
   me(@CurrentUser() usuario: Usuario) {
     return usuario;

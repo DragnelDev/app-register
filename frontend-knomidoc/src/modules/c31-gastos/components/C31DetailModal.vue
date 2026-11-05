@@ -46,13 +46,16 @@ watch(
 const siguientes = computed(() =>
   props.comprobante ? TRANSICIONES_MANUALES[props.comprobante.estadoFisico] : [],
 )
-const requiereMotivo = computed(() => nuevoEstado.value === 'OBSERVADO' || nuevoEstado.value === 'ANULADO')
+const requiereMotivo = computed(
+  () => nuevoEstado.value === 'OBSERVADO' || nuevoEstado.value === 'ANULADO',
+)
 const ayudaActual = computed(
   () => ESTADOS_C31.find((e) => e.value === props.comprobante?.estadoFisico)?.ayuda ?? '',
 )
 
 const AVISO_SISTEMA: Record<string, string> = {
-  EN_REVISION: 'Para que pase a “En archivo”, inclúyalo en un acta de entrega y que Archivo la reciba.',
+  EN_REVISION:
+    'Para que pase a “En archivo”, inclúyalo en un acta de entrega y que Archivo la reciba.',
   ARCHIVADO: 'Para prestarlo debe estar “Archivado correctamente”.',
   PRESTADO: 'Vuelve a “Archivado correctamente” al registrar la devolución del préstamo.',
 }
@@ -66,7 +69,11 @@ async function confirmarEstado() {
   guardando.value = true
   errorEstado.value = ''
   try {
-    await store.cambiarEstado(props.comprobante.id, nuevoEstado.value, motivo.value.trim() || undefined)
+    await store.cambiarEstado(
+      props.comprobante.id,
+      nuevoEstado.value,
+      motivo.value.trim() || undefined,
+    )
     cambiandoEstado.value = false
     nuevoEstado.value = ''
     motivo.value = ''
@@ -100,7 +107,10 @@ const tabs = [
             {{ identificadorC31(comprobante) ?? '—' }}
           </p>
           <p class="text-sm text-ink-600 dark:text-ink-300">
-            Bs {{ bs(comprobante.montoTotal) }} · Gestión {{ comprobante.gestion }} ·
+            {{
+              comprobante.montoTotal ? `Bs ${bs(comprobante.montoTotal)}` : 'Monto sin completar'
+            }}
+            · Gestión {{ comprobante.gestion }} ·
             {{ comprobante.tipoC31 === 'CON_IMPUTACION' ? 'Con imputación' : 'Sin imputación' }}
           </p>
         </div>
@@ -116,15 +126,25 @@ const tabs = [
           </button>
         </div>
       </div>
-      <p class="-mt-2 text-xs text-ink-500">{{ ayudaActual }} {{ AVISO_SISTEMA[comprobante.estadoFisico] ?? '' }}</p>
+      <p class="-mt-2 text-xs text-ink-500">
+        {{ ayudaActual }} {{ AVISO_SISTEMA[comprobante.estadoFisico] ?? '' }}
+      </p>
 
       <!-- Cambio de estado -->
-      <div v-if="cambiandoEstado" class="space-y-3 rounded-md border border-ink-100 bg-ink-50/60 p-3 dark:border-white/10 dark:bg-white/5">
+      <div
+        v-if="cambiandoEstado"
+        class="space-y-3 rounded-md border border-ink-100 bg-ink-50/60 p-3 dark:border-white/10 dark:bg-white/5"
+      >
         <p v-if="errorEstado" class="text-sm text-red-600">{{ errorEstado }}</p>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <label class="mb-1 block text-xs font-semibold text-ink-700 dark:text-ink-200">Nuevo estado</label>
-            <select v-model="nuevoEstado" class="w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100">
+            <label class="mb-1 block text-xs font-semibold text-ink-700 dark:text-ink-200"
+              >Nuevo estado</label
+            >
+            <select
+              v-model="nuevoEstado"
+              class="w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
+            >
               <option value="" disabled>Seleccione…</option>
               <option v-for="e in siguientes" :key="e" :value="e">{{ ESTADO_C31_LABEL[e] }}</option>
             </select>
@@ -133,15 +153,32 @@ const tabs = [
             <label class="mb-1 block text-xs font-semibold text-ink-700 dark:text-ink-200">
               {{ requiereMotivo ? 'Motivo (obligatorio)' : 'Nota (opcional)' }}
             </label>
-            <input v-model="motivo" type="text" class="w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100" :placeholder="nuevoEstado === 'OBSERVADO' ? 'Ej: falta la firma del Director' : ''" />
+            <input
+              v-model="motivo"
+              type="text"
+              class="w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
+              :placeholder="nuevoEstado === 'OBSERVADO' ? 'Ej: falta la firma del Director' : ''"
+            />
           </div>
         </div>
         <p v-if="nuevoEstado === 'ARCHIVADO'" class="text-xs text-ink-500">
           Requiere N° de folio y ubicación final cargados en la pestaña Datos.
         </p>
         <div class="flex justify-end gap-2">
-          <BaseButton size="sm" variant="ghost" :disabled="guardando" @click="cambiandoEstado = false">Cancelar</BaseButton>
-          <BaseButton size="sm" :loading="guardando" :disabled="!nuevoEstado" @click="confirmarEstado">Confirmar</BaseButton>
+          <BaseButton
+            size="sm"
+            variant="ghost"
+            :disabled="guardando"
+            @click="cambiandoEstado = false"
+            >Cancelar</BaseButton
+          >
+          <BaseButton
+            size="sm"
+            :loading="guardando"
+            :disabled="!nuevoEstado"
+            @click="confirmarEstado"
+            >Confirmar</BaseButton
+          >
         </div>
       </div>
 
@@ -153,14 +190,22 @@ const tabs = [
           role="tab"
           :aria-selected="pestana === t.id"
           class="-mb-px border-b-2 px-3 py-2 text-sm font-medium"
-          :class="pestana === t.id ? 'border-seal-500 text-seal-600 dark:text-seal-300' : 'border-transparent text-ink-500 hover:text-ink-800 dark:hover:text-ink-100'"
+          :class="
+            pestana === t.id
+              ? 'border-seal-500 text-seal-600 dark:text-seal-300'
+              : 'border-transparent text-ink-500 hover:text-ink-800 dark:hover:text-ink-100'
+          "
           @click="pestana = t.id"
         >
           {{ t.label }}
         </button>
       </div>
 
-      <C31DatosTab v-if="pestana === 'datos'" :comprobante="comprobante" :puede-editar="auth.puedeRegistrarC31" />
+      <C31DatosTab
+        v-if="pestana === 'datos'"
+        :comprobante="comprobante"
+        :puede-editar="auth.puedeRegistrarC31"
+      />
       <C31PagosTab
         v-else-if="pestana === 'pagos'"
         :key="`p${version}`"

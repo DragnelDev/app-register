@@ -1,4 +1,10 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { ComprobantesC31 } from '../../comprobantes_c31/entities/comprobantes_c31.entity';
 import { C31Beneficiario } from '../../c31-beneficiarios/entities/c31-beneficiario.entity';
 import { BaseAuditoriaEntity } from '../../common/entities/base-auditoria.entity';
@@ -19,7 +25,8 @@ export const ESTADOS_PAGO = Object.values(EstadoPago);
 
 const decimalANumero = {
   to: (v?: number | null) => v,
-  from: (v?: string | null) => (v === null || v === undefined ? null : Number(v)),
+  from: (v?: string | null) =>
+    v === null || v === undefined ? null : Number(v),
 };
 
 /**
@@ -56,7 +63,12 @@ export class C31Pago extends BaseAuditoriaEntity {
   tipoPago: TipoPago | undefined;
 
   /** N° de cheque, o N° de transferencia / comprobante del pago electrónico. */
-  @Column({ name: 'numero_documento', type: 'varchar', length: 60, nullable: true })
+  @Column({
+    name: 'numero_documento',
+    type: 'varchar',
+    length: 60,
+    nullable: true,
+  })
   numeroDocumento?: string | null;
 
   @Column({ type: 'varchar', length: 100, nullable: true })

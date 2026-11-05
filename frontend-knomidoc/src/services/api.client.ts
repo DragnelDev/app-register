@@ -39,6 +39,15 @@ apiClient.interceptors.response.use(
         }
       }
     }
+    if (
+      error.response?.status === 403 &&
+      (error.response.data as { code?: string } | undefined)?.code === 'EMAIL_NO_VERIFICADO'
+    ) {
+      useAuthStore().marcarEmailPendiente()
+      if (router.currentRoute.value.name !== 'verificar-email') {
+        router.replace({ name: 'verificar-email' })
+      }
+    }
     return Promise.reject(error)
   },
 )

@@ -50,6 +50,13 @@ export class Usuario extends BaseFechasEntity {
   @Column('boolean', { default: true })
   activo: boolean | undefined;
 
+  /** El correo se confirmó con el código enviado (isEmailVerified). */
+  @Column('boolean', { name: 'email_verificado', default: false })
+  emailVerificado: boolean | undefined;
+
+  @Column('timestamp', { name: 'email_verificado_en', nullable: true })
+  emailVerificadoEn?: Date | null;
+
   /** Hash (SHA-256) del token de recuperación de contraseña vigente, si existe. */
   @Column('varchar', {
     length: 255,

@@ -7,7 +7,9 @@ import { ESTADOS_PAGO, TIPOS_PAGO } from '../entities/c31-pago.entity';
 const vacioAUndefined = ({ value }: { value: unknown }): unknown =>
   value === '' ? undefined : value;
 const numeroOUndefined = ({ value }: { value: unknown }): unknown =>
-  value === '' || value === null || value === undefined ? undefined : Number(value);
+  value === '' || value === null || value === undefined
+    ? undefined
+    : Number(value);
 
 export class FilterC31PagoDto extends PaginationQueryDto {
   @ApiPropertyOptional({ enum: TIPOS_PAGO })
@@ -36,7 +38,10 @@ export class FilterC31PagoDto extends PaginationQueryDto {
   @IsInt()
   gestion?: number;
 
-  @ApiPropertyOptional({ description: 'Nombre del beneficiario (coincidencia exacta, sin distinguir mayúsculas)' })
+  @ApiPropertyOptional({
+    description:
+      'Nombre del beneficiario (coincidencia exacta, sin distinguir mayúsculas)',
+  })
   @IsOptional()
   @Transform(vacioAUndefined, { toClassOnly: true })
   @IsString()

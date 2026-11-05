@@ -109,8 +109,13 @@ export class ComprobantesC31Controller {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateComprobantesC31Dto: UpdateComprobantesC31Dto,
+    @CurrentUser() usuario: Usuario,
   ) {
-    return this.comprobantesC31Service.update(id, updateComprobantesC31Dto);
+    return this.comprobantesC31Service.update(
+      id,
+      updateComprobantesC31Dto,
+      usuario,
+    );
   }
 
   @Roles('ADMIN', 'OPERADOR_ARCHIVOS')

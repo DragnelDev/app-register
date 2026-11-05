@@ -39,7 +39,9 @@ export class EstantesController {
 
   @Get('opciones')
   findOptions(@Query('depositoId') depositoId?: string) {
-    return this.service.findOptions(depositoId ? Number(depositoId) : undefined);
+    return this.service.findOptions(
+      depositoId ? Number(depositoId) : undefined,
+    );
   }
 
   @Get(':id')
@@ -49,10 +51,7 @@ export class EstantesController {
 
   @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
   @Patch(':id')
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateEstanteDto,
-  ) {
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateEstanteDto) {
     return this.service.update(id, dto);
   }
 

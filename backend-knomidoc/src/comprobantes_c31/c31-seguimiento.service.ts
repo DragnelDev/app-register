@@ -76,7 +76,11 @@ export class C31SeguimientoService {
       }),
       this.cuadernoRepo.find({
         where: { comprobanteId: id },
-        relations: { solicitante: true, registradoPor: true, recibidoPor: true },
+        relations: {
+          solicitante: true,
+          registradoPor: true,
+          recibidoPor: true,
+        },
       }),
     ]);
 
@@ -126,7 +130,10 @@ export class C31SeguimientoService {
           fechaDevolucion: aFecha(p.fechaHoraDevolucion),
           devuelto: !!p.devuelto,
           vencido,
-          diasPrestado: diasEntre(salida, aFecha(p.fechaHoraDevolucion) ?? ahora),
+          diasPrestado: diasEntre(
+            salida,
+            aFecha(p.fechaHoraDevolucion) ?? ahora,
+          ),
           diasVencido: vencido ? diasEntre(estimada as string, hoy) : 0,
           registradoPor: p.registradoPor?.nombreCompleto ?? null,
           recibidoPor: p.recibidoPor?.nombreCompleto ?? null,
@@ -153,8 +160,9 @@ export class C31SeguimientoService {
         total: prestamos.length,
         activos: prestamos.filter((p) => !p.devuelto).length,
         vencidos: prestamos.filter((p) => p.vencido).length,
-        conNovedad: prestamos.filter((p) => p.condicionDevolucion === 'CON_NOVEDAD')
-          .length,
+        conNovedad: prestamos.filter(
+          (p) => p.condicionDevolucion === 'CON_NOVEDAD',
+        ).length,
       },
       prestamos,
       historial: historial.map((h) => ({

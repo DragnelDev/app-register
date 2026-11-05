@@ -11,7 +11,10 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { DepositosService } from './depositos.service';
-import { CreateDepositoDto, UpdateDepositoDto } from './dto/create-deposito.dto';
+import {
+  CreateDepositoDto,
+  UpdateDepositoDto,
+} from './dto/create-deposito.dto';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';

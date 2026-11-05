@@ -22,6 +22,11 @@ import {
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { paginationSkip } from '../common/utils/pagination.util';
 import { Usuario } from '../usuarios/entities/usuario.entity';
+import {
+  validarOrdenFechas,
+  validarRangoFecha,
+} from '../common/utils/fechas.util';
+import { generarNotaPrestamoPdf } from './nota-pdf.util';
 import { registrarCambioEstado } from '../c31-historial/c31-historial.helper';
 
 const RELATIONS = {
@@ -53,6 +58,12 @@ export class PrestamosNotaService {
     dto: CreatePrestamosNotaDto,
     usuario?: Usuario,
   ): Promise<PrestamosNota[]> {
+    validarRangoFecha('La fecha de préstamo', dto.fechaPrestamo);
+    validarOrdenFechas(
+      'La devolución estimada no puede ser anterior a la fecha de préstamo',
+      dto.fechaPrestamo ?? new Date().toISOString(),
+      dto.fechaDevolucionEstimada,
+    );
     const comprobanteIds = [...new Set(dto.comprobanteIds)];
     const fechaPrestamo = dto.fechaPrestamo ?? hoy();
     this.validarFechas(fechaPrestamo, dto.fechaDevolucionEstimada);
@@ -208,7 +219,8 @@ export class PrestamosNotaService {
       prestamo.estadoPrestamo = EstadoPrestamoNota.DEVUELTO;
       prestamo.fechaDevolucionReal = fechaReal;
       prestamo.condicionDevolucion = dto.condicion ?? 'CONFORME';
-      if (dto.observaciones) prestamo.observacionesDevolucion = dto.observaciones;
+      if (dto.observaciones)
+        prestamo.observacionesDevolucion = dto.observaciones;
       prestamo.recibidoPorId = usuario?.id ?? null;
       await manager.save(PrestamosNota, prestamo);
 
@@ -245,5 +257,33 @@ export class PrestamosNotaService {
       );
     }
     return this.repo.remove(prestamo);
+  }
+
+  /** PDF de la nota de remisión: junta todos los comprobantes prestados con el mismo N° de nota. */
+  async notaPdf(numeroNota: string, usuario: Usuario): Promise<Buffer> {
+    const filas = await this.repo.find({
+      where: { numeroNotaSolicitud: numeroNota },
+      relations: {
+        comprobante: {
+          preventivos: true,
+          devengados: true,
+          beneficiarios: true,
+        },
+        registradoPor: true,
+      },
+      order: { id: 'ASC' },
+    });
+    if (filas.length === 0) {
+      throw new NotFoundException(`No existe la nota ${numeroNota}`);
+    }
+    const quien = filas[0]?.registradoPor ?? usuario;
+    return generarNotaPrestamoPdf({
+      filas,
+      emisor: {
+        nombre: quien?.nombreCompleto ?? usuario.nombreCompleto ?? '',
+        cargo: quien?.cargo ?? usuario.cargo,
+        unidad: quien?.unidadOArea ?? usuario.unidadOArea,
+      },
+    });
   }
 }

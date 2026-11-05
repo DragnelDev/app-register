@@ -1,5 +1,10 @@
 <script setup lang="ts">
+import IconButton from '@/components/ui/IconButton.vue'
 import DevolucionModal from '../components/DevolucionModal.vue'
+import C31DetailModal from '@/modules/c31-gastos/components/C31DetailModal.vue'
+import { c31Service } from '@/services/c31.service'
+import { extractApiErrorMessage } from '@/utils/http-error'
+import type { ComprobanteC31 } from '@/types/c31.types'
 import type { CondicionDevolucion } from '@/types/prestamos.types'
 import { onMounted, ref } from 'vue'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
@@ -16,6 +21,14 @@ const store = usePrestamosStore()
 const modalOpen = ref(false)
 const saving = ref(false)
 const returningId = ref<string | null>(null)
+const errorCuaderno = ref('')
+const detalleOpen = ref(false)
+const detalleSel = ref<ComprobanteC31 | null>(null)
+
+async function verSeguimiento(row: PrestamoCuaderno) {
+  detalleSel.value = await c31Service.getById(String(row.comprobanteId))
+  detalleOpen.value = true
+}
 
 const columns: DataTableColumn<PrestamoCuaderno>[] = [
   { key: 'comprobanteId', label: 'Comprobante' },
@@ -28,9 +41,13 @@ const columns: DataTableColumn<PrestamoCuaderno>[] = [
 async function handleSubmit(payload: PrestamoCuadernoCreatePayload) {
   saving.value = true
   try {
+    errorCuaderno.value = ''
     await prestamosService.createCuaderno(payload)
     modalOpen.value = false
     await store.fetchCuaderno()
+  } catch (err) {
+    errorCuaderno.value = extractApiErrorMessage(err, 'No se pudo registrar el préstamo.')
+    modalOpen.value = false
   } finally {
     saving.value = false
   }
@@ -44,7 +61,10 @@ function handleDevolver(row: PrestamoCuaderno) {
   devolucionOpen.value = true
 }
 
-async function confirmarDevolucion(payload: { condicion: CondicionDevolucion; observaciones?: string }) {
+async function confirmarDevolucion(payload: {
+  condicion: CondicionDevolucion
+  observaciones?: string
+}) {
   if (!devolviendo.value) return
   returningId.value = devolviendo.value.id
   try {
@@ -82,6 +102,13 @@ onMounted(() => store.fetchCuaderno())
       <BaseButton @click="modalOpen = true">+ Registrar préstamo</BaseButton>
     </div>
 
+    <p
+      v-if="errorCuaderno"
+      class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300"
+    >
+      {{ errorCuaderno }}
+    </p>
+
     <BaseDataTable
       :columns="columns"
       :rows="store.cuaderno"
@@ -97,21 +124,32 @@ onMounted(() => store.fetchCuaderno())
         <BaseBadge :estado="row.devuelto ? 'DEVUELTO' : 'PRESTADO'" />
       </template>
       <template #actions="{ row }">
-        <BaseButton
-          v-if="!row.devuelto"
-          variant="secondary"
-          size="sm"
-          :loading="returningId === row.id"
-          @click="handleDevolver(row)"
-        >
-          Marcar devuelto
-        </BaseButton>
+        <div class="flex justify-end gap-1">
+          <IconButton
+            icon="fa-clock-rotate-left"
+            label="Ver seguimiento del comprobante"
+            @click="verSeguimiento(row)"
+          />
+          <IconButton
+            v-if="!row.devuelto"
+            icon="fa-rotate-left"
+            label="Registrar devolución"
+            variant="success"
+            :loading="returningId === row.id"
+            @click="handleDevolver(row)"
+          />
+        </div>
       </template>
     </BaseDataTable>
 
-    <BaseModal v-model="modalOpen" title="Registrar préstamo (cuaderno bitácora)">
+    <BaseModal v-model="modalOpen" size="lg" title="Registrar préstamo (cuaderno bitácora)">
       <PrestamoCuadernoForm :saving="saving" @submit="handleSubmit" />
     </BaseModal>
-    <DevolucionModal v-model="devolucionOpen" :saving="returningId !== null" @confirm="confirmarDevolucion" />
+    <C31DetailModal v-model="detalleOpen" :comprobante="detalleSel" tab="seguimiento" />
+    <DevolucionModal
+      v-model="devolucionOpen"
+      :saving="returningId !== null"
+      @confirm="confirmarDevolucion"
+    />
   </div>
 </template>

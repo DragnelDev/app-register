@@ -12,7 +12,12 @@ const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'O
 import { ESTADO_C31_LABEL } from '@/utils/estados'
 const ESTADOS: Record<string, string> = ESTADO_C31_LABEL
 
-const filtros = reactive<ReporteFiltros>({ gestion: '', tipoC31: '', fechaDesde: '', fechaHasta: '' })
+const filtros = reactive<ReporteFiltros>({
+  gestion: '',
+  tipoC31: '',
+  fechaDesde: '',
+  fechaHasta: '',
+})
 const gestiones = ref<number[]>([])
 const reporte = ref<ReporteFinanciero | null>(null)
 const loading = ref(false)
@@ -65,7 +70,9 @@ const serieMensual = computed(() => {
   return datos.map((d) => ({ ...d, alto: Math.round((d.monto / max) * 100) }))
 })
 
-const maxGestion = computed(() => Math.max(...(reporte.value?.porGestion ?? []).map((g) => g.monto), 1))
+const maxGestion = computed(() =>
+  Math.max(...(reporte.value?.porGestion ?? []).map((g) => g.monto), 1),
+)
 const maxBeneficiario = computed(() =>
   Math.max(...(reporte.value?.topBeneficiarios ?? []).map((b) => b.monto), 1),
 )
@@ -83,7 +90,8 @@ onMounted(async () => {
       <div>
         <h1 class="text-2xl font-semibold">Reportes financieros</h1>
         <p class="text-sm text-ink-500 dark:text-ink-400">
-          Montos de comprobantes C31 por tipo, mes, gestión y beneficiario. Los totales no incluyen comprobantes anulados.
+          Montos de comprobantes C31 por tipo, mes, gestión y beneficiario. Los totales no incluyen
+          comprobantes anulados.
         </p>
       </div>
       <BaseButton variant="secondary" :loading="exporting" @click="exportar">
@@ -121,32 +129,60 @@ onMounted(async () => {
       <!-- Indicadores -->
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div class="card p-5">
-          <p class="text-xs font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">Monto total vigente</p>
+          <p class="text-xs font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
+            Monto total vigente
+          </p>
           <p class="mt-2 text-2xl font-semibold">Bs {{ bs(reporte.totales.monto) }}</p>
-          <p class="text-xs text-ink-500 dark:text-ink-400">{{ reporte.totales.cantidad }} comprobantes</p>
+          <p class="text-xs text-ink-500 dark:text-ink-400">
+            {{ reporte.totales.cantidad }} comprobantes
+          </p>
         </div>
         <div class="card p-5">
-          <p class="text-xs font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">Promedio por comprobante</p>
+          <p class="text-xs font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
+            Promedio por comprobante
+          </p>
           <p class="mt-2 text-2xl font-semibold">Bs {{ bs(reporte.totales.promedio) }}</p>
         </div>
         <div class="card p-5">
-          <p class="text-xs font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">Con imputación</p>
-          <p class="mt-2 text-2xl font-semibold">Bs {{ bs(montoTipo('CON_IMPUTACION')?.monto ?? 0) }}</p>
-          <p class="text-xs text-ink-500 dark:text-ink-400">{{ montoTipo('CON_IMPUTACION')?.cantidad ?? 0 }} comprobantes</p>
+          <p class="text-xs font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
+            Con imputación
+          </p>
+          <p class="mt-2 text-2xl font-semibold">
+            Bs {{ bs(montoTipo('CON_IMPUTACION')?.monto ?? 0) }}
+          </p>
+          <p class="text-xs text-ink-500 dark:text-ink-400">
+            {{ montoTipo('CON_IMPUTACION')?.cantidad ?? 0 }} comprobantes
+          </p>
         </div>
         <div class="card p-5">
-          <p class="text-xs font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">Sin imputación</p>
-          <p class="mt-2 text-2xl font-semibold">Bs {{ bs(montoTipo('SIN_IMPUTACION')?.monto ?? 0) }}</p>
-          <p class="text-xs text-ink-500 dark:text-ink-400">{{ montoTipo('SIN_IMPUTACION')?.cantidad ?? 0 }} comprobantes</p>
+          <p class="text-xs font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
+            Sin imputación
+          </p>
+          <p class="mt-2 text-2xl font-semibold">
+            Bs {{ bs(montoTipo('SIN_IMPUTACION')?.monto ?? 0) }}
+          </p>
+          <p class="text-xs text-ink-500 dark:text-ink-400">
+            {{ montoTipo('SIN_IMPUTACION')?.cantidad ?? 0 }} comprobantes
+          </p>
         </div>
       </div>
 
       <!-- Monto por mes -->
       <div class="card p-5">
         <h2 class="mb-4 text-base font-semibold">Monto por mes (Bs)</h2>
-        <div class="flex h-48 items-end gap-2" role="img" aria-label="Gráfico de barras de monto por mes">
-          <div v-for="m in serieMensual" :key="m.label" class="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1">
-            <span class="text-[10px] text-ink-500 dark:text-ink-400">{{ m.monto ? bs(m.monto) : '' }}</span>
+        <div
+          class="flex h-48 items-end gap-2"
+          role="img"
+          aria-label="Gráfico de barras de monto por mes"
+        >
+          <div
+            v-for="m in serieMensual"
+            :key="m.label"
+            class="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1"
+          >
+            <span class="text-[10px] text-ink-500 dark:text-ink-400">{{
+              m.monto ? bs(m.monto) : ''
+            }}</span>
             <div
               class="w-full rounded-t bg-seal-500 transition-all dark:bg-seal-400"
               :style="{ height: `${Math.max(m.alto, m.monto ? 3 : 0)}%` }"
@@ -165,10 +201,15 @@ onMounted(async () => {
             <li v-for="g in reporte.porGestion" :key="g.gestion">
               <div class="flex justify-between text-sm">
                 <span class="font-medium">{{ g.gestion }}</span>
-                <span class="text-ink-600 dark:text-ink-300">Bs {{ bs(g.monto) }} · {{ g.cantidad }}</span>
+                <span class="text-ink-600 dark:text-ink-300"
+                  >Bs {{ bs(g.monto) }} · {{ g.cantidad }}</span
+                >
               </div>
               <div class="mt-1 h-2 rounded-full bg-ink-100 dark:bg-white/10">
-                <div class="h-2 rounded-full bg-seal-500 dark:bg-seal-400" :style="{ width: `${(g.monto / maxGestion) * 100}%` }" />
+                <div
+                  class="h-2 rounded-full bg-seal-500 dark:bg-seal-400"
+                  :style="{ width: `${(g.monto / maxGestion) * 100}%` }"
+                />
               </div>
             </li>
             <li v-if="!reporte.porGestion.length" class="text-sm text-ink-500">Sin datos.</li>
@@ -180,7 +221,11 @@ onMounted(async () => {
           <h2 class="mb-4 text-base font-semibold">Por estado físico</h2>
           <table class="w-full text-sm">
             <thead>
-              <tr class="table-header-cell"><th class="py-2 text-left">Estado</th><th class="py-2 text-right">Cantidad</th><th class="py-2 text-right">Monto (Bs)</th></tr>
+              <tr class="table-header-cell">
+                <th class="py-2 text-left">Estado</th>
+                <th class="py-2 text-right">Cantidad</th>
+                <th class="py-2 text-right">Monto (Bs)</th>
+              </tr>
             </thead>
             <tbody class="divide-y divide-ink-100 dark:divide-white/10">
               <tr v-for="e in reporte.porEstado" :key="e.estado">
@@ -188,11 +233,14 @@ onMounted(async () => {
                 <td class="py-2 text-right">{{ e.cantidad }}</td>
                 <td class="py-2 text-right">{{ bs(e.monto) }}</td>
               </tr>
-              <tr v-if="!reporte.porEstado.length"><td colspan="3" class="py-3 text-ink-500">Sin datos.</td></tr>
+              <tr v-if="!reporte.porEstado.length">
+                <td colspan="3" class="py-3 text-ink-500">Sin datos.</td>
+              </tr>
             </tbody>
           </table>
           <p v-if="reporte.anulados.cantidad" class="mt-3 text-xs text-ink-500 dark:text-ink-400">
-            Anulados excluidos de los totales: {{ reporte.anulados.cantidad }} (Bs {{ bs(reporte.anulados.monto) }}).
+            Anulados excluidos de los totales: {{ reporte.anulados.cantidad }} (Bs
+            {{ bs(reporte.anulados.monto) }}).
           </p>
         </div>
       </div>
@@ -201,16 +249,22 @@ onMounted(async () => {
       <div class="card p-5">
         <h2 class="mb-1 text-base font-semibold">Principales beneficiarios</h2>
         <p class="mb-4 text-xs text-ink-500 dark:text-ink-400">
-          Monto de los comprobantes en que participa cada beneficiario (si un comprobante tiene varios, su monto se muestra completo en cada uno).
+          Monto de los comprobantes en que participa cada beneficiario (si un comprobante tiene
+          varios, su monto se muestra completo en cada uno).
         </p>
         <ul class="space-y-3">
           <li v-for="b in reporte.topBeneficiarios" :key="b.nombre">
             <div class="flex justify-between gap-3 text-sm">
               <span class="truncate font-medium">{{ b.nombre }}</span>
-              <span class="shrink-0 text-ink-600 dark:text-ink-300">Bs {{ bs(b.monto) }} · {{ b.cantidad }}</span>
+              <span class="shrink-0 text-ink-600 dark:text-ink-300"
+                >Bs {{ bs(b.monto) }} · {{ b.cantidad }}</span
+              >
             </div>
             <div class="mt-1 h-2 rounded-full bg-ink-100 dark:bg-white/10">
-              <div class="h-2 rounded-full bg-seal-500 dark:bg-seal-400" :style="{ width: `${(b.monto / maxBeneficiario) * 100}%` }" />
+              <div
+                class="h-2 rounded-full bg-seal-500 dark:bg-seal-400"
+                :style="{ width: `${(b.monto / maxBeneficiario) * 100}%` }"
+              />
             </div>
           </li>
           <li v-if="!reporte.topBeneficiarios.length" class="text-sm text-ink-500">Sin datos.</li>

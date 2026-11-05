@@ -52,6 +52,36 @@ const RELATIONS = {
   beneficiarios: true,
 };
 
+/** Los cinco datos que, junto con el N° de preventivo/devengado, completan el registro. */
+function datosCompletos(c: {
+  montoTotal?: number | string | null;
+  fechaElaboracion?: Date | string | null;
+  descripcion?: string | null;
+  beneficiarios?: unknown[] | null;
+}): boolean {
+  return (
+    Number(c.montoTotal) > 0 &&
+    !!c.fechaElaboracion &&
+    !!c.descripcion?.trim() &&
+    (c.beneficiarios?.length ?? 0) > 0
+  );
+}
+
+/** Rechaza fechas absurdas (antes de 2000 o más de un año a futuro). */
+function validarRangoFecha(fecha?: string) {
+  if (!fecha) return;
+  const anio = new Date(fecha).getUTCFullYear();
+  if (
+    Number.isNaN(anio) ||
+    anio < 2000 ||
+    anio > new Date().getFullYear() + 1
+  ) {
+    throw new BadRequestException(
+      'La fecha de elaboración está fuera de un rango razonable',
+    );
+  }
+}
+
 /** Quita espacios, descarta vacíos y repetidos (sin distinguir mayúsculas) de una lista de textos. */
 function limpiarLista(valores?: string[]): string[] {
   const vistos = new Set<string>();
@@ -196,8 +226,17 @@ export class ComprobantesC31Service {
       numeroPreventivo,
       numeroDevengado,
     );
+    validarRangoFecha(dto.fechaElaboracion);
     const gestion =
-      dto.gestion ?? new Date(dto.fechaElaboracion as string).getFullYear();
+      dto.gestion ??
+      (dto.fechaElaboracion
+        ? new Date(dto.fechaElaboracion).getUTCFullYear()
+        : new Date().getFullYear());
+    const nombres = limpiarLista(dto.beneficiarios);
+    // Con los cinco datos completos nace "En revisión / firmado"; solo con el N° queda "En trámite"
+    const estadoInicial = datosCompletos({ ...dto, beneficiarios: nombres })
+      ? EstadoFisicoC31.EN_REVISION
+      : EstadoFisicoC31.EN_TRAMITE;
 
     return this.dataSource.transaction(async (manager) => {
       await this.validarIdentificadorUnico(
@@ -207,16 +246,16 @@ export class ComprobantesC31Service {
         gestion,
       );
 
-      // El comprobante nace "En trámite (incompleto)": reserva el correlativo y
-      // el resto (firmas, folio, ubicación, pagos) se completa después.
+      // Solo con el N° queda "En trámite (incompleto)" y reserva el correlativo;
+      // completando los demás datos pasa solo a "En revisión / firmado".
       const comprobante = manager.create(ComprobantesC31, {
         tipoC31,
         montoTotal: dto.montoTotal,
-        fechaElaboracion: dto.fechaElaboracion as unknown as Date,
-        descripcion: dto.descripcion,
+        fechaElaboracion: (dto.fechaElaboracion as unknown as Date) ?? null,
+        descripcion: dto.descripcion ?? null,
         numeroFolio: dto.numeroFolio,
         gestion,
-        estadoFisico: EstadoFisicoC31.EN_TRAMITE,
+        estadoFisico: estadoInicial,
         ubicacionFisica: dto.ubicacionFisica,
         observaciones: dto.observaciones,
         creadoPorId: usuario.id,
@@ -226,19 +265,21 @@ export class ComprobantesC31Service {
         devengados: numeroDevengado
           ? [manager.create(C31Devengado, { numeroDevengado })]
           : [],
-        beneficiarios: limpiarLista(dto.beneficiarios).map(
-          (nombreBeneficiario) =>
-            manager.create(C31Beneficiario, { nombreBeneficiario }),
+        beneficiarios: nombres.map((nombreBeneficiario) =>
+          manager.create(C31Beneficiario, { nombreBeneficiario }),
         ),
       });
 
       const guardado = await manager.save(ComprobantesC31, comprobante);
       await registrarCambioEstado(manager, {
         comprobanteId: guardado.id as number,
-        estadoNuevo: EstadoFisicoC31.EN_TRAMITE,
+        estadoNuevo: estadoInicial,
         origen: 'REGISTRO',
         usuarioId: usuario.id,
-        detalle: 'Comprobante registrado en el sistema',
+        detalle:
+          estadoInicial === EstadoFisicoC31.EN_REVISION
+            ? 'Registrado con todos los datos'
+            : 'Registrado solo con el N° (faltan datos por completar)',
       });
 
       const completo = await manager.findOne(ComprobantesC31, {
@@ -338,8 +379,10 @@ export class ComprobantesC31Service {
   async update(
     id: number,
     dto: UpdateComprobantesC31Dto,
+    usuario?: Usuario,
   ): Promise<ComprobantesC31> {
     const comprobante = await this.findOne(id);
+    validarRangoFecha(dto.fechaElaboracion);
 
     if (comprobante.estadoFisico === EstadoFisicoC31.ANULADO) {
       throw new ConflictException(
@@ -380,7 +423,9 @@ export class ComprobantesC31Service {
         await this.validarIdentificadorUnico(
           manager,
           tipoFinal,
-          (tipoFinal === TipoC31.CON_IMPUTACION ? prevFinal : devFinal) as string,
+          (tipoFinal === TipoC31.CON_IMPUTACION
+            ? prevFinal
+            : devFinal) as string,
           gestionFinal as number,
           id,
         );
@@ -392,7 +437,9 @@ export class ComprobantesC31Service {
           .createQueryBuilder(C31Pago, 'p')
           .select('COALESCE(SUM(p.monto), 0)', 'suma')
           .where('p.comprobante_id = :id', { id })
-          .andWhere('p.estado_pago <> :anulado', { anulado: EstadoPago.ANULADO })
+          .andWhere('p.estado_pago <> :anulado', {
+            anulado: EstadoPago.ANULADO,
+          })
           .getRawOne<{ suma: string }>();
         const pagos = Math.round(Number(fila?.suma ?? 0) * 100);
         if (Math.round(Number(dto.montoTotal) * 100) < pagos) {
@@ -414,6 +461,8 @@ export class ComprobantesC31Service {
       if (dto.numeroFolio !== undefined)
         camposSimples.numeroFolio = dto.numeroFolio || null;
       if (dto.gestion !== undefined) camposSimples.gestion = dto.gestion;
+      else if (dto.fechaElaboracion !== undefined)
+        camposSimples.gestion = new Date(dto.fechaElaboracion).getUTCFullYear();
       if (dto.ubicacionFisica !== undefined)
         camposSimples.ubicacionFisica = dto.ubicacionFisica || null;
       if (dto.observaciones !== undefined)
@@ -452,12 +501,34 @@ export class ComprobantesC31Service {
         await this.sincronizarBeneficiarios(manager, id, dto.beneficiarios);
       }
 
-      const actualizado = await manager.findOne(ComprobantesC31, {
+      let actualizado = await manager.findOne(ComprobantesC31, {
         where: { id },
         relations: RELATIONS,
       });
       if (!actualizado)
         throw new NotFoundException('El comprobante C31 no existe');
+
+      // Al completar los cinco datos, un comprobante "En trámite" pasa a "En revisión / firmado"
+      if (
+        actualizado.estadoFisico === EstadoFisicoC31.EN_TRAMITE &&
+        datosCompletos(actualizado)
+      ) {
+        await manager.update(ComprobantesC31, id, {
+          estadoFisico: EstadoFisicoC31.EN_REVISION,
+        });
+        await registrarCambioEstado(manager, {
+          comprobanteId: id,
+          estadoAnterior: EstadoFisicoC31.EN_TRAMITE,
+          estadoNuevo: EstadoFisicoC31.EN_REVISION,
+          origen: 'SISTEMA',
+          usuarioId: usuario?.id,
+          detalle: 'Se completaron todos los datos del comprobante',
+        });
+        actualizado = await manager.findOneOrFail(ComprobantesC31, {
+          where: { id },
+          relations: RELATIONS,
+        });
+      }
       return actualizado;
     });
   }
@@ -482,7 +553,8 @@ export class ComprobantesC31Service {
     );
 
     for (const b of actuales) {
-      if (claves.has((b.nombreBeneficiario ?? '').trim().toUpperCase())) continue;
+      if (claves.has((b.nombreBeneficiario ?? '').trim().toUpperCase()))
+        continue;
       const conPagos = await manager.count(C31Pago, {
         where: { beneficiarioId: b.id },
         withDeleted: true,
@@ -553,6 +625,18 @@ export class ComprobantesC31Service {
         );
       }
 
+      if (nuevo === EstadoFisicoC31.EN_REVISION) {
+        const completo = await manager.findOne(ComprobantesC31, {
+          where: { id },
+          relations: { beneficiarios: true },
+        });
+        if (!completo || !datosCompletos(completo)) {
+          throw new ConflictException(
+            'Para pasar a "En revisión / firmado" complete el tipo, beneficiarios, glosa, monto total y fecha',
+          );
+        }
+      }
+
       const cambios: Record<string, unknown> = { estadoFisico: nuevo };
 
       if (nuevo === EstadoFisicoC31.ARCHIVADO) {
@@ -607,7 +691,8 @@ export class ComprobantesC31Service {
         usuarioId: usuario.id,
         detalle: motivo ?? null,
       });
-      if (saleDelArchivo) await this.sincronizarCantidadActa(manager, actaAnterior);
+      if (saleDelArchivo)
+        await this.sincronizarCantidadActa(manager, actaAnterior);
     });
 
     return this.findOne(id);

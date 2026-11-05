@@ -93,7 +93,8 @@ export class AuditoriaInterceptor implements NestInterceptor {
           accion,
           entidad,
           registroId:
-            registroId ?? (idRespuesta !== undefined ? String(idRespuesta) : null),
+            registroId ??
+            (idRespuesta !== undefined ? String(idRespuesta) : null),
           metodo: req.method,
           ruta: rutaLimpia.slice(0, 255),
           ip: req.ip ?? null,

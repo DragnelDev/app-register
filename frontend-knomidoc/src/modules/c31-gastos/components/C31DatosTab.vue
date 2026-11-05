@@ -26,22 +26,39 @@ const form = reactive({
   beneficiarios: [] as string[],
 })
 
+const sinCompletar = 'Sin completar'
+const falta = computed(() => {
+  const c = props.comprobante
+  return [
+    !c.beneficiarios.length && 'beneficiarios',
+    !c.descripcion?.trim() && 'glosa',
+    !(Number(c.montoTotal) > 0) && 'monto total',
+    !c.fechaElaboracion && 'fecha',
+  ].filter(Boolean) as string[]
+})
 const anulado = computed(() => props.comprobante.estadoFisico === 'ANULADO')
 
 function cargar() {
   const c = props.comprobante
   form.tipoC31 = c.tipoC31
   form.numero = identificadorC31(c) ?? ''
-  form.descripcion = c.descripcion
-  form.montoTotal = c.montoTotal
-  form.fechaElaboracion = c.fechaElaboracion?.slice(0, 10)
+  form.descripcion = c.descripcion ?? ''
+  form.montoTotal = c.montoTotal ?? ''
+  form.fechaElaboracion = c.fechaElaboracion?.slice(0, 10) ?? ''
   form.numeroFolio = c.numeroFolio ?? ''
   form.ubicacionFisica = c.ubicacionFisica ?? ''
   form.observaciones = c.observaciones ?? ''
   form.beneficiarios = c.beneficiarios.map((b) => b.nombreBeneficiario)
   error.value = ''
 }
-watch(() => props.comprobante, () => { editando.value = false; cargar() }, { immediate: true })
+watch(
+  () => props.comprobante,
+  () => {
+    editando.value = false
+    cargar()
+  },
+  { immediate: true },
+)
 
 function agregar() {
   const n = nuevoBeneficiario.value.trim()
@@ -60,9 +77,9 @@ async function guardar() {
       tipoC31: form.tipoC31 as ComprobanteC31['tipoC31'],
       numeroPreventivo: form.tipoC31 === 'CON_IMPUTACION' ? numero : undefined,
       numeroDevengado: form.tipoC31 === 'SIN_IMPUTACION' ? numero : undefined,
-      descripcion: form.descripcion.trim(),
-      montoTotal: Number(form.montoTotal),
-      fechaElaboracion: form.fechaElaboracion,
+      descripcion: form.descripcion.trim() || undefined,
+      montoTotal: Number(form.montoTotal) > 0 ? Number(form.montoTotal) : undefined,
+      fechaElaboracion: form.fechaElaboracion || undefined,
       numeroFolio: form.numeroFolio.trim(),
       ubicacionFisica: form.ubicacionFisica.trim(),
       observaciones: form.observaciones.trim(),
@@ -84,26 +101,42 @@ const titulo = 'mb-1 font-semibold text-ink-700 dark:text-ink-200'
 
 <template>
   <div class="space-y-4 text-sm">
+    <p
+      v-if="!editando && falta.length && comprobante.estadoFisico === 'EN_TRAMITE'"
+      class="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-400/10 dark:text-amber-200"
+    >
+      Faltan por completar: <strong>{{ falta.join(', ') }}</strong
+      >. Al completarlos el comprobante pasa solo a “En revisión / firmado”.
+    </p>
     <div v-if="!editando" class="space-y-4">
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <h4 :class="titulo">{{ comprobante.tipoC31 === 'CON_IMPUTACION' ? 'N° de preventivo' : 'N° de devengado' }}</h4>
+          <h4 :class="titulo">
+            {{ comprobante.tipoC31 === 'CON_IMPUTACION' ? 'N° de preventivo' : 'N° de devengado' }}
+          </h4>
           <p>{{ identificadorC31(comprobante) ?? '—' }}</p>
         </div>
         <div>
           <h4 :class="titulo">Monto total del documento</h4>
-          <p>Bs {{ bs(comprobante.montoTotal) }}</p>
+          <p>{{ comprobante.montoTotal ? `Bs ${bs(comprobante.montoTotal)}` : sinCompletar }}</p>
         </div>
         <div>
           <h4 :class="titulo">Beneficiarios</h4>
           <ul v-if="comprobante.beneficiarios.length" class="list-inside list-disc">
-            <li v-for="b in comprobante.beneficiarios" :key="b.id ?? b.nombreBeneficiario">{{ b.nombreBeneficiario }}</li>
+            <li v-for="b in comprobante.beneficiarios" :key="b.id ?? b.nombreBeneficiario">
+              {{ b.nombreBeneficiario }}
+            </li>
           </ul>
-          <p v-else class="text-ink-400">—</p>
+          <p v-else class="text-ink-400">{{ sinCompletar }}</p>
         </div>
         <div>
           <h4 :class="titulo">Fecha de elaboración</h4>
-          <p>{{ fechaCorta(comprobante.fechaElaboracion) }} · Gestión {{ comprobante.gestion }}</p>
+          <p>
+            {{
+              comprobante.fechaElaboracion ? fechaCorta(comprobante.fechaElaboracion) : sinCompletar
+            }}
+            · Gestión {{ comprobante.gestion }}
+          </p>
         </div>
         <div>
           <h4 :class="titulo">N° de folio</h4>
@@ -120,19 +153,29 @@ const titulo = 'mb-1 font-semibold text-ink-700 dark:text-ink-200'
       </div>
       <div>
         <h4 :class="titulo">Descripción / glosa</h4>
-        <p class="whitespace-pre-line">{{ comprobante.descripcion }}</p>
+        <p class="whitespace-pre-line">{{ comprobante.descripcion || sinCompletar }}</p>
       </div>
       <div v-if="comprobante.observaciones">
         <h4 :class="titulo">Observaciones</h4>
         <p class="whitespace-pre-line">{{ comprobante.observaciones }}</p>
       </div>
-      <BaseButton v-if="puedeEditar && !anulado" size="sm" variant="secondary" @click="editando = true">
+      <BaseButton
+        v-if="puedeEditar && !anulado"
+        size="sm"
+        variant="secondary"
+        @click="editando = true"
+      >
         Completar o corregir datos
       </BaseButton>
     </div>
 
     <form v-else class="space-y-4" @submit.prevent="guardar">
-      <p v-if="error" class="rounded-md bg-red-50 px-3 py-2 text-red-700 dark:bg-red-950/40 dark:text-red-300">{{ error }}</p>
+      <p
+        v-if="error"
+        class="rounded-md bg-red-50 px-3 py-2 text-red-700 dark:bg-red-950/40 dark:text-red-300"
+      >
+        {{ error }}
+      </p>
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label :class="etiqueta">Tipo de C31</label>
@@ -142,7 +185,9 @@ const titulo = 'mb-1 font-semibold text-ink-700 dark:text-ink-200'
           </select>
         </div>
         <div>
-          <label :class="etiqueta">{{ form.tipoC31 === 'CON_IMPUTACION' ? 'N° de preventivo' : 'N° de devengado' }}</label>
+          <label :class="etiqueta">{{
+            form.tipoC31 === 'CON_IMPUTACION' ? 'N° de preventivo' : 'N° de devengado'
+          }}</label>
           <input v-model="form.numero" type="text" :class="campo" />
         </div>
         <div>
@@ -166,16 +211,36 @@ const titulo = 'mb-1 font-semibold text-ink-700 dark:text-ink-200'
       <div>
         <label :class="etiqueta">Beneficiarios</label>
         <ul class="mb-2 space-y-1">
-          <li v-for="(b, i) in form.beneficiarios" :key="b" class="flex items-center justify-between rounded border border-ink-100 px-2 py-1 dark:border-white/10">
+          <li
+            v-for="(b, i) in form.beneficiarios"
+            :key="b"
+            class="flex items-center justify-between rounded border border-ink-100 px-2 py-1 dark:border-white/10"
+          >
             <span>{{ b }}</span>
-            <button type="button" class="text-xs text-red-600 hover:underline" @click="form.beneficiarios.splice(i, 1)">Quitar</button>
+            <button
+              type="button"
+              class="text-xs text-red-600 hover:underline"
+              @click="form.beneficiarios.splice(i, 1)"
+            >
+              Quitar
+            </button>
           </li>
         </ul>
         <div class="flex gap-2">
-          <input v-model="nuevoBeneficiario" type="text" :class="campo" placeholder="Agregar beneficiario" @keydown.enter.prevent="agregar" />
-          <BaseButton type="button" variant="secondary" size="sm" @click="agregar">Agregar</BaseButton>
+          <input
+            v-model="nuevoBeneficiario"
+            type="text"
+            :class="campo"
+            placeholder="Agregar beneficiario"
+            @keydown.enter.prevent="agregar"
+          />
+          <BaseButton type="button" variant="secondary" size="sm" @click="agregar"
+            >Agregar</BaseButton
+          >
         </div>
-        <p class="mt-1 text-xs text-ink-400">Un beneficiario con pagos registrados no se puede quitar.</p>
+        <p class="mt-1 text-xs text-ink-400">
+          Un beneficiario con pagos registrados no se puede quitar.
+        </p>
       </div>
 
       <div>
@@ -188,7 +253,17 @@ const titulo = 'mb-1 font-semibold text-ink-700 dark:text-ink-200'
       </div>
 
       <div class="flex justify-end gap-2">
-        <BaseButton type="button" variant="ghost" size="sm" :disabled="guardando" @click="editando = false; cargar()">Cancelar</BaseButton>
+        <BaseButton
+          type="button"
+          variant="ghost"
+          size="sm"
+          :disabled="guardando"
+          @click="
+            editando = false;
+            cargar()
+          "
+          >Cancelar</BaseButton
+        >
         <BaseButton type="submit" size="sm" :loading="guardando">Guardar cambios</BaseButton>
       </div>
     </form>

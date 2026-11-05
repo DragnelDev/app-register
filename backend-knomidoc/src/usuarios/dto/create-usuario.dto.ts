@@ -1,3 +1,4 @@
+import { MSG_PASSWORD, REGEX_PASSWORD } from '../../auth/dto/codigo.dto';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
@@ -35,8 +36,14 @@ export class CreateUsuarioDto {
   @ApiProperty({ type: String, example: 'Juan Perez' })
   @IsNotEmpty({ message: 'El campo nombre completo es obligatorio' })
   @IsString({ message: 'El campo nombre completo debe ser de tipo cadena' })
+  @MinLength(3, {
+    message: 'El nombre completo debe tener al menos 3 caracteres',
+  })
   @MaxLength(150, {
     message: 'El campo nombre completo no debe ser mayor a 150 caracteres',
+  })
+  @Matches(/^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ .,'()\-]+$/, {
+    message: "El nombre solo admite letras, espacios y . , ' ( ) -",
   })
   @Transform(trim)
   readonly nombreCompleto: string | undefined;
@@ -74,9 +81,7 @@ export class CreateUsuarioDto {
   })
   @IsOptional()
   @IsString({ message: 'El campo contraseña debe ser de tipo cadena' })
-  @MinLength(6, {
-    message: 'La contraseña debe tener al menos 6 caracteres',
-  })
+  @Matches(REGEX_PASSWORD, { message: MSG_PASSWORD })
   readonly password?: string;
 
   @ApiProperty({ type: String, example: 'ADMIN', enum: ROLES_USUARIO })

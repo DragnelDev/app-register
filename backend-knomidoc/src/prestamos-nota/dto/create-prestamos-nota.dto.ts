@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   ArrayNotEmpty,
   IsArray,
   IsDateString,
@@ -8,7 +9,9 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
+  MinLength,
 } from 'class-validator';
 
 const trim = ({ value }: { value: unknown }): unknown =>
@@ -26,6 +29,9 @@ export class CreatePrestamosNotaDto {
   })
   @IsArray()
   @ArrayNotEmpty({ message: 'Debe indicar al menos un comprobante a prestar' })
+  @ArrayMaxSize(100, {
+    message: 'No se pueden prestar más de 100 comprobantes en una nota',
+  })
   @Type(() => Number)
   @IsInt({ each: true })
   readonly comprobanteIds: number[] = [];
@@ -34,12 +40,16 @@ export class CreatePrestamosNotaDto {
   @IsNotEmpty({ message: 'El número de nota de solicitud es obligatorio' })
   @IsString()
   @MaxLength(100)
+  @Matches(/^[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ .\/\-_]+$/, {
+    message: 'El N° de nota solo admite letras, números, espacios y . / - _',
+  })
   @Transform(trim)
   readonly numeroNotaSolicitud: string | undefined;
 
   @ApiProperty({ example: 'Auditoría Interna' })
   @IsNotEmpty({ message: 'La institución solicitante es obligatoria' })
   @IsString()
+  @MinLength(3)
   @MaxLength(150)
   @Transform(trim)
   readonly institucionSolicitante: string | undefined;
@@ -47,6 +57,7 @@ export class CreatePrestamosNotaDto {
   @ApiProperty({ example: 'Lic. Pedro Gómez' })
   @IsNotEmpty({ message: 'El funcionario responsable es obligatorio' })
   @IsString()
+  @MinLength(3)
   @MaxLength(150)
   @Transform(trim)
   readonly funcionarioResponsable: string | undefined;
@@ -73,5 +84,6 @@ export class CreatePrestamosNotaDto {
   @IsOptional()
   @Transform(vacioAUndefined)
   @IsString()
+  @MaxLength(1000)
   readonly observaciones?: string;
 }

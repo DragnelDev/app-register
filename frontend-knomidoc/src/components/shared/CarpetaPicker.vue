@@ -84,8 +84,8 @@ function pick(comprobante: ComprobanteC31) {
   open.value = false
 }
 
-function formatMonto(monto: number) {
-  return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2 }).format(monto)
+function formatMonto(monto: number | null) {
+  return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2 }).format(monto ?? 0)
 }
 
 function joinNombres(items: { nombreBeneficiario?: string }[] | undefined) {

@@ -79,3 +79,54 @@ export function runValidators<T>(value: T, rules: ValidatorRule<T>[]): string | 
   }
   return null
 }
+
+// ─── Reglas de uso común en todo el sistema (espejo de las del servidor) ───
+
+export const REGEX_CODIGO = /^[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ .\/\-_]+$/
+export const REGEX_NOMBRE = /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ .,'()\-]+$/
+export const REGEX_PASSWORD = /^(?=.*[A-Za-z])(?=.*\d).{8,72}$/
+
+export function emailValido(message = 'Ingrese un correo válido'): ValidatorRule<string> {
+  return (v) => (!v || /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()) ? null : message)
+}
+
+export function passwordFuerte(
+  message = 'Entre 8 y 72 caracteres, con al menos una letra y un número',
+): ValidatorRule<string> {
+  return (v) => (!v || REGEX_PASSWORD.test(v) ? null : message)
+}
+
+export function usernameValido(): ValidatorRule<string> {
+  return (v) =>
+    !v || /^[a-z0-9._-]{3,50}$/.test(v)
+      ? null
+      : 'De 3 a 50 caracteres: minúsculas, números, punto, guion y guion bajo'
+}
+
+export function nombrePersona(
+  message = "Solo letras, espacios y . , ' ( ) - (mínimo 3 caracteres)",
+): ValidatorRule<string> {
+  return (v) => (!v || (v.trim().length >= 3 && REGEX_NOMBRE.test(v.trim())) ? null : message)
+}
+
+export function telefonoValido(): ValidatorRule<string> {
+  return (v) =>
+    !v || /^[0-9+()\-\s]{6,30}$/.test(v.trim()) ? null : 'Solo números, +, -, ( ) y espacios'
+}
+
+export function codigoDocumento(
+  message = 'Solo letras, números, espacios y . / - _',
+): ValidatorRule<string> {
+  return (v) => (!v || REGEX_CODIGO.test(v.trim()) ? null : message)
+}
+
+/** Fecha entre el año 2000 y el próximo año. */
+export function fechaRazonable(
+  message = 'La fecha está fuera de un rango razonable',
+): ValidatorRule<string> {
+  return (v) => {
+    if (!v) return null
+    const anio = Number(v.slice(0, 4))
+    return anio >= 2000 && anio <= new Date().getFullYear() + 1 ? null : message
+  }
+}

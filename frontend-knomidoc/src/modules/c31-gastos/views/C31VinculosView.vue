@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import IconButton from '@/components/ui/IconButton.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
@@ -159,7 +160,8 @@ onMounted(async () => {
     <div>
       <h1 class="text-2xl font-semibold">Vínculos / Regularización</h1>
       <p class="text-sm text-ink-500 dark:text-ink-400">
-        Comprobantes firmados que aún no van en un acta de entrega, y comprobantes recibidos en archivo que falta ubicar y archivar.
+        Comprobantes firmados que aún no van en un acta de entrega, y comprobantes recibidos en
+        archivo que falta ubicar y archivar.
       </p>
     </div>
 
@@ -194,8 +196,17 @@ onMounted(async () => {
       </button>
     </div>
 
-    <BaseInput v-model="search" placeholder="Buscar por descripción, N°, beneficiario…" class="max-w-xs" />
-    <p v-if="aviso" class="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-300">{{ aviso }}</p>
+    <BaseInput
+      v-model="search"
+      placeholder="Buscar por descripción, N°, beneficiario…"
+      class="max-w-xs"
+    />
+    <p
+      v-if="aviso"
+      class="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-300"
+    >
+      {{ aviso }}
+    </p>
     <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
 
     <BaseDataTable
@@ -209,7 +220,12 @@ onMounted(async () => {
           ? 'No hay comprobantes firmados pendientes de entrega.'
           : 'No hay comprobantes en archivo sin carpeta asignada.'
       "
-      @update:page="(p) => { page = p; loadRows() }"
+      @update:page="
+        (p) => {
+          page = p
+          loadRows()
+        }
+      "
     >
       <template #cell-id="{ row }">
         <span class="font-mono text-xs">{{ identificadorC31(row) ?? '—' }}</span>
@@ -217,16 +233,22 @@ onMounted(async () => {
       <template #cell-montoTotal="{ row }">{{ Number(row.montoTotal).toFixed(2) }}</template>
       <template #cell-estadoFisico="{ row }"><BaseBadge :estado="row.estadoFisico" /></template>
       <template #actions="{ row }">
-        <BaseButton size="sm" @click="abrir(row)">
-          <i class="fa-solid" :class="pestana === 'sinActa' ? 'fa-link' : 'fa-folder-open'" aria-hidden="true" />
-          {{ pestana === 'sinActa' ? 'Agregar a acta' : 'Ubicar y archivar' }}
-        </BaseButton>
+        <div class="flex justify-end">
+          <IconButton
+            :icon="pestana === 'sinActa' ? 'fa-link' : 'fa-folder-open'"
+            :label="pestana === 'sinActa' ? 'Agregar a acta' : 'Ubicar y archivar'"
+            variant="primary"
+            @click="abrir(row)"
+          />
+        </div>
       </template>
     </BaseDataTable>
 
     <BaseModal
       v-model="modalOpen"
-      :title="pestana === 'sinActa' ? 'Agregar a un acta de entrega' : 'Ubicar en carpeta y archivar'"
+      :title="
+        pestana === 'sinActa' ? 'Agregar a un acta de entrega' : 'Ubicar en carpeta y archivar'
+      "
       size="sm"
     >
       <form id="vinculo-form" class="space-y-4" @submit.prevent="guardar">
@@ -241,7 +263,12 @@ onMounted(async () => {
             label="Acta de entrega (en borrador)"
             placeholder="Seleccione un acta…"
             required
-            :options="actas.map((a) => ({ value: a.id, label: `${a.numeroActa} — ${a.fechaRecepcion?.slice(0, 10)}` }))"
+            :options="
+              actas.map((a) => ({
+                value: a.id,
+                label: `${a.numeroActa} — ${a.fechaRecepcion?.slice(0, 10)}`,
+              }))
+            "
             hint="Pasa a «En archivo» cuando Archivo recibe el acta. Solo se listan actas en borrador."
           />
         </template>
@@ -251,9 +278,19 @@ onMounted(async () => {
             label="Carpeta"
             placeholder="Seleccione una carpeta…"
             required
-            :options="carpetas.map((c) => ({ value: c.id, label: `${c.codigoCarpeta} — ${c.ubicacionFisica ?? ''}` }))"
+            :options="
+              carpetas.map((c) => ({
+                value: c.id,
+                label: `${c.codigoCarpeta} — ${c.ubicacionFisica ?? ''}`,
+              }))
+            "
           />
-          <BaseInput v-model="numeroParte" type="number" label="Parte (1 a 5)" hint="Un comprobante puede ocupar hasta 5 carpetas." />
+          <BaseInput
+            v-model="numeroParte"
+            type="number"
+            label="Parte (1 a 5)"
+            hint="Un comprobante puede ocupar hasta 5 carpetas."
+          />
           <BaseInput v-model="numeroFolio" label="N° de folio" />
           <label class="flex items-center gap-2 text-sm text-ink-700 dark:text-ink-200">
             <input v-model="archivar" type="checkbox" />

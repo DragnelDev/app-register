@@ -10,13 +10,15 @@ import { PrestamosCuaderno } from '../prestamos-cuaderno/entities/prestamos-cuad
 import { C31SeguimientoService } from './c31-seguimiento.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([
+  imports: [
+    TypeOrmModule.forFeature([
       ComprobantesC31,
       Carpeta,
       C31Historial,
       PrestamosNota,
       PrestamosCuaderno,
-    ])],
+    ]),
+  ],
   controllers: [ComprobantesC31Controller],
   providers: [ComprobantesC31Service, C31SeguimientoService],
 })

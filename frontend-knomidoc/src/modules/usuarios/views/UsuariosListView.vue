@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import IconButton from '@/components/ui/IconButton.vue'
 import { onMounted, ref } from 'vue'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import { extractApiErrorMessage } from '@/utils/http-error'
 import UsuarioModal from '../components/UsuarioModal.vue'
 import { usuariosService } from '@/services/usuarios.service'
 import { useAuthStore } from '@/stores/auth.store'
@@ -52,20 +54,28 @@ function openEdit(row: Usuario) {
 async function handleCreate(payload: UsuarioCreatePayload) {
   saving.value = true
   try {
+    saveError.value = ''
     await usuariosService.create(payload)
     modalOpen.value = false
     await loadRows()
+  } catch (err) {
+    saveError.value = extractApiErrorMessage(err, 'No se pudo guardar el usuario.')
   } finally {
     saving.value = false
   }
 }
 
+const saveError = ref('')
+
 async function handleUpdate(id: string, payload: UsuarioUpdatePayload) {
   saving.value = true
   try {
+    saveError.value = ''
     await usuariosService.update(id, payload)
     modalOpen.value = false
     await loadRows()
+  } catch (err) {
+    saveError.value = extractApiErrorMessage(err, 'No se pudo guardar el usuario.')
   } finally {
     saving.value = false
   }
@@ -115,6 +125,18 @@ onMounted(loadRows)
       "
       @row-click="openEdit"
     >
+      <template #cell-email="{ row }">
+        <span>{{ row.email }}</span>
+        <span
+          class="ml-2 rounded-full px-2 py-0.5 text-xs font-medium"
+          :class="
+            row.emailVerificado
+              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300'
+              : 'bg-amber-50 text-amber-800 dark:bg-amber-400/15 dark:text-amber-300'
+          "
+          >{{ row.emailVerificado ? 'Verificado' : 'Sin verificar' }}</span
+        >
+      </template>
       <template #cell-activo="{ row }">
         <BaseBadge :estado="row.activo ? 'EN_ARCHIVO' : 'ANULADO'">
           {{ row.activo ? 'Activo' : 'Inactivo' }}
@@ -122,21 +144,21 @@ onMounted(loadRows)
       </template>
       <template #actions="{ row }">
         <div class="flex justify-end gap-2">
-          <BaseButton variant="ghost" size="sm" @click="openEdit(row)">Editar</BaseButton>
-          <BaseButton
-            :variant="row.activo ? 'danger' : 'secondary'"
-            size="sm"
+          <IconButton icon="fa-pen-to-square" label="Editar" @click="openEdit(row)" />
+          <IconButton
+            :icon="row.activo ? 'fa-user-slash' : 'fa-user-check'"
+            :label="row.activo ? 'Desactivar usuario' : 'Activar usuario'"
+            :variant="row.activo ? 'danger' : 'success'"
             :disabled="row.id === auth.usuario?.id"
             :loading="togglingId === row.id"
             @click="handleToggleActivo(row)"
-          >
-            {{ row.activo ? 'Desactivar' : 'Activar' }}
-          </BaseButton>
+          />
         </div>
       </template>
     </BaseDataTable>
 
     <UsuarioModal
+      :server-error="saveError"
       v-model="modalOpen"
       :usuario="editingUsuario"
       :saving="saving"

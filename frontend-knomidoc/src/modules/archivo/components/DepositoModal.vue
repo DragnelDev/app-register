@@ -56,7 +56,11 @@ function handleSubmit() {
     <form id="deposito-form" class="space-y-4" @submit.prevent="handleSubmit">
       <BaseInput v-model="form.codigo" label="Código" placeholder="DEP-01" required />
       <BaseInput v-model="form.nombre" label="Nombre" placeholder="Archivo Central" required />
-      <BaseInput v-model="form.ubicacion" label="Ubicación" placeholder="Edificio principal, piso 1" />
+      <BaseInput
+        v-model="form.ubicacion"
+        label="Ubicación"
+        placeholder="Edificio principal, piso 1"
+      />
       <BaseInput v-model="form.descripcion" label="Descripción" />
       <label v-if="deposito" class="flex items-center gap-2 text-sm text-ink-700 dark:text-ink-200">
         <input v-model="form.activo" type="checkbox" /> Depósito activo
@@ -64,7 +68,9 @@ function handleSubmit() {
       <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
     </form>
     <template #footer>
-      <BaseButton variant="secondary" @click="emit('update:modelValue', false)">Cancelar</BaseButton>
+      <BaseButton variant="secondary" @click="emit('update:modelValue', false)"
+        >Cancelar</BaseButton
+      >
       <BaseButton type="submit" form="deposito-form" :loading="saving">Guardar</BaseButton>
     </template>
   </BaseModal>

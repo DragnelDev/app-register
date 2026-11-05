@@ -124,14 +124,21 @@ export class ComprobantesC31 extends BaseAuditoriaEntity {
   })
   tipoC31: TipoC31 | undefined;
 
-  @Column({ name: 'monto_total', type: 'decimal', precision: 14, scale: 2 })
-  montoTotal: number | undefined;
+  /** Nulo mientras el comprobante está incompleto (solo registrado con su N°). */
+  @Column({
+    name: 'monto_total',
+    type: 'decimal',
+    precision: 14,
+    scale: 2,
+    nullable: true,
+  })
+  montoTotal?: number | null;
 
-  @Column({ name: 'fecha_elaboracion', type: 'date' })
-  fechaElaboracion: Date | undefined;
+  @Column({ name: 'fecha_elaboracion', type: 'date', nullable: true })
+  fechaElaboracion?: Date | null;
 
-  @Column({ type: 'text' })
-  descripcion: string | undefined;
+  @Column({ type: 'text', nullable: true })
+  descripcion?: string | null;
 
   /** Folio individual por comprobante. */
   @Column({ name: 'numero_folio', type: 'varchar', length: 50, nullable: true })

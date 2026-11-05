@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted } from 'vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import ComprobanteC31Picker from '@/components/shared/ComprobanteC31Picker.vue'
+import ComprobantesC31SelectedTable from '@/components/shared/ComprobantesC31SelectedTable.vue'
 import { usuariosService } from '@/services/usuarios.service'
 import { required, runValidators } from '@/utils/validators'
 import type { PrestamoCuadernoCreatePayload } from '@/types/prestamos.types'
 import type { ComprobanteC31 } from '@/types/c31.types'
-import { identificadorC31 } from '@/types/c31.types'
 import type { UsuarioSolicitante } from '@/types/auth.types'
 
 defineProps<{ saving?: boolean }>()
@@ -23,12 +23,14 @@ const form = reactive({
   solicitanteId: '',
   areaUnidad: '',
   fechaHoraSalida: nowLocal(),
+  fechaDevolucionEstimada: '',
   metodoVerificacion: 'FIRMA_MANUAL' as 'FIRMA_MANUAL' | 'HUELLA_DIGITAL',
   evidenciaVerificacionUrl: '',
   observaciones: '',
 })
 
-const comprobanteSeleccionado = ref<ComprobanteC31 | null>(null)
+const seleccionados = ref<ComprobanteC31[]>([])
+const excludeIds = computed(() => seleccionados.value.map((c) => c.id))
 const solicitantes = ref<UsuarioSolicitante[]>([])
 
 onMounted(async () => {
@@ -49,7 +51,7 @@ function validateField(field: keyof typeof rules) {
 }
 
 function validateComprobante() {
-  errors.comprobante = comprobanteSeleccionado.value ? '' : 'Debes seleccionar un comprobante C31'
+  errors.comprobante = seleccionados.value.length ? '' : 'Debes añadir al menos un comprobante C31'
 }
 
 function onBlur(field: keyof typeof rules) {
@@ -66,29 +68,40 @@ function validateAll(): boolean {
   return !errors.solicitanteId && !errors.areaUnidad && !errors.comprobante
 }
 
-function selectComprobante(comprobante: ComprobanteC31) {
-  comprobanteSeleccionado.value = comprobante
+function addComprobante(comprobante: ComprobanteC31) {
+  if (seleccionados.value.some((c) => c.id === comprobante.id)) return
+  seleccionados.value.push(comprobante)
   validateComprobante()
 }
 
-function clearComprobante() {
-  comprobanteSeleccionado.value = null
+function removeComprobante(id: string) {
+  seleccionados.value = seleccionados.value.filter((c) => c.id !== id)
 }
 
 function handleSubmit() {
   if (!validateAll()) return
+  const hoy = new Date().toISOString().slice(0, 10)
+  if (
+    form.fechaDevolucionEstimada &&
+    form.fechaDevolucionEstimada < form.fechaHoraSalida.slice(0, 10)
+  ) {
+    errors.comprobante = 'La devolución estimada no puede ser anterior a la salida'
+    return
+  }
+  void hoy
 
   emit('submit', {
-    comprobanteId: comprobanteSeleccionado.value!.id,
+    comprobanteIds: seleccionados.value.map((c) => Number(c.id)),
     solicitanteId: form.solicitanteId,
     areaUnidad: form.areaUnidad,
     fechaHoraSalida: new Date(form.fechaHoraSalida).toISOString(),
+    fechaDevolucionEstimada: form.fechaDevolucionEstimada || undefined,
     metodoVerificacion: form.metodoVerificacion,
     evidenciaVerificacionUrl: form.evidenciaVerificacionUrl || undefined,
     observaciones: form.observaciones || undefined,
   })
 
-  comprobanteSeleccionado.value = null
+  seleccionados.value = []
   form.solicitanteId = ''
   form.areaUnidad = ''
   form.observaciones = ''
@@ -100,30 +113,16 @@ function handleSubmit() {
 <template>
   <form class="grid grid-cols-1 gap-4 sm:grid-cols-2" @submit.prevent="handleSubmit">
     <div class="sm:col-span-2">
-      <label class="mb-1.5 block text-sm font-medium text-ink-700">
-        Comprobante C31 <span class="text-seal-600">*</span>
+      <label class="mb-1.5 block text-sm font-medium text-ink-700 dark:text-ink-200">
+        Comprobantes C31 a prestar <span class="text-seal-600">*</span>
       </label>
-      <ComprobanteC31Picker
-        v-if="!comprobanteSeleccionado"
-        solo-disponibles
-        @select="selectComprobante"
-      />
-      <div
-        v-else
-        class="flex items-center justify-between rounded-md border border-ink-200 bg-ink-50 px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5"
-      >
-        <span>
-          Comprobante N°
-          {{
-            identificadorC31(comprobanteSeleccionado) ??
-            comprobanteSeleccionado.numeroFolio ??
-            comprobanteSeleccionado.id
-          }}
-          — {{ comprobanteSeleccionado.descripcion }}
-        </span>
-        <BaseButton variant="ghost" size="sm" type="button" @click="clearComprobante"
-          >Cambiar</BaseButton
-        >
+      <ComprobanteC31Picker :exclude-ids="excludeIds" solo-disponibles @select="addComprobante" />
+      <p class="mt-1 text-xs text-ink-400">
+        Puede buscar por N° o glosa, o elegir una gestión y agregar todos los comprobantes de ese
+        año.
+      </p>
+      <div class="mt-2">
+        <ComprobantesC31SelectedTable :items="seleccionados" @remove="removeComprobante" />
       </div>
       <p v-if="errors.comprobante" class="mt-1 text-xs text-red-600">{{ errors.comprobante }}</p>
     </div>
@@ -159,6 +158,11 @@ function handleSubmit() {
       v-model="form.fechaHoraSalida"
       type="datetime-local"
       label="Fecha y hora de salida"
+    />
+    <BaseInput
+      v-model="form.fechaDevolucionEstimada"
+      type="date"
+      label="Devolución estimada (opcional)"
     />
 
     <div>

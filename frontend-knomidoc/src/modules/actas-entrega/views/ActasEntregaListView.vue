@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import IconButton from '@/components/ui/IconButton.vue'
 import { onMounted, ref } from 'vue'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
@@ -108,7 +109,10 @@ async function handleRecepcion(payload: ActaAprobarPayload) {
 }
 
 async function handleAnular(row: ActaEntrega) {
-  if (!confirm(`¿Anular el acta ${row.numeroActa}? Sus comprobantes quedarán libres para otra acta.`)) return
+  if (
+    !confirm(`¿Anular el acta ${row.numeroActa}? Sus comprobantes quedarán libres para otra acta.`)
+  )
+    return
   try {
     await actasEntregaService.anular(row.id)
     await loadRows()
@@ -127,7 +131,8 @@ onMounted(loadRows)
       <div>
         <h1 class="text-2xl font-semibold">Actas de entrega (Tesorería → Archivo)</h1>
         <p class="text-sm text-ink-500 dark:text-ink-400">
-          Remisión de comprobantes firmados. Al recibir el acta en Archivo, cada comprobante pasa a “En archivo”.
+          Remisión de comprobantes firmados. Al recibir el acta en Archivo, cada comprobante pasa a
+          “En archivo”.
         </p>
       </div>
       <div class="flex items-center gap-2">
@@ -135,7 +140,10 @@ onMounted(loadRows)
           v-model="filtroEstado"
           class="rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
           aria-label="Filtrar por estado"
-          @change="page = 1; loadRows()"
+          @change="
+            page = 1;
+            loadRows()
+          "
         >
           <option value="">Todas</option>
           <option value="BORRADOR">Borrador</option>
@@ -146,7 +154,12 @@ onMounted(loadRows)
       </div>
     </div>
 
-    <p v-if="listError" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{{ listError }}</p>
+    <p
+      v-if="listError"
+      class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300"
+    >
+      {{ listError }}
+    </p>
 
     <BaseDataTable
       :columns="columns"
@@ -155,21 +168,54 @@ onMounted(loadRows)
       :page="page"
       :total-pages="Math.max(1, Math.ceil(total / pageSize))"
       empty-message="Aún no se registraron actas de entrega."
-      @update:page="(p) => { page = p; loadRows() }"
+      @update:page="
+        (p) => {
+          page = p
+          loadRows()
+        }
+      "
       @row-click="openDetail"
     >
       <template #cell-fechaRecepcion="{ row }">{{ fechaCorta(row.fechaRecepcion) }}</template>
       <template #cell-estado="{ row }"><BaseBadge :estado="row.estado" /></template>
       <template #actions="{ row }">
         <div class="flex justify-end gap-2">
-          <BaseButton v-if="row.estado === 'BORRADOR' && row.cantidadComprobantes > 0" size="sm" @click.stop="openRecepcion(row)">Recibir</BaseButton>
-          <BaseButton variant="ghost" size="sm" @click.stop="openDetail(row)">{{ row.estado === 'BORRADOR' ? 'Editar' : 'Ver' }}</BaseButton>
-          <BaseButton v-if="row.estado === 'BORRADOR'" variant="danger" size="sm" @click.stop="handleAnular(row)">Anular</BaseButton>
+          <IconButton
+            v-if="row.estado === 'BORRADOR' && row.cantidadComprobantes > 0"
+            icon="fa-clipboard-check"
+            label="Recibir acta (aprobar)"
+            variant="success"
+            @click.stop="openRecepcion(row)"
+          />
+          <IconButton
+            :icon="row.estado === 'BORRADOR' ? 'fa-pen-to-square' : 'fa-eye'"
+            :label="row.estado === 'BORRADOR' ? 'Editar acta' : 'Ver acta'"
+            @click.stop="openDetail(row)"
+          />
+          <IconButton
+            v-if="row.estado === 'BORRADOR'"
+            icon="fa-ban"
+            label="Anular acta"
+            variant="danger"
+            @click.stop="handleAnular(row)"
+          />
         </div>
       </template>
     </BaseDataTable>
 
-    <ActaEntregaModal v-model="modalOpen" :acta="editingActa" :saving="saving" :server-error="saveError" @save="handleSave" />
-    <ActaRecepcionModal v-model="recepcionOpen" :acta="editingActa" :saving="saving" :server-error="saveError" @confirm="handleRecepcion" />
+    <ActaEntregaModal
+      v-model="modalOpen"
+      :acta="editingActa"
+      :saving="saving"
+      :server-error="saveError"
+      @save="handleSave"
+    />
+    <ActaRecepcionModal
+      v-model="recepcionOpen"
+      :acta="editingActa"
+      :saving="saving"
+      :server-error="saveError"
+      @confirm="handleRecepcion"
+    />
   </div>
 </template>

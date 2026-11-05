@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import IconButton from '@/components/ui/IconButton.vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -94,7 +95,15 @@ function aplicar() {
   cargarResumen()
 }
 function limpiar() {
-  Object.assign(filtros, { search: '', tipoPago: '', estadoPago: '', gestion: '', fechaDesde: '', fechaHasta: '', beneficiario: '' })
+  Object.assign(filtros, {
+    search: '',
+    tipoPago: '',
+    estadoPago: '',
+    gestion: '',
+    fechaDesde: '',
+    fechaHasta: '',
+    beneficiario: '',
+  })
   aplicar()
 }
 watch(pestana, cargar)
@@ -142,14 +151,28 @@ async function exportar() {
 }
 
 const tarjetas = computed(() => [
-  { t: 'Pagado', v: resumen.value?.pagado.monto ?? 0, n: resumen.value?.pagado.cantidad ?? 0, c: 'text-emerald-700 dark:text-emerald-300' },
-  { t: 'Pendiente de pago', v: resumen.value?.pendiente.monto ?? 0, n: resumen.value?.pendiente.cantidad ?? 0, c: 'text-amber-700 dark:text-amber-300' },
+  {
+    t: 'Pagado',
+    v: resumen.value?.pagado.monto ?? 0,
+    n: resumen.value?.pagado.cantidad ?? 0,
+    c: 'text-emerald-700 dark:text-emerald-300',
+  },
+  {
+    t: 'Pendiente de pago',
+    v: resumen.value?.pendiente.monto ?? 0,
+    n: resumen.value?.pendiente.cantidad ?? 0,
+    c: 'text-amber-700 dark:text-amber-300',
+  },
   ...(resumen.value?.porTipo ?? []).map((x) => ({
-    t: TIPO_PAGO_LABEL[x.tipo] + 's', v: x.monto, n: x.cantidad, c: 'text-ink-900 dark:text-white',
+    t: TIPO_PAGO_LABEL[x.tipo] + 's',
+    v: x.monto,
+    n: x.cantidad,
+    c: 'text-ink-900 dark:text-white',
   })),
 ])
 
-const campo = 'rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 dark:border-white/10 dark:bg-ink-950 dark:text-ink-100'
+const campo =
+  'rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 dark:border-white/10 dark:bg-ink-950 dark:text-ink-100'
 
 onMounted(async () => {
   gestiones.value = await c31Service.listGestiones().catch(() => [])
@@ -183,7 +206,12 @@ onMounted(async () => {
     <form class="card flex flex-wrap items-end gap-3 p-4" @submit.prevent="aplicar">
       <div class="min-w-[220px] flex-1">
         <label class="mb-1 block text-xs font-medium text-ink-500">Buscar</label>
-        <input v-model="filtros.search" type="text" placeholder="Beneficiario, N° de cheque, N° de preventivo, glosa…" :class="[campo, 'w-full']" />
+        <input
+          v-model="filtros.search"
+          type="text"
+          placeholder="Beneficiario, N° de cheque, N° de preventivo, glosa…"
+          :class="[campo, 'w-full']"
+        />
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-ink-500">Gestión</label>
@@ -225,24 +253,47 @@ onMounted(async () => {
       </div>
       <p v-if="filtros.beneficiario" class="w-full text-xs text-ink-600 dark:text-ink-300">
         Beneficiario: <strong>{{ filtros.beneficiario }}</strong>
-        <button type="button" class="ml-2 text-seal-600 hover:underline dark:text-seal-300" @click="filtros.beneficiario = ''; aplicar()">quitar</button>
+        <button
+          type="button"
+          class="ml-2 text-seal-600 hover:underline dark:text-seal-300"
+          @click="
+            filtros.beneficiario = '';
+            aplicar()
+          "
+        >
+          quitar
+        </button>
       </p>
     </form>
 
     <div class="flex gap-1 border-b border-ink-100 dark:border-white/10" role="tablist">
       <button
-        v-for="t in [{ id: 'pagos', l: 'Pagos' }, { id: 'beneficiarios', l: 'Por beneficiario' }] as const"
+        v-for="t in [
+          { id: 'pagos', l: 'Pagos' },
+          { id: 'beneficiarios', l: 'Por beneficiario' },
+        ] as const"
         :key="t.id"
         type="button"
         role="tab"
         :aria-selected="pestana === t.id"
         class="-mb-px border-b-2 px-4 py-2 text-sm font-medium"
-        :class="pestana === t.id ? 'border-seal-500 text-seal-600 dark:text-seal-300' : 'border-transparent text-ink-500 hover:text-ink-800 dark:hover:text-ink-100'"
+        :class="
+          pestana === t.id
+            ? 'border-seal-500 text-seal-600 dark:text-seal-300'
+            : 'border-transparent text-ink-500 hover:text-ink-800 dark:hover:text-ink-100'
+        "
         @click="pestana = t.id"
-      >{{ t.l }}</button>
+      >
+        {{ t.l }}
+      </button>
     </div>
 
-    <p v-if="error" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{{ error }}</p>
+    <p
+      v-if="error"
+      class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300"
+    >
+      {{ error }}
+    </p>
 
     <BaseDataTable
       v-if="pestana === 'pagos'"
@@ -252,25 +303,54 @@ onMounted(async () => {
       :page="page"
       :total-pages="Math.max(1, Math.ceil(total / pageSize))"
       empty-message="No hay pagos que coincidan con los filtros."
-      @update:page="(p) => { page = p; cargar() }"
+      @update:page="
+        (p) => {
+          page = p
+          cargar()
+        }
+      "
     >
       <template #cell-comprobanteId="{ row }">
-        <button type="button" class="font-mono text-xs text-seal-600 hover:underline dark:text-seal-300" @click="verComprobante(row)">
-          {{ row.comprobante ? identificadorC31(row.comprobante) ?? row.comprobanteId : row.comprobanteId }}
+        <button
+          type="button"
+          class="font-mono text-xs text-seal-600 hover:underline dark:text-seal-300"
+          @click="verComprobante(row)"
+        >
+          {{
+            row.comprobante
+              ? (identificadorC31(row.comprobante) ?? row.comprobanteId)
+              : row.comprobanteId
+          }}
         </button>
       </template>
-      <template #cell-beneficiarioId="{ row }">{{ row.beneficiario?.nombreBeneficiario ?? '—' }}</template>
+      <template #cell-beneficiarioId="{ row }">{{
+        row.beneficiario?.nombreBeneficiario ?? '—'
+      }}</template>
       <template #cell-tipoPago="{ row }">
-        {{ TIPO_PAGO_LABEL[row.tipoPago] }}<span v-if="row.numeroDocumento" class="font-mono text-xs"> · {{ row.numeroDocumento }}</span>
+        {{ TIPO_PAGO_LABEL[row.tipoPago]
+        }}<span v-if="row.numeroDocumento" class="font-mono text-xs">
+          · {{ row.numeroDocumento }}</span
+        >
       </template>
-      <template #cell-monto="{ row }">{{ row.monto === null ? 'Sin monto' : bs(row.monto) }}</template>
+      <template #cell-monto="{ row }">{{
+        row.monto === null ? 'Sin monto' : bs(row.monto)
+      }}</template>
       <template #cell-fechaPago="{ row }">{{ fechaCorta(row.fechaPago) }}</template>
       <template #cell-estadoPago="{ row }"><BaseBadge :estado="row.estadoPago" /></template>
       <template #actions="{ row }">
-        <div v-if="auth.puedeRegistrarC31 && row.estadoPago !== 'ANULADO'" class="flex justify-end gap-1">
-          <BaseButton v-if="row.estadoPago === 'PENDIENTE'" size="sm" variant="secondary" @click="marcarPagado(row)">Marcar pagado</BaseButton>
-          <BaseButton size="sm" variant="ghost" @click="editar(row)">Editar</BaseButton>
-          <BaseButton size="sm" variant="ghost" @click="anular(row)">Anular</BaseButton>
+        <div
+          v-if="auth.puedeRegistrarC31 && row.estadoPago !== 'ANULADO'"
+          class="flex justify-end gap-1"
+        >
+          <IconButton
+            v-if="row.estadoPago === 'PENDIENTE'"
+            icon="fa-circle-check"
+            label="Marcar como pagado"
+            variant="success"
+            @click="marcarPagado(row)"
+          />
+          <IconButton icon="fa-pen-to-square" label="Editar pago" @click="editar(row)" />
+          <IconButton icon="fa-ban" label="Anular pago" variant="danger" @click="anular(row)" />
         </div>
       </template>
     </BaseDataTable>
@@ -283,14 +363,23 @@ onMounted(async () => {
       :page="benPage"
       :total-pages="Math.max(1, Math.ceil(benTotal / pageSize))"
       empty-message="Aún no hay pagos registrados a beneficiarios."
-      @update:page="(p) => { benPage = p; cargar() }"
+      @update:page="
+        (p) => {
+          benPage = p
+          cargar()
+        }
+      "
       @row-click="verPagosDe"
     >
       <template #cell-montoPagado="{ row }">{{ bs(row.montoPagado) }}</template>
       <template #cell-montoPendiente="{ row }">{{ bs(row.montoPendiente) }}</template>
       <template #cell-ultimoPago="{ row }">{{ fechaCorta(row.ultimoPago) }}</template>
       <template #actions="{ row }">
-        <BaseButton size="sm" variant="ghost" @click.stop="verPagosDe(row)">Ver pagos</BaseButton>
+        <IconButton
+          icon="fa-list-ul"
+          label="Ver pagos de este beneficiario"
+          @click.stop="verPagosDe(row)"
+        />
       </template>
     </BaseDataTable>
 

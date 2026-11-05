@@ -1,14 +1,25 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import { authService } from '@/services/auth.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { extractApiErrorMessage } from '@/utils/http-error'
+import {
+  emailValido,
+  maxLength,
+  nombrePersona,
+  passwordFuerte,
+  required,
+  runValidators,
+  telefonoValido,
+} from '@/utils/validators'
 import { ESTADO_C31_LABEL, fechaCorta, fechaHora } from '@/utils/estados'
 import type { Perfil } from '@/types/auth.types'
 
 const auth = useAuthStore()
+const router = useRouter()
 const perfil = ref<Perfil | null>(null)
 const cargando = ref(true)
 const errorCarga = ref('')
@@ -32,9 +43,14 @@ const guardandoClave = ref(false)
 const msgClave = ref('')
 const errClave = ref('')
 
-const iniciales = computed(() =>
-  (perfil.value?.nombreCompleto ?? '')
-    .split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('') || '?',
+const iniciales = computed(
+  () =>
+    (perfil.value?.nombreCompleto ?? '')
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase())
+      .join('') || '?',
 )
 
 function rellenar(p: Perfil) {
@@ -59,8 +75,21 @@ async function cargar() {
 
 async function guardarDatos() {
   msgDatos.value = errDatos.value = ''
-  if (!datos.nombreCompleto.trim()) return (errDatos.value = 'El nombre no puede quedar vacío.')
-  if (!/^\S+@\S+\.\S+$/.test(datos.email.trim())) return (errDatos.value = 'Ingrese un correo válido.')
+  const err =
+    runValidators(datos.nombreCompleto, [
+      required('El nombre no puede quedar vacío.'),
+      nombrePersona(),
+      maxLength(150),
+    ]) ??
+    runValidators(datos.email, [
+      required('El correo es obligatorio.'),
+      emailValido(),
+      maxLength(100),
+    ]) ??
+    runValidators(datos.cargo, [maxLength(100)]) ??
+    runValidators(datos.unidadOArea, [maxLength(150)]) ??
+    runValidators(datos.telefono, [telefonoValido()])
+  if (err) return (errDatos.value = err)
   guardandoDatos.value = true
   try {
     await auth.actualizarPerfil({
@@ -70,6 +99,11 @@ async function guardarDatos() {
       unidadOArea: datos.unidadOArea,
       telefono: datos.telefono,
     })
+    // Un correo nuevo exige confirmarlo con un código antes de seguir usando el sistema
+    if (auth.emailPendiente) {
+      router.push({ name: 'verificar-email' })
+      return
+    }
     msgDatos.value = 'Datos actualizados.'
     await cargar()
   } catch (err) {
@@ -81,8 +115,10 @@ async function guardarDatos() {
 
 async function cambiarClave() {
   msgClave.value = errClave.value = ''
-  if (clave.nueva.length < 8) return (errClave.value = 'La nueva contraseña debe tener al menos 8 caracteres.')
-  if (clave.nueva !== clave.repetir) return (errClave.value = 'Las contraseñas nuevas no coinciden.')
+  const errPass = runValidators(clave.nueva, [passwordFuerte()])
+  if (errPass) return (errClave.value = errPass)
+  if (clave.nueva !== clave.repetir)
+    return (errClave.value = 'Las contraseñas nuevas no coinciden.')
   guardandoClave.value = true
   try {
     await authService.cambiarPassword({ passwordActual: clave.actual, passwordNueva: clave.nueva })
@@ -102,24 +138,44 @@ onMounted(cargar)
   <div class="mx-auto max-w-4xl space-y-6">
     <div>
       <h1 class="text-2xl font-semibold">Mi perfil</h1>
-      <p class="text-sm text-ink-500 dark:text-ink-400">Tus datos de contacto, tu contraseña y tu actividad en el sistema.</p>
+      <p class="text-sm text-ink-500 dark:text-ink-400">
+        Tus datos de contacto, tu contraseña y tu actividad en el sistema.
+      </p>
     </div>
 
-    <p v-if="errorCarga" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{{ errorCarga }}</p>
+    <p
+      v-if="errorCarga"
+      class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300"
+    >
+      {{ errorCarga }}
+    </p>
 
     <template v-if="perfil">
       <div class="card flex flex-wrap items-center gap-4 p-5">
-        <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-seal-400 to-seal-600 text-lg font-bold text-white">{{ iniciales }}</div>
+        <div
+          class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-seal-400 to-seal-600 text-lg font-bold text-white"
+        >
+          {{ iniciales }}
+        </div>
         <div class="min-w-0">
-          <p class="text-lg font-semibold text-ink-900 dark:text-white">{{ perfil.nombreCompleto }}</p>
+          <p class="text-lg font-semibold text-ink-900 dark:text-white">
+            {{ perfil.nombreCompleto }}
+          </p>
           <p class="text-sm text-ink-600 dark:text-ink-300">
-            {{ ROL[perfil.rol] ?? perfil.rol }} · usuario <span class="font-mono">{{ perfil.username }}</span>
+            {{ ROL[perfil.rol] ?? perfil.rol }} · usuario
+            <span class="font-mono">{{ perfil.username }}</span>
             <span v-if="perfil.fechaCreacion"> · desde {{ fechaCorta(perfil.fechaCreacion) }}</span>
           </p>
         </div>
         <div class="ml-auto flex gap-6 text-center">
-          <div><p class="text-xl font-semibold">{{ perfil.actividad.comprobantesRegistrados }}</p><p class="text-xs text-ink-500">C31 registrados</p></div>
-          <div><p class="text-xl font-semibold">{{ perfil.actividad.cambiosDeEstado }}</p><p class="text-xs text-ink-500">cambios de estado</p></div>
+          <div>
+            <p class="text-xl font-semibold">{{ perfil.actividad.comprobantesRegistrados }}</p>
+            <p class="text-xs text-ink-500">C31 registrados</p>
+          </div>
+          <div>
+            <p class="text-xl font-semibold">{{ perfil.actividad.cambiosDeEstado }}</p>
+            <p class="text-xs text-ink-500">cambios de estado</p>
+          </div>
         </div>
       </div>
 
@@ -127,33 +183,66 @@ onMounted(cargar)
         <form class="card space-y-4 p-5" @submit.prevent="guardarDatos">
           <h2 class="text-base font-semibold">Datos personales</h2>
           <p v-if="errDatos" class="text-sm text-red-600" role="alert">{{ errDatos }}</p>
-          <p v-if="msgDatos" class="text-sm text-emerald-700 dark:text-emerald-300" role="status">{{ msgDatos }}</p>
+          <p v-if="msgDatos" class="text-sm text-emerald-700 dark:text-emerald-300" role="status">
+            {{ msgDatos }}
+          </p>
           <BaseInput v-model="datos.nombreCompleto" label="Nombre completo" required />
-          <BaseInput v-model="datos.email" type="email" label="Correo electrónico" required hint="También sirve para recuperar tu contraseña." />
+          <BaseInput
+            v-model="datos.email"
+            type="email"
+            label="Correo electrónico"
+            required
+            hint="Si lo cambias, te enviaremos un código de 6 dígitos para verificarlo."
+          />
           <BaseInput v-model="datos.cargo" label="Cargo" />
           <BaseInput v-model="datos.unidadOArea" label="Unidad o área" />
           <BaseInput v-model="datos.telefono" label="Teléfono" />
-          <p class="text-xs text-ink-400">El rol y el nombre de usuario los administra un administrador.</p>
+          <p class="text-xs text-ink-400">
+            El rol y el nombre de usuario los administra un administrador.
+          </p>
           <BaseButton type="submit" :loading="guardandoDatos">Guardar datos</BaseButton>
         </form>
 
         <form class="card space-y-4 self-start p-5" @submit.prevent="cambiarClave">
           <h2 class="text-base font-semibold">Cambiar contraseña</h2>
           <p v-if="errClave" class="text-sm text-red-600" role="alert">{{ errClave }}</p>
-          <p v-if="msgClave" class="text-sm text-emerald-700 dark:text-emerald-300" role="status">{{ msgClave }}</p>
+          <p v-if="msgClave" class="text-sm text-emerald-700 dark:text-emerald-300" role="status">
+            {{ msgClave }}
+          </p>
           <BaseInput v-model="clave.actual" type="password" label="Contraseña actual" required />
-          <BaseInput v-model="clave.nueva" type="password" label="Nueva contraseña" required hint="Mínimo 8 caracteres." />
-          <BaseInput v-model="clave.repetir" type="password" label="Repite la nueva contraseña" required />
+          <BaseInput
+            v-model="clave.nueva"
+            type="password"
+            label="Nueva contraseña"
+            required
+            hint="8 a 72 caracteres, con al menos una letra y un número."
+          />
+          <BaseInput
+            v-model="clave.repetir"
+            type="password"
+            label="Repite la nueva contraseña"
+            required
+          />
           <BaseButton type="submit" :loading="guardandoClave">Actualizar contraseña</BaseButton>
         </form>
       </div>
 
       <div class="card p-5">
         <h2 class="mb-3 text-base font-semibold">Mi actividad reciente</h2>
-        <p v-if="!perfil.actividad.recientes.length" class="text-sm text-ink-400">Todavía no registraste movimientos.</p>
+        <p v-if="!perfil.actividad.recientes.length" class="text-sm text-ink-400">
+          Todavía no registraste movimientos.
+        </p>
         <ul v-else class="divide-y divide-ink-100 text-sm dark:divide-white/10">
-          <li v-for="(r, i) in perfil.actividad.recientes" :key="i" class="flex flex-wrap justify-between gap-2 py-2">
-            <span>Comprobante #{{ r.comprobanteId }} → <strong>{{ ESTADO_C31_LABEL[r.estadoNuevo] ?? r.estadoNuevo }}</strong><span v-if="r.referencia" class="text-ink-500"> · {{ r.referencia }}</span></span>
+          <li
+            v-for="(r, i) in perfil.actividad.recientes"
+            :key="i"
+            class="flex flex-wrap justify-between gap-2 py-2"
+          >
+            <span
+              >Comprobante #{{ r.comprobanteId }} →
+              <strong>{{ ESTADO_C31_LABEL[r.estadoNuevo] ?? r.estadoNuevo }}</strong
+              ><span v-if="r.referencia" class="text-ink-500"> · {{ r.referencia }}</span></span
+            >
             <span class="text-xs text-ink-500">{{ fechaHora(r.fecha) }}</span>
           </li>
         </ul>

@@ -74,7 +74,9 @@ export class AuditoriaService {
     if (query.usuarioId) base.usuarioId = query.usuarioId;
     if (query.fechaDesde || query.fechaHasta) {
       const desde = new Date(`${query.fechaDesde ?? '1970-01-01'}T00:00:00`);
-      const hasta = new Date(`${query.fechaHasta ?? '2999-12-31'}T23:59:59.999`);
+      const hasta = new Date(
+        `${query.fechaHasta ?? '2999-12-31'}T23:59:59.999`,
+      );
       base.fecha = Between(desde, hasta);
     }
 

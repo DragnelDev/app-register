@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onBeforeUnmount } from 'vue'
+import { ref, watch, onBeforeUnmount, onMounted } from 'vue'
 import { c31Service } from '@/services/c31.service'
 import { extractApiErrorMessage } from '@/utils/http-error'
 import type { ComprobanteC31 } from '@/types/c31.types'
@@ -15,6 +15,10 @@ const props = withDefaults(
     excludeAsignadosAActa?: boolean
     /** ID de la acta actual (si se está editando una), para no excluir sus propios comprobantes */
     actaActualId?: string | number | null
+    /** Solo comprobantes archivados correctamente (los únicos que se pueden prestar) */
+    soloDisponibles?: boolean
+    /** Muestra el filtro por gestión (año) y permite listar todos los de una gestión */
+    filtrarGestion?: boolean
     placeholder?: string
   }>(),
   {
@@ -22,13 +26,17 @@ const props = withDefaults(
     excludeAprobados: false,
     excludeAsignadosAActa: false,
     actaActualId: null,
-    placeholder: 'Buscar por descripción / glosa del comprobante…',
+    soloDisponibles: false,
+    filtrarGestion: true,
+    placeholder: 'Buscar por N°, glosa o beneficiario…',
   },
 )
 
 const emit = defineEmits<{ select: [comprobante: ComprobanteC31] }>()
 
 const search = ref('')
+const gestion = ref<number | ''>('')
+const gestiones = ref<number[]>([])
 const results = ref<ComprobanteC31[]>([])
 const loading = ref(false)
 const open = ref(false)
@@ -39,7 +47,12 @@ async function runSearch(term: string) {
   loading.value = true
   errorMessage.value = ''
   try {
-    const res = await c31Service.list({ search: term, pageSize: 10 })
+    const res = await c31Service.list({
+      search: term || undefined,
+      gestion: gestion.value || undefined,
+      pageSize: 20,
+      estadoFisico: props.soloDisponibles ? 'ARCHIVADO' : undefined,
+    })
     results.value = res.data.filter((c) => {
       if (props.excludeIds.some((id) => String(id) === String(c.id))) return false
       if (
@@ -58,17 +71,31 @@ async function runSearch(term: string) {
   }
 }
 
-watch(search, (term) => {
+function programarBusqueda() {
   if (debounceTimer) clearTimeout(debounceTimer)
-  const trimmed = term.trim()
-  if (trimmed.length < 2) {
+  const trimmed = search.value.trim()
+  // Se busca con 2+ letras, o al elegir una gestión (lista todos los de ese año)
+  if (trimmed.length < 2 && !gestion.value) {
     results.value = []
     open.value = false
     return
   }
   open.value = true
-  debounceTimer = setTimeout(() => runSearch(trimmed), 350)
+  debounceTimer = setTimeout(() => runSearch(trimmed.length >= 2 ? trimmed : ''), 350)
+}
+watch([search, gestion], programarBusqueda)
+
+onMounted(async () => {
+  if (props.filtrarGestion) gestiones.value = await c31Service.listGestiones().catch(() => [])
 })
+
+/** Agrega de una vez todos los comprobantes mostrados (selección por gestión). */
+function pickAll() {
+  const lote = [...results.value]
+  lote.forEach((c) => emit('select', c))
+  results.value = []
+  open.value = false
+}
 
 function pick(comprobante: ComprobanteC31) {
   emit('select', comprobante)
@@ -77,8 +104,8 @@ function pick(comprobante: ComprobanteC31) {
   open.value = false
 }
 
-function formatMonto(monto: number) {
-  return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2 }).format(monto)
+function formatMonto(monto: number | null) {
+  return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2 }).format(monto ?? 0)
 }
 
 function joinNombres(items: { nombreBeneficiario?: string }[] | undefined) {
@@ -97,13 +124,24 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="relative">
-    <input
-      v-model="search"
-      type="text"
-      :placeholder="placeholder"
-      class="w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-300 focus:border-ink-400 dark:border-white/10 dark:bg-ink-950 dark:text-ink-100 dark:placeholder:text-ink-500 dark:focus:border-seal-400"
-      @focus="open = results.length > 0 || search.trim().length >= 2"
-    />
+    <div class="flex gap-2">
+      <select
+        v-if="filtrarGestion"
+        v-model="gestion"
+        aria-label="Gestión"
+        class="w-28 shrink-0 rounded-md border border-ink-200 bg-white px-2 py-2 text-sm text-ink-900 dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
+      >
+        <option value="">Gestión</option>
+        <option v-for="g in gestiones" :key="g" :value="g">{{ g }}</option>
+      </select>
+      <input
+        v-model="search"
+        type="text"
+        :placeholder="placeholder"
+        class="w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-300 focus:border-ink-400 dark:border-white/10 dark:bg-ink-950 dark:text-ink-100 dark:placeholder:text-ink-500 dark:focus:border-seal-400"
+        @focus="open = results.length > 0 || search.trim().length >= 2 || Boolean(gestion)"
+      />
+    </div>
 
     <div
       v-if="open"
@@ -114,6 +152,14 @@ onBeforeUnmount(() => {
       <p v-else-if="results.length === 0" class="px-3 py-3 text-sm text-ink-400">
         No se encontraron comprobantes que coincidan con la búsqueda.
       </p>
+      <button
+        v-if="!loading && !errorMessage && results.length > 1"
+        type="button"
+        class="block w-full border-b border-ink-100 bg-ink-50 px-3 py-2 text-left text-xs font-semibold text-seal-700 hover:bg-seal-50 dark:border-white/10 dark:bg-white/5 dark:text-seal-300"
+        @click="pickAll"
+      >
+        + Agregar los {{ results.length }} comprobantes mostrados
+      </button>
       <button
         v-for="comprobante in results"
         v-else
@@ -132,7 +178,7 @@ onBeforeUnmount(() => {
           >
         </div>
         <p class="mt-0.5 truncate text-xs text-ink-500 dark:text-ink-400">
-          {{ comprobante.descripcion }}
+          {{ comprobante.descripcion ?? 'Sin descripción (incompleto)' }}
         </p>
         <p class="mt-0.5 text-xs text-ink-400 dark:text-ink-500">
           Prev: {{ numeroPreventivoC31(comprobante) ?? '—' }} · Dev:

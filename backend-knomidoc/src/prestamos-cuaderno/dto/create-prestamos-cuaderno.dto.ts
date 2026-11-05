@@ -1,6 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayNotEmpty,
+  IsArray,
   IsDateString,
   IsIn,
   IsInt,
@@ -18,10 +21,20 @@ const vacioAUndefined = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' && value.trim() === '' ? undefined : value;
 
 export class CreatePrestamosCuadernoDto {
-  @ApiProperty({ example: 10 })
+  @ApiProperty({
+    type: [Number],
+    example: [10, 11],
+    description:
+      'Comprobantes C31 que salen del archivo. Se registra una salida por cada comprobante.',
+  })
+  @IsArray()
+  @ArrayNotEmpty({ message: 'Debe indicar al menos un comprobante a prestar' })
+  @ArrayMaxSize(100, {
+    message: 'No se pueden prestar más de 100 comprobantes a la vez',
+  })
   @Type(() => Number)
-  @IsInt()
-  readonly comprobanteId: number | undefined;
+  @IsInt({ each: true })
+  readonly comprobanteIds: number[] = [];
 
   @ApiProperty({
     example: 4,
@@ -50,7 +63,10 @@ export class CreatePrestamosCuadernoDto {
   })
   @IsOptional()
   @Transform(vacioAUndefined)
-  @IsDateString({}, { message: 'La fecha de devolución estimada debe ser válida' })
+  @IsDateString(
+    {},
+    { message: 'La fecha de devolución estimada debe ser válida' },
+  )
   readonly fechaDevolucionEstimada?: string;
 
   @ApiPropertyOptional({
@@ -81,5 +97,6 @@ export class CreatePrestamosCuadernoDto {
   @IsOptional()
   @Transform(vacioAUndefined)
   @IsString()
+  @MaxLength(1000)
   readonly observaciones?: string;
 }

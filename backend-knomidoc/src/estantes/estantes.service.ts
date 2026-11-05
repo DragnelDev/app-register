@@ -36,7 +36,8 @@ export class EstantesService {
   private async validarDeposito(depositoId?: number) {
     if (depositoId === undefined) return;
     const deposito = await this.depositosRepo.findOneBy({ id: depositoId });
-    if (!deposito) throw new BadRequestException('El depósito indicado no existe');
+    if (!deposito)
+      throw new BadRequestException('El depósito indicado no existe');
     if (!deposito.activo) {
       throw new BadRequestException('El depósito indicado está inactivo');
     }
@@ -56,7 +57,9 @@ export class EstantesService {
       throw new ConflictException('Ya existe un estante con ese código');
     }
     await this.validarDeposito(dto.depositoId);
-    return this.repo.save(this.repo.create({ ...dto, creadoPorId: usuario.id }));
+    return this.repo.save(
+      this.repo.create({ ...dto, creadoPorId: usuario.id }),
+    );
   }
 
   async findAll(

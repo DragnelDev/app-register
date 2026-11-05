@@ -32,12 +32,20 @@ const ORIGEN: Record<string, string> = {
 
 <template>
   <div class="space-y-6 text-sm">
-    <p v-if="error" class="rounded-md bg-red-50 px-3 py-2 text-red-700 dark:bg-red-950/40 dark:text-red-300">{{ error }}</p>
+    <p
+      v-if="error"
+      class="rounded-md bg-red-50 px-3 py-2 text-red-700 dark:bg-red-950/40 dark:text-red-300"
+    >
+      {{ error }}
+    </p>
 
     <template v-if="datos">
       <section>
         <h4 class="mb-2 font-semibold text-ink-800 dark:text-ink-100">Préstamos</h4>
-        <div v-if="datos.prestamos.length" class="mb-3 flex flex-wrap gap-4 text-xs text-ink-600 dark:text-ink-300">
+        <div
+          v-if="datos.prestamos.length"
+          class="mb-3 flex flex-wrap gap-4 text-xs text-ink-600 dark:text-ink-300"
+        >
           <span>{{ datos.resumenPrestamos.total }} en total</span>
           <span>{{ datos.resumenPrestamos.activos }} activo(s)</span>
           <span :class="datos.resumenPrestamos.vencidos ? 'font-semibold text-red-600' : ''">
@@ -45,14 +53,20 @@ const ORIGEN: Record<string, string> = {
           </span>
           <span>{{ datos.resumenPrestamos.conNovedad }} devuelto(s) con novedad</span>
         </div>
-        <p v-if="datos.prestamos.length === 0" class="text-ink-400">Este comprobante nunca fue prestado.</p>
+        <p v-if="datos.prestamos.length === 0" class="text-ink-400">
+          Este comprobante nunca fue prestado.
+        </p>
 
         <ol class="space-y-3">
           <li
             v-for="p in datos.prestamos"
             :key="`${p.tipo}-${p.id}`"
             class="rounded-md border p-3"
-            :class="p.vencido ? 'border-red-300 dark:border-red-500/40' : 'border-ink-100 dark:border-white/10'"
+            :class="
+              p.vencido
+                ? 'border-red-300 dark:border-red-500/40'
+                : 'border-ink-100 dark:border-white/10'
+            "
           >
             <div class="flex flex-wrap items-center justify-between gap-2">
               <p class="font-medium text-ink-900 dark:text-white">
@@ -62,7 +76,10 @@ const ORIGEN: Record<string, string> = {
                 </span>
               </p>
               <div class="flex items-center gap-2">
-                <span v-if="p.vencido" class="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-400/15 dark:text-red-300">
+                <span
+                  v-if="p.vencido"
+                  class="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-400/15 dark:text-red-300"
+                >
                   Vencido hace {{ p.diasVencido }} día(s)
                 </span>
                 <BaseBadge :estado="p.devuelto ? 'DEVUELTO' : 'ENTREGADO'">
@@ -72,24 +89,70 @@ const ORIGEN: Record<string, string> = {
             </div>
 
             <dl class="mt-2 grid grid-cols-1 gap-x-6 gap-y-1 text-xs sm:grid-cols-2">
-              <div><dt class="inline text-ink-500">Recibe: </dt><dd class="inline">{{ p.solicitante }}</dd></div>
-              <div><dt class="inline text-ink-500">Institución / área: </dt><dd class="inline">{{ p.institucionOArea }}</dd></div>
-              <div><dt class="inline text-ink-500">Salida: </dt><dd class="inline">{{ p.tipo === 'CUADERNO' ? fechaHora(p.fechaSalida) : fechaCorta(p.fechaSalida) }}</dd></div>
-              <div><dt class="inline text-ink-500">Devolución estimada: </dt><dd class="inline">{{ fechaCorta(p.fechaDevolucionEstimada) }}</dd></div>
               <div>
-                <dt class="inline text-ink-500">Devolución real: </dt>
-                <dd class="inline">{{ p.devuelto ? (p.tipo === 'CUADERNO' ? fechaHora(p.fechaDevolucion) : fechaCorta(p.fechaDevolucion)) : 'Pendiente' }}</dd>
+                <dt class="inline text-ink-500">Recibe:</dt>
+                <dd class="inline">{{ p.solicitante }}</dd>
               </div>
-              <div><dt class="inline text-ink-500">Tiempo {{ p.devuelto ? 'prestado' : 'transcurrido' }}: </dt><dd class="inline">{{ p.diasPrestado }} día(s)</dd></div>
-              <div><dt class="inline text-ink-500">Entregó (registró): </dt><dd class="inline">{{ p.registradoPor ?? '—' }}</dd></div>
-              <div><dt class="inline text-ink-500">Recibió la devolución: </dt><dd class="inline">{{ p.recibidoPor ?? '—' }}</dd></div>
-              <div v-if="p.metodoVerificacion"><dt class="inline text-ink-500">Verificación: </dt><dd class="inline">{{ p.metodoVerificacion === 'FIRMA_MANUAL' ? 'Firma manual' : 'Huella digital' }}</dd></div>
+              <div>
+                <dt class="inline text-ink-500">Institución / área:</dt>
+                <dd class="inline">{{ p.institucionOArea }}</dd>
+              </div>
+              <div>
+                <dt class="inline text-ink-500">Salida:</dt>
+                <dd class="inline">
+                  {{ p.tipo === 'CUADERNO' ? fechaHora(p.fechaSalida) : fechaCorta(p.fechaSalida) }}
+                </dd>
+              </div>
+              <div>
+                <dt class="inline text-ink-500">Devolución estimada:</dt>
+                <dd class="inline">{{ fechaCorta(p.fechaDevolucionEstimada) }}</dd>
+              </div>
+              <div>
+                <dt class="inline text-ink-500">Devolución real:</dt>
+                <dd class="inline">
+                  {{
+                    p.devuelto
+                      ? p.tipo === 'CUADERNO'
+                        ? fechaHora(p.fechaDevolucion)
+                        : fechaCorta(p.fechaDevolucion)
+                      : 'Pendiente'
+                  }}
+                </dd>
+              </div>
+              <div>
+                <dt class="inline text-ink-500">
+                  Tiempo {{ p.devuelto ? 'prestado' : 'transcurrido' }}:
+                </dt>
+                <dd class="inline">{{ p.diasPrestado }} día(s)</dd>
+              </div>
+              <div>
+                <dt class="inline text-ink-500">Entregó (registró):</dt>
+                <dd class="inline">{{ p.registradoPor ?? '—' }}</dd>
+              </div>
+              <div>
+                <dt class="inline text-ink-500">Recibió la devolución:</dt>
+                <dd class="inline">{{ p.recibidoPor ?? '—' }}</dd>
+              </div>
+              <div v-if="p.metodoVerificacion">
+                <dt class="inline text-ink-500">Verificación:</dt>
+                <dd class="inline">
+                  {{ p.metodoVerificacion === 'FIRMA_MANUAL' ? 'Firma manual' : 'Huella digital' }}
+                </dd>
+              </div>
             </dl>
 
-            <p v-if="p.observaciones" class="mt-2 text-xs"><span class="text-ink-500">Al prestar: </span>{{ p.observaciones }}</p>
+            <p v-if="p.observaciones" class="mt-2 text-xs">
+              <span class="text-ink-500">Al prestar: </span>{{ p.observaciones }}
+            </p>
             <p v-if="p.devuelto" class="mt-1 text-xs">
               <span class="text-ink-500">Al devolver: </span>
-              <span :class="p.condicionDevolucion === 'CON_NOVEDAD' ? 'font-semibold text-orange-700 dark:text-orange-300' : ''">
+              <span
+                :class="
+                  p.condicionDevolucion === 'CON_NOVEDAD'
+                    ? 'font-semibold text-orange-700 dark:text-orange-300'
+                    : ''
+                "
+              >
                 {{ p.condicionDevolucion === 'CON_NOVEDAD' ? 'con novedad' : 'conforme' }}
               </span>
               <span v-if="p.observacionesDevolucion"> — {{ p.observacionesDevolucion }}</span>
@@ -109,7 +172,9 @@ const ORIGEN: Record<string, string> = {
               <span v-if="h.usuario"> · {{ h.usuario }}</span>
             </p>
             <p class="text-ink-900 dark:text-white">
-              <template v-if="h.estadoAnterior">{{ ESTADO_C31_LABEL[h.estadoAnterior] }} → </template>
+              <template v-if="h.estadoAnterior"
+                >{{ ESTADO_C31_LABEL[h.estadoAnterior] }} →
+              </template>
               <strong>{{ ESTADO_C31_LABEL[h.estadoNuevo] ?? h.estadoNuevo }}</strong>
             </p>
             <p v-if="h.detalle" class="text-xs text-ink-600 dark:text-ink-300">{{ h.detalle }}</p>

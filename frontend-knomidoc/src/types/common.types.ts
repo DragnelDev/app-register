@@ -1,13 +1,7 @@
 // Tipos compartidos entre módulos, alineados al DER/MER actual del backend NestJS
 
 export type EstadoFisico =
-  | 'EN_TRAMITE'
-  | 'EN_REVISION'
-  | 'EN_ARCHIVO'
-  | 'ARCHIVADO'
-  | 'PRESTADO'
-  | 'OBSERVADO'
-  | 'ANULADO'
+  'EN_TRAMITE' | 'EN_REVISION' | 'EN_ARCHIVO' | 'ARCHIVADO' | 'PRESTADO' | 'OBSERVADO' | 'ANULADO'
 export type TipoC31 = 'CON_IMPUTACION' | 'SIN_IMPUTACION'
 export type EstadoPrestamoNota = 'ENTREGADO' | 'DEVUELTO'
 export type MetodoVerificacion = 'FIRMA_MANUAL' | 'HUELLA_DIGITAL'

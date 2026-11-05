@@ -1,13 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsArray,
   IsDateString,
   IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
+  MinLength,
 } from 'class-validator';
 
 const trim = ({ value }: { value: unknown }): unknown =>
@@ -18,6 +21,9 @@ export class CreateActasEntregaDto {
   @IsNotEmpty({ message: 'El número de acta es obligatorio' })
   @IsString()
   @MaxLength(50)
+  @Matches(/^[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ .\/\-_]+$/, {
+    message: 'El N° de acta solo admite letras, números, espacios y . / - _',
+  })
   @Transform(trim)
   readonly numeroActa?: string;
 
@@ -31,6 +37,7 @@ export class CreateActasEntregaDto {
   @ApiProperty({ example: 'Lic. María Rojas (Tesorería)' })
   @IsNotEmpty({ message: 'El responsable de entrega es obligatorio' })
   @IsString()
+  @MinLength(3, { message: 'Indique el nombre completo' })
   @MaxLength(150)
   @Transform(trim)
   readonly responsableEntrega?: string;
@@ -38,6 +45,7 @@ export class CreateActasEntregaDto {
   @ApiProperty({ example: 'Ana Rodríguez (Archivo Central)' })
   @IsNotEmpty({ message: 'El responsable de recepción es obligatorio' })
   @IsString()
+  @MinLength(3, { message: 'Indique el nombre completo' })
   @MaxLength(150)
   @Transform(trim)
   readonly responsableRecepcion?: string;
@@ -53,6 +61,7 @@ export class CreateActasEntregaDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(1000)
   @Transform(trim)
   readonly observaciones?: string;
 
@@ -64,6 +73,7 @@ export class CreateActasEntregaDto {
   })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(300, { message: 'Un acta admite hasta 300 comprobantes' })
   @Type(() => Number)
   @IsInt({ each: true })
   readonly comprobanteIds?: number[];

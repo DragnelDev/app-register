@@ -1,25 +1,34 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import { extractApiErrorMessage } from '@/utils/http-error'
 
 const auth = useAuthStore()
+const router = useRouter()
 
 const email = ref('')
 const errorMessage = ref('')
-const sent = ref(false)
+
+const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim())
 
 async function handleSubmit() {
   errorMessage.value = ''
+  if (!emailValido(email.value)) {
+    errorMessage.value = 'Ingresa un correo válido.'
+    return
+  }
   try {
-    await auth.forgotPassword(email.value)
-    // Se muestra el mismo mensaje exista o no el correo (evita filtrar qué
-    // correos están registrados en el sistema).
-    sent.value = true
-  } catch {
-    errorMessage.value = 'No se pudo procesar la solicitud. Intenta nuevamente.'
+    await auth.forgotPassword(email.value.trim().toLowerCase())
+    // Responde igual exista o no el correo (no revela qué correos están registrados)
+    router.push({ name: 'reset-password', query: { email: email.value.trim().toLowerCase() } })
+  } catch (err) {
+    errorMessage.value = extractApiErrorMessage(
+      err,
+      'No se pudo procesar la solicitud. Intenta nuevamente.',
+    )
   }
 }
 </script>
@@ -30,21 +39,11 @@ async function handleSubmit() {
       <div class="mb-6 text-center">
         <h1 class="font-display text-2xl font-semibold text-ink-900">Recuperar contraseña</h1>
         <p class="mt-1 text-sm text-ink-400">
-          Ingresa tu correo registrado y te enviaremos un enlace para restablecer tu contraseña.
+          Ingresa tu correo registrado y te enviaremos un código de 6 dígitos.
         </p>
       </div>
 
-      <div v-if="sent" class="space-y-4 text-center">
-        <p class="rounded-md bg-emerald-50 px-3 py-3 text-sm text-emerald-700">
-          Si el correo está registrado, en unos minutos recibirás un enlace para restablecer tu
-          contraseña. Revisa también tu bandeja de spam.
-        </p>
-        <RouterLink to="/login" class="text-sm font-medium text-ink-700 hover:underline">
-          Volver a iniciar sesión
-        </RouterLink>
-      </div>
-
-      <form v-else class="space-y-4" @submit.prevent="handleSubmit">
+      <form class="space-y-4" novalidate @submit.prevent="handleSubmit">
         <BaseInput
           v-model="email"
           type="email"
@@ -52,17 +51,14 @@ async function handleSubmit() {
           placeholder="usuario@knomidoc.com"
           required
         />
-
-        <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
-
-        <BaseButton type="submit" class="w-full justify-center" :loading="auth.loading">
-          Enviar enlace de recuperación
-        </BaseButton>
-
+        <p v-if="errorMessage" class="text-sm text-red-600" role="alert">{{ errorMessage }}</p>
+        <BaseButton type="submit" class="w-full justify-center" :loading="auth.loading"
+          >Enviar código</BaseButton
+        >
         <p class="text-center text-sm">
-          <RouterLink to="/login" class="font-medium text-ink-700 hover:underline">
-            Volver a iniciar sesión
-          </RouterLink>
+          <RouterLink to="/login" class="font-medium text-ink-700 hover:underline"
+            >Volver a iniciar sesión</RouterLink
+          >
         </p>
       </form>
     </div>

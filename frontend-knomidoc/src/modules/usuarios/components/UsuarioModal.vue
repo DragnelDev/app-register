@@ -1,8 +1,17 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import {
+  emailValido,
+  maxLength,
+  nombrePersona,
+  passwordFuerte,
+  required,
+  runValidators,
+  usernameValido,
+} from '@/utils/validators'
 import type { Usuario, UsuarioCreatePayload, UsuarioUpdatePayload } from '@/types/auth.types'
 import type { RolUsuario } from '@/types/common.types'
 
@@ -10,6 +19,7 @@ const props = defineProps<{
   modelValue: boolean
   usuario?: Usuario | null
   saving?: boolean
+  serverError?: string
 }>()
 
 const emit = defineEmits<{
@@ -49,7 +59,44 @@ watch(
   { immediate: true },
 )
 
+const intentado = ref(false)
+const errores = computed(() => ({
+  username: props.usuario
+    ? ''
+    : (runValidators(form.username, [required('El usuario es obligatorio'), usernameValido()]) ??
+      ''),
+  nombreCompleto:
+    runValidators(form.nombreCompleto, [
+      required('El nombre es obligatorio'),
+      nombrePersona(),
+      maxLength(150),
+    ]) ?? '',
+  email:
+    runValidators(form.email, [
+      required('El correo es obligatorio'),
+      emailValido(),
+      maxLength(100),
+    ]) ?? '',
+  password:
+    props.usuario && !form.password
+      ? ''
+      : (runValidators(form.password, [
+          required('La contraseña es obligatoria'),
+          passwordFuerte(),
+        ]) ?? ''),
+}))
+const ver = (e: string) => (intentado.value ? e : '')
+
+watch(
+  () => props.modelValue,
+  (abierto) => {
+    if (abierto) intentado.value = false
+  },
+)
+
 function handleSubmit() {
+  intentado.value = true
+  if (Object.values(errores.value).some(Boolean)) return
   if (props.usuario) {
     // No se envía la contraseña si se dejó en blanco (no se quiere resetear)
     const payload: UsuarioUpdatePayload = {
@@ -81,16 +128,40 @@ function handleSubmit() {
     :title="usuario ? 'Editar usuario' : 'Registrar nuevo usuario'"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <form id="usuario-form" class="space-y-4" @submit.prevent="handleSubmit">
+    <form id="usuario-form" class="space-y-4" novalidate @submit.prevent="handleSubmit">
+      <p
+        v-if="serverError"
+        class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300"
+        role="alert"
+      >
+        {{ serverError }}
+      </p>
       <BaseInput
         v-model="form.username"
         label="Usuario"
         placeholder="jperez"
         required
         :disabled="Boolean(usuario)"
+        :error="ver(errores.username)"
       />
-      <BaseInput v-model="form.nombreCompleto" label="Nombre completo" required />
-      <BaseInput v-model="form.email" type="email" label="Correo electrónico" required />
+      <BaseInput
+        v-model="form.nombreCompleto"
+        label="Nombre completo"
+        required
+        :error="ver(errores.nombreCompleto)"
+      />
+      <BaseInput
+        v-model="form.email"
+        type="email"
+        label="Correo electrónico"
+        required
+        :error="ver(errores.email)"
+        :hint="
+          usuario
+            ? 'Si cambia el correo, deberá volver a verificarlo con un código.'
+            : 'Recibirá un código de 6 dígitos para verificarlo al ingresar.'
+        "
+      />
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <BaseInput v-model="form.cargo" label="Cargo (opcional)" />
         <BaseInput v-model="form.unidadOArea" label="Unidad / área (opcional)" />
@@ -101,6 +172,7 @@ function handleSubmit() {
         :label="usuario ? 'Nueva contraseña (opcional)' : 'Contraseña'"
         :hint="usuario ? 'Déjalo en blanco para mantener la contraseña actual.' : undefined"
         :required="!usuario"
+        :error="ver(errores.password)"
       />
 
       <div class="flex flex-col gap-1.5">

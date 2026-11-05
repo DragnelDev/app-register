@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import IconButton from '@/components/ui/IconButton.vue'
 import { onMounted, ref, watch } from 'vue'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -118,7 +119,11 @@ onMounted(loadRows)
       </BaseButton>
     </div>
 
-    <BaseInput v-model="search" placeholder="Buscar por código, nombre o ubicación…" class="max-w-xs" />
+    <BaseInput
+      v-model="search"
+      placeholder="Buscar por código, nombre o ubicación…"
+      class="max-w-xs"
+    />
     <p v-if="listError" class="text-sm text-red-600">{{ listError }}</p>
 
     <BaseDataTable
@@ -128,24 +133,46 @@ onMounted(loadRows)
       :page="page"
       :total-pages="Math.max(1, Math.ceil(total / pageSize))"
       empty-message="Aún no hay depósitos registrados."
-      @update:page="(p) => { page = p; loadRows() }"
+      @update:page="
+        (p) => {
+          page = p
+          loadRows()
+        }
+      "
       @row-click="openEdit"
     >
       <template #cell-ubicacion="{ row }">{{ row.ubicacion || '—' }}</template>
       <template #cell-totalEstantes="{ row }">
-        <RouterLink class="font-medium text-seal-600 hover:underline dark:text-seal-300" :to="{ path: '/archivo/estantes', query: { depositoId: row.id } }" @click.stop>
+        <RouterLink
+          class="font-medium text-seal-600 hover:underline dark:text-seal-300"
+          :to="{ path: '/archivo/estantes', query: { depositoId: row.id } }"
+          @click.stop
+        >
           {{ row.totalEstantes ?? 0 }}
         </RouterLink>
       </template>
       <template #cell-activo="{ row }">
-        <span class="badge" :class="row.activo ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-300' : 'bg-ink-100 text-ink-600 dark:bg-white/10 dark:text-ink-300'">
+        <span
+          class="badge"
+          :class="
+            row.activo
+              ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-300'
+              : 'bg-ink-100 text-ink-600 dark:bg-white/10 dark:text-ink-300'
+          "
+        >
           {{ row.activo ? 'Activo' : 'Inactivo' }}
         </span>
       </template>
       <template v-if="auth.puedeGestionarArchivo" #actions="{ row }">
         <div class="flex justify-end gap-2">
-          <BaseButton variant="ghost" size="sm" @click="openEdit(row)">Editar</BaseButton>
-          <BaseButton v-if="auth.isAdmin" variant="danger" size="sm" @click="handleRemove(row)">Eliminar</BaseButton>
+          <IconButton icon="fa-pen-to-square" label="Editar" @click="openEdit(row)" />
+          <IconButton
+            v-if="auth.isAdmin"
+            icon="fa-trash-can"
+            label="Eliminar"
+            variant="danger"
+            @click="handleRemove(row)"
+          />
         </div>
       </template>
     </BaseDataTable>
