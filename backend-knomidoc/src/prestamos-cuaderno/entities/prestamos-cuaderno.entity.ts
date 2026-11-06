@@ -7,6 +7,7 @@ import {
 } from 'typeorm';
 import { ComprobantesC31 } from '../../comprobantes_c31/entities/comprobantes_c31.entity';
 import { Usuario } from '../../usuarios/entities/usuario.entity';
+import { Funcionario } from '../../funcionarios/entities/funcionario.entity';
 
 export enum MetodoVerificacion {
   FIRMA_MANUAL = 'FIRMA_MANUAL',
@@ -29,13 +30,24 @@ export class PrestamosCuaderno {
   @Column({ name: 'comprobante_id', type: 'integer' })
   comprobanteId: number | undefined;
 
-  /** Relación "solicita": usuario que solicita el comprobante. */
-  @ManyToOne(() => Usuario, (u) => u.prestamosCuaderno, { nullable: false })
-  @JoinColumn({ name: 'solicitante_id' })
-  solicitante?: Usuario;
+  /** Funcionario del directorio que solicita y recibe el comprobante. */
+  @ManyToOne(() => Funcionario, { nullable: true })
+  @JoinColumn({ name: 'funcionario_id' })
+  funcionario?: Funcionario;
 
-  @Column({ name: 'solicitante_id', type: 'integer' })
-  solicitanteId: number | undefined;
+  @Column({ name: 'funcionario_id', type: 'integer', nullable: true })
+  funcionarioId?: number | null;
+
+  /**
+   * Solo registros anteriores al directorio de funcionarios (el solicitante era
+   * un Usuario del sistema). Los préstamos nuevos usan `funcionario`.
+   */
+  @ManyToOne(() => Usuario, (u) => u.prestamosCuaderno, { nullable: true })
+  @JoinColumn({ name: 'solicitante_id' })
+  solicitante?: Usuario | null;
+
+  @Column({ name: 'solicitante_id', type: 'integer', nullable: true })
+  solicitanteId?: number | null;
 
   @Column({ name: 'area_unidad', type: 'varchar', length: 150 })
   areaUnidad: string | undefined;

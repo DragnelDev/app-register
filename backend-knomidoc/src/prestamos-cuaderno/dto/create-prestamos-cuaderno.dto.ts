@@ -37,17 +37,17 @@ export class CreatePrestamosCuadernoDto {
   readonly comprobanteIds: number[] = [];
 
   @ApiProperty({
-    example: 4,
-    description: 'ID del usuario que solicita el comprobante',
+    example: 7,
+    description: 'ID del funcionario (directorio) que solicita el comprobante',
   })
   @Type(() => Number)
-  @IsInt()
-  readonly solicitanteId: number | undefined;
+  @IsInt({ message: 'Seleccione el funcionario solicitante' })
+  readonly funcionarioId: number | undefined;
 
   @ApiPropertyOptional({
     example: 'Auditoría Interna',
     description:
-      'Área/unidad del solicitante. Si no se indica se usa la unidad o área registrada en su usuario.',
+      'Área/unidad del solicitante. Si no se indica se usa la unidad registrada del funcionario.',
   })
   @IsOptional()
   @Transform(({ value }): unknown =>

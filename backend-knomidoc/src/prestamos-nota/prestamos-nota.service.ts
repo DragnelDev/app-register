@@ -5,7 +5,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, FindOptionsWhere, In, Like, Repository } from 'typeorm';
+import {
+  DataSource,
+  EntityManager,
+  FindOptionsWhere,
+  ILike,
+  In,
+  Repository,
+} from 'typeorm';
 import { CreatePrestamosNotaDto } from './dto/create-prestamos-nota.dto';
 import { UpdatePrestamosNotaDto } from './dto/update-prestamos-nota.dto';
 import { DevolverPrestamosNotaDto } from './dto/devolver-prestamos-nota.dto';
@@ -27,10 +34,15 @@ import {
   validarRangoFecha,
 } from '../common/utils/fechas.util';
 import { generarNotaPrestamoPdf } from './nota-pdf.util';
+import {
+  EstadoFuncionario,
+  Funcionario,
+} from '../funcionarios/entities/funcionario.entity';
 import { registrarCambioEstado } from '../c31-historial/c31-historial.helper';
 
 const RELATIONS = {
   comprobante: { preventivos: true, devengados: true, beneficiarios: true },
+  funcionario: true,
   registradoPor: true,
   recibidoPor: true,
 };
@@ -53,7 +65,60 @@ export class PrestamosNotaService {
     }
   }
 
-  /** Registra un préstamo por cada comprobante indicado (todos con los datos de la nota). */
+  /** Funcionario activo del directorio + copia de sus datos para la nota. */
+  private async datosFuncionario(
+    manager: EntityManager,
+    funcionarioId: number,
+    institucion?: string,
+  ) {
+    const f = await manager.findOne(Funcionario, {
+      where: { id: funcionarioId },
+    });
+    if (!f) throw new NotFoundException('El funcionario no existe');
+    if (f.estado === EstadoFuncionario.INACTIVO) {
+      throw new BadRequestException(
+        'El funcionario seleccionado está inactivo',
+      );
+    }
+    return {
+      funcionarioId: f.id as number,
+      funcionarioResponsable: `${f.nombres} ${f.apellidos}`,
+      institucionSolicitante: institucion ?? (f.unidadOficina as string),
+    };
+  }
+
+  /** Cada comprobante debe existir y estar archivado correctamente. */
+  private async validarComprobantes(
+    manager: EntityManager,
+    ids: number[],
+  ): Promise<void> {
+    const comprobantes = await manager.findBy(ComprobantesC31, {
+      id: In(ids),
+    });
+    const porId = new Map(comprobantes.map((c) => [c.id, c]));
+    for (const id of ids) {
+      const comprobante = porId.get(id);
+      if (!comprobante) {
+        throw new NotFoundException(`El comprobante ${id} no existe`);
+      }
+      if (comprobante.estadoFisico === EstadoFisicoC31.PRESTADO) {
+        throw new ConflictException(
+          `El comprobante ${id} ya se encuentra prestado`,
+        );
+      }
+      if (comprobante.estadoFisico !== EstadoFisicoC31.ARCHIVADO) {
+        throw new ConflictException(
+          `El comprobante ${id} no puede prestarse: solo se prestan comprobantes archivados correctamente (estado actual: ${ESTADO_FISICO_LABELS[comprobante.estadoFisico as EstadoFisicoC31]})`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Crea la nota con un préstamo por comprobante. Queda en BORRADOR (editable
+   * y con vista previa del PDF) hasta aprobarla; con `aprobar: true` se
+   * entrega de inmediato.
+   */
   async create(
     dto: CreatePrestamosNotaDto,
     usuario?: Usuario,
@@ -69,62 +134,182 @@ export class PrestamosNotaService {
     this.validarFechas(fechaPrestamo, dto.fechaDevolucionEstimada);
 
     return this.dataSource.transaction(async (manager) => {
-      const comprobantes = await manager.findBy(ComprobantesC31, {
-        id: In(comprobanteIds),
-      });
-      const porId = new Map(comprobantes.map((c) => [c.id, c]));
-
-      for (const id of comprobanteIds) {
-        const comprobante = porId.get(id);
-        if (!comprobante) {
-          throw new NotFoundException(`El comprobante ${id} no existe`);
-        }
-        if (comprobante.estadoFisico === EstadoFisicoC31.PRESTADO) {
-          throw new ConflictException(
-            `El comprobante ${id} ya se encuentra prestado`,
-          );
-        }
-        if (comprobante.estadoFisico !== EstadoFisicoC31.ARCHIVADO) {
-          throw new ConflictException(
-            `El comprobante ${id} no puede prestarse: solo se prestan comprobantes archivados correctamente (estado actual: ${ESTADO_FISICO_LABELS[comprobante.estadoFisico as EstadoFisicoC31]})`,
-          );
-        }
+      if (
+        await manager.existsBy(PrestamosNota, {
+          numeroNotaSolicitud: dto.numeroNotaSolicitud,
+        })
+      ) {
+        throw new ConflictException(
+          `Ya existe una nota con el N° ${dto.numeroNotaSolicitud}`,
+        );
       }
+      await this.validarComprobantes(manager, comprobanteIds);
+      const datosFunc = await this.datosFuncionario(
+        manager,
+        dto.funcionarioId as number,
+        dto.institucionSolicitante,
+      );
 
       const prestamos = comprobanteIds.map((comprobanteId) =>
         manager.create(PrestamosNota, {
           comprobanteId,
           numeroNotaSolicitud: dto.numeroNotaSolicitud,
-          institucionSolicitante: dto.institucionSolicitante,
-          funcionarioResponsable: dto.funcionarioResponsable,
+          ...datosFunc,
+          referencia: dto.referencia,
+          destinatario: dto.destinatario ?? datosFunc.funcionarioResponsable,
           fechaPrestamo,
           fechaDevolucionEstimada: dto.fechaDevolucionEstimada,
-          estadoPrestamo: EstadoPrestamoNota.ENTREGADO,
+          estadoPrestamo: EstadoPrestamoNota.BORRADOR,
           observaciones: dto.observaciones,
           registradoPorId: usuario?.id ?? null,
         }),
       );
       const guardados = await manager.save(PrestamosNota, prestamos);
 
-      await manager.update(
-        ComprobantesC31,
-        { id: In(comprobanteIds) },
-        { estadoFisico: EstadoFisicoC31.PRESTADO },
-      );
-      for (const comprobanteId of comprobanteIds) {
-        await registrarCambioEstado(manager, {
-          comprobanteId,
-          estadoAnterior: EstadoFisicoC31.ARCHIVADO,
-          estadoNuevo: EstadoFisicoC31.PRESTADO,
-          origen: 'PRESTAMO',
-          usuarioId: usuario?.id,
-          referencia: `Nota ${dto.numeroNotaSolicitud}`,
-          detalle: `Préstamo a ${dto.institucionSolicitante} (recibe ${dto.funcionarioResponsable})`,
-        });
+      if (dto.aprobar) {
+        await this.entregar(manager, guardados, usuario);
       }
 
       return manager.find(PrestamosNota, {
         where: { id: In(guardados.map((p) => p.id as number)) },
+        relations: RELATIONS,
+        order: { id: 'ASC' },
+      });
+    });
+  }
+
+  /** Marca los comprobantes como PRESTADO y las filas como ENTREGADO. */
+  private async entregar(
+    manager: EntityManager,
+    filas: PrestamosNota[],
+    usuario?: Usuario,
+  ): Promise<void> {
+    const ids = filas.map((f) => f.comprobanteId as number);
+    await this.validarComprobantes(manager, ids);
+    await manager.update(
+      PrestamosNota,
+      { id: In(filas.map((f) => f.id as number)) },
+      { estadoPrestamo: EstadoPrestamoNota.ENTREGADO },
+    );
+    await manager.update(
+      ComprobantesC31,
+      { id: In(ids) },
+      { estadoFisico: EstadoFisicoC31.PRESTADO },
+    );
+    const primera = filas[0] as PrestamosNota;
+    for (const comprobanteId of ids) {
+      await registrarCambioEstado(manager, {
+        comprobanteId,
+        estadoAnterior: EstadoFisicoC31.ARCHIVADO,
+        estadoNuevo: EstadoFisicoC31.PRESTADO,
+        origen: 'PRESTAMO',
+        usuarioId: usuario?.id,
+        referencia: `Nota ${primera.numeroNotaSolicitud}`,
+        detalle: `Préstamo a ${primera.institucionSolicitante} (recibe ${primera.funcionarioResponsable})`,
+      });
+    }
+  }
+
+  /** Filas (una por comprobante) de una nota. */
+  private async filasDeNota(
+    manager: EntityManager,
+    numeroNota: string,
+  ): Promise<PrestamosNota[]> {
+    const filas = await manager.find(PrestamosNota, {
+      where: { numeroNotaSolicitud: numeroNota },
+      order: { id: 'ASC' },
+    });
+    if (filas.length === 0) {
+      throw new NotFoundException(`No existe la nota ${numeroNota}`);
+    }
+    return filas;
+  }
+
+  /** Edita los textos/fechas de TODA la nota mientras siga en BORRADOR. */
+  async updateNota(
+    numeroNota: string,
+    dto: UpdatePrestamosNotaDto,
+  ): Promise<PrestamosNota[]> {
+    return this.dataSource.transaction(async (manager) => {
+      const filas = await this.filasDeNota(manager, numeroNota);
+      if (filas.some((f) => f.estadoPrestamo !== EstadoPrestamoNota.BORRADOR)) {
+        throw new ConflictException(
+          'Solo se puede editar la nota completa mientras esté en borrador',
+        );
+      }
+      const prestamo = dto.fechaPrestamo ?? filas[0]?.fechaPrestamo;
+      const estimada =
+        dto.fechaDevolucionEstimada ?? filas[0]?.fechaDevolucionEstimada;
+      this.validarFechas(prestamo, estimada);
+
+      if (
+        dto.numeroNotaSolicitud &&
+        dto.numeroNotaSolicitud !== numeroNota &&
+        (await manager.existsBy(PrestamosNota, {
+          numeroNotaSolicitud: dto.numeroNotaSolicitud,
+        }))
+      ) {
+        throw new ConflictException(
+          `Ya existe una nota con el N° ${dto.numeroNotaSolicitud}`,
+        );
+      }
+
+      const cambios: Partial<PrestamosNota> = {};
+      if (dto.numeroNotaSolicitud !== undefined)
+        cambios.numeroNotaSolicitud = dto.numeroNotaSolicitud;
+      if (dto.funcionarioId !== undefined) {
+        Object.assign(
+          cambios,
+          await this.datosFuncionario(
+            manager,
+            dto.funcionarioId,
+            dto.institucionSolicitante,
+          ),
+        );
+        // Si no se fijó un destinatario aparte, sigue al nuevo funcionario
+        if (dto.destinatario === undefined)
+          cambios.destinatario = cambios.funcionarioResponsable;
+      } else if (dto.institucionSolicitante !== undefined) {
+        cambios.institucionSolicitante = dto.institucionSolicitante;
+      }
+      if (dto.referencia !== undefined) cambios.referencia = dto.referencia;
+      if (dto.destinatario !== undefined)
+        cambios.destinatario = dto.destinatario;
+      if (dto.fechaPrestamo !== undefined)
+        cambios.fechaPrestamo = dto.fechaPrestamo;
+      if (dto.fechaDevolucionEstimada !== undefined)
+        cambios.fechaDevolucionEstimada = dto.fechaDevolucionEstimada;
+      if (dto.observaciones !== undefined)
+        cambios.observaciones = dto.observaciones;
+
+      if (Object.keys(cambios).length > 0) {
+        await manager.update(
+          PrestamosNota,
+          { id: In(filas.map((f) => f.id as number)) },
+          cambios,
+        );
+      }
+      return manager.find(PrestamosNota, {
+        where: { id: In(filas.map((f) => f.id as number)) },
+        relations: RELATIONS,
+        order: { id: 'ASC' },
+      });
+    });
+  }
+
+  /** Aprueba la nota: los comprobantes salen del archivo (pasan a PRESTADO). */
+  async aprobarNota(
+    numeroNota: string,
+    usuario?: Usuario,
+  ): Promise<PrestamosNota[]> {
+    return this.dataSource.transaction(async (manager) => {
+      const filas = await this.filasDeNota(manager, numeroNota);
+      if (filas.some((f) => f.estadoPrestamo !== EstadoPrestamoNota.BORRADOR)) {
+        throw new ConflictException('La nota ya fue aprobada');
+      }
+      await this.entregar(manager, filas, usuario);
+      return manager.find(PrestamosNota, {
+        where: { id: In(filas.map((f) => f.id as number)) },
         relations: RELATIONS,
         order: { id: 'ASC' },
       });
@@ -141,12 +326,17 @@ export class PrestamosNotaService {
     if (query.estadoPrestamo)
       base.estadoPrestamo = query.estadoPrestamo as EstadoPrestamoNota;
     if (query.comprobanteId) base.comprobanteId = query.comprobanteId;
+    if (query.funcionarioId) base.funcionarioId = query.funcionarioId;
 
     const where: FindOptionsWhere<PrestamosNota>[] = query.search
       ? [
-          { ...base, numeroNotaSolicitud: Like(`%${query.search}%`) },
-          { ...base, institucionSolicitante: Like(`%${query.search}%`) },
-          { ...base, funcionarioResponsable: Like(`%${query.search}%`) },
+          { ...base, numeroNotaSolicitud: ILike(`%${query.search}%`) },
+          { ...base, institucionSolicitante: ILike(`%${query.search}%`) },
+          { ...base, funcionarioResponsable: ILike(`%${query.search}%`) },
+          {
+            ...base,
+            funcionario: { ci: ILike(`%${query.search}%`) },
+          },
         ]
       : [base];
 
@@ -186,9 +376,20 @@ export class PrestamosNotaService {
       dto.fechaDevolucionEstimada ?? prestamo.fechaDevolucionEstimada,
     );
 
-    const cambios = Object.fromEntries(
-      Object.entries(dto).filter(([, valor]) => valor !== undefined),
+    const { funcionarioId, ...resto } = dto;
+    const cambios: Record<string, unknown> = Object.fromEntries(
+      Object.entries(resto).filter(([, valor]) => valor !== undefined),
     );
+    if (funcionarioId !== undefined) {
+      Object.assign(
+        cambios,
+        await this.datosFuncionario(
+          this.dataSource.manager,
+          funcionarioId,
+          dto.institucionSolicitante,
+        ),
+      );
+    }
     if (Object.keys(cambios).length > 0) {
       await this.repo.update(id, cambios);
     }
@@ -207,6 +408,11 @@ export class PrestamosNotaService {
         throw new NotFoundException('El préstamo por nota no existe');
       if (prestamo.estadoPrestamo === EstadoPrestamoNota.DEVUELTO) {
         throw new ConflictException('El préstamo ya fue devuelto');
+      }
+      if (prestamo.estadoPrestamo === EstadoPrestamoNota.BORRADOR) {
+        throw new ConflictException(
+          'La nota está en borrador: apruébela antes de registrar la devolución',
+        );
       }
 
       const fechaReal = dto.fechaDevolucionReal ?? hoy();
@@ -249,6 +455,20 @@ export class PrestamosNotaService {
     });
   }
 
+  /** Descarta una nota que sigue en borrador (nada salió del archivo). */
+  async descartarBorrador(numeroNota: string): Promise<{ eliminados: number }> {
+    return this.dataSource.transaction(async (manager) => {
+      const filas = await this.filasDeNota(manager, numeroNota);
+      if (filas.some((f) => f.estadoPrestamo !== EstadoPrestamoNota.BORRADOR)) {
+        throw new ConflictException(
+          'Solo se pueden descartar notas en borrador',
+        );
+      }
+      await manager.remove(PrestamosNota, filas);
+      return { eliminados: filas.length };
+    });
+  }
+
   async remove(id: number): Promise<PrestamosNota> {
     const prestamo = await this.findOne(id);
     if (prestamo.estadoPrestamo === EstadoPrestamoNota.ENTREGADO) {
@@ -270,6 +490,7 @@ export class PrestamosNotaService {
           beneficiarios: true,
         },
         registradoPor: true,
+        funcionario: true,
       },
       order: { id: 'ASC' },
     });

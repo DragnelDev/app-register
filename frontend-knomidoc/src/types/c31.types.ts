@@ -54,6 +54,9 @@ export interface ComprobanteC31 {
   estadoFisico: EstadoFisico
   ubicacionFisica?: string | null
   observaciones?: string | null
+  /** PDF escaneado principal; nulo = pendiente de digitalizar */
+  archivoAdjuntoUrl?: string | null
+  fechaDigitalizacion?: string | null
   creadoPorId?: string | null
   fechaCreacion?: string
   fechaModificacion?: string
@@ -106,8 +109,34 @@ export interface ComprobanteC31FormPayload {
   carpetas?: { carpetaId: string | number; numeroParte: number }[]
 }
 
+export type TipoAdjuntoC31 = 'C31' | 'RESPALDO'
+
+/** Archivo digitalizado (PDF o imagen) de un comprobante. */
+export interface C31Adjunto {
+  id: number
+  comprobanteId: number
+  tipo: TipoAdjuntoC31
+  nombreOriginal: string
+  mimeType: string
+  tamano: number
+  fechaCarga: string
+}
+
+export const esDigitalizado = (c: { archivoAdjuntoUrl?: string | null }): boolean =>
+  Boolean(c.archivoAdjuntoUrl)
+
 export interface C31FilterState {
+  /** Búsqueda libre (varios campos) */
   search?: string
+  /** Detalle / glosa del gasto: "combustible", "pasajes"... */
+  detalle?: string
+  /** N° de preventivo (o devengado) */
+  numeroPreventivo?: string
+  depositoId?: number | ''
+  estanteId?: number | ''
+  carpetaId?: number | ''
+  /** '' = todos · 'true' = digitalizados · 'false' = pendientes */
+  digitalizado?: '' | 'true' | 'false'
   estadoFisico?: EstadoFisico | ''
   tipoC31?: TipoC31 | ''
   fechaDesde?: string

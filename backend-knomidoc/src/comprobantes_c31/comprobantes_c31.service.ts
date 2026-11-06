@@ -6,14 +6,9 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
-  Between,
   DataSource,
   EntityManager,
   FindOptionsWhere,
-  ILike,
-  IsNull,
-  LessThanOrEqual,
-  MoreThanOrEqual,
   Repository,
 } from 'typeorm';
 import * as ExcelJS from 'exceljs';
@@ -43,6 +38,10 @@ import { ActasEntrega } from '../actas-entrega/entities/actas-entrega.entity';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { paginationSkip } from '../common/utils/pagination.util';
 import { Usuario } from '../usuarios/entities/usuario.entity';
+
+/** Escapa % _ \\ para que el texto del usuario se busque literalmente en un ILIKE. */
+const escaparLike = (texto: string): string =>
+  texto.replace(/[\\%_]/g, (m) => `\\${m}`);
 
 const RELATIONS = {
   actaEntrega: true,
@@ -300,68 +299,123 @@ export class ComprobantesC31Service {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 10;
 
-    const baseWhere: FindOptionsWhere<ComprobantesC31> = {};
+    const qb = this.repo
+      .createQueryBuilder('c')
+      .leftJoinAndSelect('c.actaEntrega', 'acta')
+      .leftJoinAndSelect('c.creadoPor', 'creador')
+      .leftJoinAndSelect('c.preventivos', 'prev')
+      .leftJoinAndSelect('c.devengados', 'dev')
+      .leftJoinAndSelect('c.beneficiarios', 'ben');
+
+    // La gestión SIEMPRE aísla el resultado: los N° de preventivo se repiten entre gestiones.
+    if (query.gestion)
+      qb.andWhere('c.gestion = :gestion', { gestion: query.gestion });
     if (query.estadoFisico)
-      baseWhere.estadoFisico = query.estadoFisico as EstadoFisicoC31;
-    if (query.tipoC31) baseWhere.tipoC31 = query.tipoC31 as TipoC31;
-    if (query.gestion) baseWhere.gestion = query.gestion;
-    if (query.actaEntregaId) baseWhere.actaEntregaId = query.actaEntregaId;
+      qb.andWhere('c.estadoFisico = :estadoFisico', {
+        estadoFisico: query.estadoFisico,
+      });
+    if (query.tipoC31)
+      qb.andWhere('c.tipoC31 = :tipoC31', { tipoC31: query.tipoC31 });
+    if (query.actaEntregaId)
+      qb.andWhere('c.actaEntregaId = :actaEntregaId', {
+        actaEntregaId: query.actaEntregaId,
+      });
 
     // Rango de fechas: admite solo "desde", solo "hasta" o ambos
-    if (query.fechaDesde && query.fechaHasta) {
-      baseWhere.fechaElaboracion = Between(
-        query.fechaDesde as unknown as Date,
-        query.fechaHasta as unknown as Date,
-      );
-    } else if (query.fechaDesde) {
-      baseWhere.fechaElaboracion = MoreThanOrEqual(
-        query.fechaDesde as unknown as Date,
-      );
-    } else if (query.fechaHasta) {
-      baseWhere.fechaElaboracion = LessThanOrEqual(
-        query.fechaHasta as unknown as Date,
-      );
-    }
+    if (query.fechaDesde)
+      qb.andWhere('c.fechaElaboracion >= :fechaDesde', {
+        fechaDesde: query.fechaDesde,
+      });
+    if (query.fechaHasta)
+      qb.andWhere('c.fechaElaboracion <= :fechaHasta', {
+        fechaHasta: query.fechaHasta,
+      });
 
     // Pendientes de regularización: firmados (En revisión) que aún no van en un acta
     if (query.sinActa) {
-      baseWhere.actaEntregaId = IsNull();
-      baseWhere.estadoFisico = EstadoFisicoC31.EN_REVISION;
+      qb.andWhere('c.actaEntregaId IS NULL').andWhere(
+        'c.estadoFisico = :enRevision',
+        { enRevision: EstadoFisicoC31.EN_REVISION },
+      );
     }
     if (query.sinCarpeta) {
-      baseWhere.estadoFisico = EstadoFisicoC31.EN_ARCHIVO;
-      baseWhere.carpetasUbicacion = { id: IsNull() };
+      qb.andWhere('c.estadoFisico = :enArchivo', {
+        enArchivo: EstadoFisicoC31.EN_ARCHIVO,
+      }).andWhere(
+        'NOT EXISTS (SELECT 1 FROM c31_carpetas_ubicacion u0 WHERE u0.comprobante_id = c.id)',
+      );
     }
 
-    const like = query.search ? `%${query.search}%` : undefined;
-    const where: FindOptionsWhere<ComprobantesC31>[] = like
-      ? [
-          { ...baseWhere, descripcion: ILike(like) },
-          { ...baseWhere, numeroFolio: ILike(like) },
-          { ...baseWhere, ubicacionFisica: ILike(like) },
-          {
-            ...baseWhere,
-            preventivos: { numeroPreventivo: ILike(like) },
-          },
-          {
-            ...baseWhere,
-            devengados: { numeroDevengado: ILike(like) },
-          },
-          {
-            ...baseWhere,
-            beneficiarios: { nombreBeneficiario: ILike(like) },
-          },
-          { ...baseWhere, pagos: { numeroDocumento: ILike(like) } },
-        ]
-      : [baseWhere];
+    // Detalle / glosa del gasto (palabras clave: "combustible", "pasajes"...)
+    const detalle = query.detalle?.trim();
+    if (detalle) {
+      qb.andWhere('c.descripcion ILIKE :detalle', {
+        detalle: `%${escaparLike(detalle)}%`,
+      });
+    }
 
-    const [data, total] = await this.repo.findAndCount({
-      where,
-      relations: RELATIONS,
-      order: { fechaCreacion: query.order ?? 'DESC' },
-      skip: paginationSkip(page, pageSize),
-      take: pageSize,
-    });
+    // N° de preventivo (o devengado en los sin imputación)
+    const numero = query.numeroPreventivo?.trim();
+    if (numero) {
+      qb.andWhere(
+        `(EXISTS (SELECT 1 FROM c31_preventivos pv WHERE pv.comprobante_id = c.id AND pv.numero_preventivo ILIKE :numero)
+          OR EXISTS (SELECT 1 FROM c31_devengados dv WHERE dv.comprobante_id = c.id AND dv.numero_devengado ILIKE :numero))`,
+        { numero: `%${escaparLike(numero)}%` },
+      );
+    }
+
+    // Ubicación física: depósito > estante > carpeta
+    if (query.depositoId || query.estanteId || query.carpetaId) {
+      const condiciones: string[] = [];
+      const params: Record<string, number> = {};
+      if (query.carpetaId) {
+        condiciones.push('k.id = :carpetaId');
+        params.carpetaId = query.carpetaId;
+      }
+      if (query.estanteId) {
+        condiciones.push('k.estante_id = :estanteId');
+        params.estanteId = query.estanteId;
+      }
+      if (query.depositoId) {
+        condiciones.push('e.deposito_id = :depositoId');
+        params.depositoId = query.depositoId;
+      }
+      qb.andWhere(
+        `EXISTS (SELECT 1 FROM c31_carpetas_ubicacion u
+                 INNER JOIN carpetas k ON k.id = u.carpeta_id
+                 LEFT JOIN estantes e ON e.id = k.estante_id
+                 WHERE u.comprobante_id = c.id AND ${condiciones.join(' AND ')})`,
+        params,
+      );
+    }
+
+    // Digitalización
+    if (query.digitalizado === true)
+      qb.andWhere('c.archivoAdjuntoUrl IS NOT NULL');
+    if (query.digitalizado === false)
+      qb.andWhere('c.archivoAdjuntoUrl IS NULL');
+
+    // Búsqueda libre (se suma a los filtros anteriores, nunca los reemplaza)
+    const texto = query.search?.trim();
+    if (texto) {
+      qb.andWhere(
+        `(c.descripcion ILIKE :like
+          OR c.numeroFolio ILIKE :like
+          OR c.ubicacionFisica ILIKE :like
+          OR EXISTS (SELECT 1 FROM c31_preventivos p1 WHERE p1.comprobante_id = c.id AND p1.numero_preventivo ILIKE :like)
+          OR EXISTS (SELECT 1 FROM c31_devengados d1 WHERE d1.comprobante_id = c.id AND d1.numero_devengado ILIKE :like)
+          OR EXISTS (SELECT 1 FROM c31_beneficiarios b1 WHERE b1.comprobante_id = c.id AND b1.nombre_beneficiario ILIKE :like)
+          OR EXISTS (SELECT 1 FROM c31_pagos g1 WHERE g1.comprobante_id = c.id AND g1.numero_documento ILIKE :like))`,
+        { like: `%${escaparLike(texto)}%` },
+      );
+    }
+
+    const [data, total] = await qb
+      .orderBy('c.fechaCreacion', query.order ?? 'DESC')
+      .addOrderBy('c.id', 'DESC')
+      .skip(paginationSkip(page, pageSize))
+      .take(pageSize)
+      .getManyAndCount();
 
     return new PaginatedResponseDto(data, total, page, pageSize);
   }

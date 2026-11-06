@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, FindOptionsWhere, In, Like, Repository } from 'typeorm';
+import { DataSource, In, Repository, SelectQueryBuilder } from 'typeorm';
 import { CreatePrestamosCuadernoDto } from './dto/create-prestamos-cuaderno.dto';
 import { UpdatePrestamosCuadernoDto } from './dto/update-prestamos-cuaderno.dto';
 import { DevolverPrestamosCuadernoDto } from './dto/devolver-prestamos-cuaderno.dto';
@@ -22,10 +22,16 @@ import {
 import { Usuario } from '../usuarios/entities/usuario.entity';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { paginationSkip } from '../common/utils/pagination.util';
+import {
+  EstadoFuncionario,
+  Funcionario,
+} from '../funcionarios/entities/funcionario.entity';
+import { generarReporteCuadernoPdf } from './cuaderno-pdf.util';
 import { registrarCambioEstado } from '../c31-historial/c31-historial.helper';
 
 const RELATIONS = {
   comprobante: { preventivos: true, devengados: true, beneficiarios: true },
+  funcionario: true,
   solicitante: true,
   registradoPor: true,
   recibidoPor: true,
@@ -45,21 +51,19 @@ export class PrestamosCuadernoService {
   ): Promise<PrestamosCuaderno[]> {
     const ids = [...new Set(dto.comprobanteIds)];
     return this.dataSource.transaction(async (manager) => {
-      const solicitante = await manager.findOne(Usuario, {
-        where: { id: dto.solicitanteId },
+      const funcionario = await manager.findOne(Funcionario, {
+        where: { id: dto.funcionarioId },
       });
-      if (!solicitante) {
-        throw new NotFoundException('El usuario solicitante no existe');
+      if (!funcionario) {
+        throw new NotFoundException('El funcionario solicitante no existe');
       }
-      if (solicitante.activo === false) {
-        throw new BadRequestException('El usuario solicitante está inactivo');
-      }
-      const areaUnidad = dto.areaUnidad ?? solicitante.unidadOArea;
-      if (!areaUnidad) {
+      if (funcionario.estado === EstadoFuncionario.INACTIVO) {
         throw new BadRequestException(
-          'Indique el área o unidad del solicitante (su usuario no la tiene registrada)',
+          'El funcionario solicitante está inactivo',
         );
       }
+      const areaUnidad =
+        dto.areaUnidad ?? (funcionario.unidadOficina as string);
       const salida = dto.fechaHoraSalida
         ? new Date(dto.fechaHoraSalida)
         : new Date();
@@ -102,7 +106,7 @@ export class PrestamosCuadernoService {
           PrestamosCuaderno,
           manager.create(PrestamosCuaderno, {
             comprobanteId: id,
-            solicitanteId: dto.solicitanteId,
+            funcionarioId: dto.funcionarioId,
             areaUnidad,
             fechaHoraSalida: salida,
             fechaDevolucionEstimada: dto.fechaDevolucionEstimada,
@@ -127,7 +131,7 @@ export class PrestamosCuadernoService {
           origen: 'PRESTAMO',
           usuarioId: usuario?.id,
           referencia: 'Cuaderno de salida',
-          detalle: `Salida a ${solicitante.nombreCompleto} (${areaUnidad})`,
+          detalle: `Salida a ${funcionario.nombres} ${funcionario.apellidos} (${areaUnidad})`,
         });
       }
 
@@ -139,36 +143,109 @@ export class PrestamosCuadernoService {
     });
   }
 
+  /** Consulta base con todos los filtros (la usan el listado y el reporte PDF). */
+  private consulta(
+    query: FilterPrestamosCuadernoDto,
+  ): SelectQueryBuilder<PrestamosCuaderno> {
+    const qb = this.repo
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.comprobante', 'c')
+      .leftJoinAndSelect('c.preventivos', 'prev')
+      .leftJoinAndSelect('c.devengados', 'dev')
+      .leftJoinAndSelect('c.beneficiarios', 'ben')
+      .leftJoinAndSelect('p.funcionario', 'f')
+      .leftJoinAndSelect('p.solicitante', 'sol')
+      .leftJoinAndSelect('p.registradoPor', 'reg')
+      .leftJoinAndSelect('p.recibidoPor', 'rec');
+
+    if (query.devuelto !== undefined)
+      qb.andWhere('p.devuelto = :devuelto', { devuelto: query.devuelto });
+    if (query.comprobanteId)
+      qb.andWhere('p.comprobanteId = :comprobanteId', {
+        comprobanteId: query.comprobanteId,
+      });
+    if (query.funcionarioId)
+      qb.andWhere('p.funcionarioId = :funcionarioId', {
+        funcionarioId: query.funcionarioId,
+      });
+    // Gestión fiscal del comprobante (los N° de preventivo se repiten entre gestiones)
+    if (query.gestion)
+      qb.andWhere('c.gestion = :gestion', { gestion: query.gestion });
+    if (query.fechaDesde)
+      qb.andWhere('CAST(p.fechaHoraSalida AS date) >= :desde', {
+        desde: query.fechaDesde,
+      });
+    if (query.fechaHasta)
+      qb.andWhere('CAST(p.fechaHoraSalida AS date) <= :hasta', {
+        hasta: query.fechaHasta,
+      });
+    if (query.unidad?.trim())
+      qb.andWhere('p.areaUnidad ILIKE :unidad', {
+        unidad: `%${query.unidad.trim()}%`,
+      });
+    if (query.search?.trim()) {
+      qb.andWhere(
+        `(p.areaUnidad ILIKE :like
+          OR f.nombres ILIKE :like
+          OR f.apellidos ILIKE :like
+          OR f.ci ILIKE :like
+          OR sol.nombreCompleto ILIKE :like)`,
+        { like: `%${query.search.trim()}%` },
+      );
+    }
+    return qb;
+  }
+
   async findAll(
     query: FilterPrestamosCuadernoDto,
   ): Promise<PaginatedResponseDto<PrestamosCuaderno>> {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 10;
 
-    const base: FindOptionsWhere<PrestamosCuaderno> = {};
-    if (query.devuelto !== undefined) base.devuelto = query.devuelto;
-    if (query.comprobanteId) base.comprobanteId = query.comprobanteId;
-    if (query.solicitanteId) base.solicitanteId = query.solicitanteId;
-
-    const where: FindOptionsWhere<PrestamosCuaderno>[] = query.search
-      ? [
-          { ...base, areaUnidad: Like(`%${query.search}%`) },
-          {
-            ...base,
-            solicitante: { nombreCompleto: Like(`%${query.search}%`) },
-          },
-        ]
-      : [base];
-
-    const [data, total] = await this.repo.findAndCount({
-      where,
-      relations: RELATIONS,
-      order: { fechaHoraSalida: query.order ?? 'DESC' },
-      skip: paginationSkip(page, pageSize),
-      take: pageSize,
-    });
+    const [data, total] = await this.consulta(query)
+      .orderBy('p.fechaHoraSalida', query.order ?? 'DESC')
+      .addOrderBy('p.id', 'DESC')
+      .skip(paginationSkip(page, pageSize))
+      .take(pageSize)
+      .getManyAndCount();
 
     return new PaginatedResponseDto(data, total, page, pageSize);
+  }
+
+  /** Planilla PDF con los mismos filtros del listado (sin paginar). */
+  async reportePdf(
+    query: FilterPrestamosCuadernoDto,
+    usuario: Usuario,
+  ): Promise<Buffer> {
+    const filas = await this.consulta(query)
+      .orderBy('p.fechaHoraSalida', 'ASC')
+      .addOrderBy('p.id', 'ASC')
+      .getMany();
+
+    const filtros: string[] = [];
+    if (query.gestion) filtros.push(`Gestión: ${query.gestion}`);
+    if (query.fechaDesde || query.fechaHasta)
+      filtros.push(
+        `Salida: ${query.fechaDesde ?? '…'} a ${query.fechaHasta ?? '…'}`,
+      );
+    if (query.funcionarioId) {
+      const f = await this.dataSource.manager.findOne(Funcionario, {
+        where: { id: query.funcionarioId },
+        withDeleted: true,
+      });
+      filtros.push(
+        `Funcionario: ${f ? `${f.nombres} ${f.apellidos}` : `#${query.funcionarioId}`}`,
+      );
+    }
+    if (query.unidad?.trim()) filtros.push(`Unidad: ${query.unidad.trim()}`);
+    if (query.devuelto !== undefined)
+      filtros.push(`Estado: ${query.devuelto ? 'Devuelto' : 'Pendiente'}`);
+
+    return generarReporteCuadernoPdf({
+      filas,
+      filtros,
+      emisor: usuario?.nombreCompleto ?? '',
+    });
   }
 
   async findOne(id: number): Promise<PrestamosCuaderno> {
@@ -191,17 +268,18 @@ export class PrestamosCuadernoService {
       );
     }
 
-    if (dto.solicitanteId !== undefined) {
-      const existe = await this.dataSource.manager.existsBy(Usuario, {
-        id: dto.solicitanteId,
+    if (dto.funcionarioId !== undefined) {
+      const f = await this.dataSource.manager.findOne(Funcionario, {
+        where: { id: dto.funcionarioId },
       });
-      if (!existe)
-        throw new NotFoundException('El usuario solicitante no existe');
+      if (!f) throw new NotFoundException('El funcionario no existe');
+      if (f.estado === EstadoFuncionario.INACTIVO)
+        throw new BadRequestException('El funcionario está inactivo');
     }
 
     const cambios: Record<string, unknown> = {};
-    if (dto.solicitanteId !== undefined)
-      cambios.solicitanteId = dto.solicitanteId;
+    if (dto.funcionarioId !== undefined)
+      cambios.funcionarioId = dto.funcionarioId;
     if (dto.areaUnidad !== undefined) cambios.areaUnidad = dto.areaUnidad;
     if (dto.fechaHoraSalida !== undefined)
       cambios.fechaHoraSalida = new Date(dto.fechaHoraSalida);

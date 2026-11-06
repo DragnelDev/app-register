@@ -15,6 +15,7 @@ import { ActasEntrega } from '../../actas-entrega/entities/actas-entrega.entity'
 import { PrestamosNota } from '../../prestamos-nota/entities/prestamos-nota.entity';
 import { PrestamosCuaderno } from '../../prestamos-cuaderno/entities/prestamos-cuaderno.entity';
 import { C31CarpetasUbicacion } from '../../c31-carpetas-ubicacion/entities/c31-carpetas-ubicacion.entity';
+import { C31Adjunto } from '../../uploads/entities/c31-adjunto.entity';
 
 export enum TipoC31 {
   CON_IMPUTACION = 'CON_IMPUTACION',
@@ -163,6 +164,20 @@ export class ComprobantesC31 extends BaseAuditoriaEntity {
   /** Detalles del estado físico del comprobante (daños, faltantes, motivo de observación, etc.). */
   @Column({ type: 'text', nullable: true })
   observaciones?: string | null;
+
+  /**
+   * PDF escaneado principal del C31 (ruta del endpoint autenticado que lo
+   * sirve). Nulo = pendiente de digitalizar.
+   */
+  @Column({ name: 'archivo_adjunto_url', type: 'text', nullable: true })
+  archivoAdjuntoUrl?: string | null;
+
+  @Column({ name: 'fecha_digitalizacion', type: 'timestamp', nullable: true })
+  fechaDigitalizacion?: Date | null;
+
+  /** Todos los archivos digitalizados (C31 escaneado y respaldos). */
+  @OneToMany(() => C31Adjunto, (a) => a.comprobante)
+  adjuntos?: C31Adjunto[];
 
   // Un comprobante puede tener varios identificadores preventivo/devengado.
   @OneToMany(() => C31Preventivo, (prev) => prev.comprobante, {

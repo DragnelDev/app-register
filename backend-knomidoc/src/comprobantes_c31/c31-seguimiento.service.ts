@@ -77,6 +77,7 @@ export class C31SeguimientoService {
       this.cuadernoRepo.find({
         where: { comprobanteId: id },
         relations: {
+          funcionario: true,
           solicitante: true,
           registradoPor: true,
           recibidoPor: true,
@@ -97,8 +98,8 @@ export class C31SeguimientoService {
           tipo: 'NOTA',
           id: p.id as number,
           referencia: `Nota ${p.numeroNotaSolicitud}`,
-          solicitante: p.funcionarioResponsable as string,
-          institucionOArea: p.institucionSolicitante as string,
+          solicitante: p.funcionarioResponsable ?? '—',
+          institucionOArea: p.institucionSolicitante ?? '—',
           fechaSalida: salida,
           fechaDevolucionEstimada: estimada,
           fechaDevolucion: p.fechaDevolucionReal ?? null,
@@ -123,7 +124,9 @@ export class C31SeguimientoService {
           tipo: 'CUADERNO',
           id: p.id as number,
           referencia: 'Cuaderno de salida',
-          solicitante: p.solicitante?.nombreCompleto ?? '—',
+          solicitante: p.funcionario
+            ? `${p.funcionario.nombres} ${p.funcionario.apellidos}`
+            : (p.solicitante?.nombreCompleto ?? '—'),
           institucionOArea: p.areaUnidad as string,
           fechaSalida: salida,
           fechaDevolucionEstimada: estimada,

@@ -10,7 +10,7 @@ import C31DetailModal from '../components/C31DetailModal.vue'
 import { useC31Store } from '@/stores/c31.store'
 import { useAuthStore } from '@/stores/auth.store'
 import type { ComprobanteC31, C31FilterState } from '@/types/c31.types'
-import { identificadorC31 } from '@/types/c31.types'
+import { esDigitalizado, identificadorC31 } from '@/types/c31.types'
 
 const route = useRoute()
 const store = useC31Store()
@@ -35,7 +35,7 @@ const subtitulo = computed(() =>
 )
 const auth = useAuthStore()
 const detailOpen = ref(false)
-const detailTab = ref<'datos' | 'pagos' | 'seguimiento'>('datos')
+const detailTab = ref<'datos' | 'pagos' | 'seguimiento' | 'adjuntos'>('datos')
 const importing = ref(false)
 const exporting = ref(false)
 const importFeedback = ref('')
@@ -97,9 +97,13 @@ const columns: DataTableColumn<ComprobanteC31>[] = [
   { key: 'fechaElaboracion', label: 'Fecha', sortable: true },
   { key: 'gestion', label: 'Gestión', sortable: true },
   { key: 'estadoFisico', label: 'Estado físico' },
+  { key: 'archivoAdjuntoUrl', label: 'Digitalizado' },
 ]
 
-function openDetail(row: ComprobanteC31, tab: 'datos' | 'pagos' | 'seguimiento' = 'datos') {
+function openDetail(
+  row: ComprobanteC31,
+  tab: 'datos' | 'pagos' | 'seguimiento' | 'adjuntos' = 'datos',
+) {
   detailTab.value = tab
   store.selected = row
   detailOpen.value = true
@@ -116,6 +120,12 @@ onMounted(() => {
     gestion: '',
     sinActa: undefined,
     sinCarpeta: undefined,
+    detalle: '',
+    numeroPreventivo: '',
+    depositoId: '',
+    estanteId: '',
+    carpetaId: '',
+    digitalizado: '',
   })
   store.fetchGestiones()
   store.fetchList()
@@ -192,6 +202,18 @@ onMounted(() => {
       </template>
       <template #cell-montoTotal="{ row }">{{ Number(row.montoTotal).toFixed(2) }}</template>
       <template #cell-estadoFisico="{ row }"><BaseBadge :estado="row.estadoFisico" /></template>
+      <template #cell-archivoAdjuntoUrl="{ row }">
+        <button
+          type="button"
+          class="inline-flex items-center gap-1 text-xs font-medium"
+          :class="esDigitalizado(row) ? 'text-emerald-600 dark:text-emerald-300' : 'text-amber-600 dark:text-amber-300'"
+          :title="esDigitalizado(row) ? 'Digitalizado: abrir archivos' : 'Pendiente de digitalizar'"
+          @click.stop="openDetail(row, 'adjuntos')"
+        >
+          <i :class="esDigitalizado(row) ? 'fa-solid fa-circle-check' : 'fa-solid fa-hourglass-half'" aria-hidden="true" />
+          {{ esDigitalizado(row) ? 'Sí' : 'Pendiente' }}
+        </button>
+      </template>
       <template #actions="{ row }">
         <div class="flex justify-end gap-1">
           <IconButton icon="fa-eye" label="Ver detalle" @click.stop="openDetail(row)" />
@@ -199,6 +221,11 @@ onMounted(() => {
             icon="fa-money-check-dollar"
             label="Pagos"
             @click.stop="openDetail(row, 'pagos')"
+          />
+          <IconButton
+            icon="fa-file-arrow-up"
+            label="Digitalización (escaneo y respaldos)"
+            @click.stop="openDetail(row, 'adjuntos')"
           />
           <IconButton
             icon="fa-clock-rotate-left"
@@ -209,6 +236,11 @@ onMounted(() => {
       </template>
     </BaseDataTable>
 
-    <C31DetailModal v-model="detailOpen" :comprobante="store.selected" :tab="detailTab" />
+    <C31DetailModal
+      v-model="detailOpen"
+      :comprobante="store.selected"
+      :tab="detailTab"
+      @digitalizacion="store.fetchList()"
+    />
   </div>
 </template>

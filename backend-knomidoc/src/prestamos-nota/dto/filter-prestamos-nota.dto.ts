@@ -3,7 +3,7 @@ import { Transform, Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional } from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
-const ESTADOS = ['ENTREGADO', 'DEVUELTO'];
+const ESTADOS = ['BORRADOR', 'ENTREGADO', 'DEVUELTO'];
 
 export class FilterPrestamosNotaDto extends PaginationQueryDto {
   @ApiPropertyOptional({ enum: ESTADOS })
@@ -26,4 +26,17 @@ export class FilterPrestamosNotaDto extends PaginationQueryDto {
   @Type(() => Number)
   @IsInt()
   comprobanteId?: number;
+
+  @ApiPropertyOptional({ example: 7 })
+  @IsOptional()
+  @Transform(
+    ({ value }): unknown =>
+      value === '' || value === null || value === undefined
+        ? undefined
+        : Number(value),
+    { toClassOnly: true },
+  )
+  @Type(() => Number)
+  @IsInt()
+  funcionarioId?: number;
 }

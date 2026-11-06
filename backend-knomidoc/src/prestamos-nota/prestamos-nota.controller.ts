@@ -54,6 +54,39 @@ export class PrestamosNotaController {
     });
   }
 
+  /** Edita la nota completa (referencia, destinatario, obs., fechas) mientras es borrador. */
+  @Roles('ADMIN', 'ENCARGADO_PRESTAMOS')
+  @Patch('nota')
+  updateNota(
+    @Query('numeroNota') numeroNota: string,
+    @Body() dto: UpdatePrestamosNotaDto,
+  ) {
+    // El N° de nota puede contener "/", por eso viaja como query param
+    return this.prestamosNotaService.updateNota((numeroNota ?? '').trim(), dto);
+  }
+
+  /** Aprueba la nota: los comprobantes salen del archivo (PRESTADO). */
+  @Roles('ADMIN', 'ENCARGADO_PRESTAMOS')
+  @Post('nota/aprobar')
+  aprobarNota(
+    @Query('numeroNota') numeroNota: string,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    return this.prestamosNotaService.aprobarNota(
+      (numeroNota ?? '').trim(),
+      usuario,
+    );
+  }
+
+  /** Descarta una nota en borrador. */
+  @Roles('ADMIN', 'ENCARGADO_PRESTAMOS')
+  @Delete('nota')
+  descartarBorrador(@Query('numeroNota') numeroNota: string) {
+    return this.prestamosNotaService.descartarBorrador(
+      (numeroNota ?? '').trim(),
+    );
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.prestamosNotaService.findOne(id);

@@ -82,6 +82,12 @@ const navGroups = computed<NavGroup[]>(() => [
         icon: 'fa-envelope-open-text',
         roles: PRESTAMOS,
       },
+      {
+        to: '/funcionarios',
+        label: 'Funcionarios',
+        icon: 'fa-id-badge',
+        roles: PRESTAMOS,
+      },
     ],
   },
   {

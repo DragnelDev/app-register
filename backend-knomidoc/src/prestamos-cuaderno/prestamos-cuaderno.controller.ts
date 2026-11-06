@@ -8,6 +8,7 @@ import {
   Delete,
   ParseIntPipe,
   Query,
+  StreamableFile,
 } from '@nestjs/common';
 import { PrestamosCuadernoService } from './prestamos-cuaderno.service';
 import { CreatePrestamosCuadernoDto } from './dto/create-prestamos-cuaderno.dto';
@@ -42,6 +43,22 @@ export class PrestamosCuadernoController {
   @Get()
   findAll(@Query() query: FilterPrestamosCuadernoDto) {
     return this.prestamosCuadernoService.findAll(query);
+  }
+
+  /** Planilla PDF de préstamos por cuaderno con los mismos filtros del listado. */
+  @Get('reporte/pdf')
+  async reportePdf(
+    @Query() query: FilterPrestamosCuadernoDto,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    const buffer = await this.prestamosCuadernoService.reportePdf(
+      query,
+      usuario,
+    );
+    return new StreamableFile(buffer, {
+      type: 'application/pdf',
+      disposition: `inline; filename="prestamos-cuaderno-${new Date().toISOString().slice(0, 10)}.pdf"`,
+    });
   }
 
   @Get(':id')

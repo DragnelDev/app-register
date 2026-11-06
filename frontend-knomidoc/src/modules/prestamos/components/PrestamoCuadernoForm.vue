@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted } from 'vue'
+import { reactive, ref, computed } from 'vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import ComprobanteC31Picker from '@/components/shared/ComprobanteC31Picker.vue'
 import ComprobantesC31SelectedTable from '@/components/shared/ComprobantesC31SelectedTable.vue'
-import { usuariosService } from '@/services/usuarios.service'
+import FuncionarioSelect from '@/components/shared/FuncionarioSelect.vue'
 import { required, runValidators } from '@/utils/validators'
 import type { PrestamoCuadernoCreatePayload } from '@/types/prestamos.types'
 import type { ComprobanteC31 } from '@/types/c31.types'
-import type { UsuarioSolicitante } from '@/types/auth.types'
+import type { Funcionario } from '@/types/funcionarios.types'
 
 defineProps<{ saving?: boolean }>()
 const emit = defineEmits<{ submit: [payload: PrestamoCuadernoCreatePayload] }>()
@@ -20,7 +20,7 @@ function nowLocal() {
 }
 
 const form = reactive({
-  solicitanteId: '',
+  funcionarioId: null as number | null,
   areaUnidad: '',
   fechaHoraSalida: nowLocal(),
   fechaDevolucionEstimada: '',
@@ -31,41 +31,40 @@ const form = reactive({
 
 const seleccionados = ref<ComprobanteC31[]>([])
 const excludeIds = computed(() => seleccionados.value.map((c) => c.id))
-const solicitantes = ref<UsuarioSolicitante[]>([])
 
-onMounted(async () => {
-  solicitantes.value = await usuariosService.solicitantes()
-})
-
-// --- Validación ---
-const errors = reactive({ comprobante: '', solicitanteId: '', areaUnidad: '' })
-const touched = reactive({ solicitanteId: false, areaUnidad: false })
-
-const rules = {
-  solicitanteId: [required('Debes seleccionar al solicitante')],
-  areaUnidad: [required('Indica el área o unidad que solicita')],
+// La unidad se propone con la del funcionario (editable)
+function alElegirFuncionario(f: Funcionario | null) {
+  if (f) form.areaUnidad = f.unidadOficina
 }
 
-function validateField(field: keyof typeof rules) {
-  errors[field] = runValidators(form[field], rules[field]) ?? ''
+// --- Validación ---
+const errors = reactive({ comprobante: '', funcionarioId: '', areaUnidad: '' })
+const touched = reactive({ funcionarioId: false, areaUnidad: false })
+
+const reglaArea = [required('Indica el área o unidad que solicita')]
+
+function validateField(field: 'funcionarioId' | 'areaUnidad') {
+  if (field === 'funcionarioId')
+    errors.funcionarioId = form.funcionarioId ? '' : 'Debes seleccionar al funcionario solicitante'
+  else errors.areaUnidad = runValidators(form.areaUnidad, reglaArea) ?? ''
 }
 
 function validateComprobante() {
   errors.comprobante = seleccionados.value.length ? '' : 'Debes añadir al menos un comprobante C31'
 }
 
-function onBlur(field: keyof typeof rules) {
+function onBlur(field: 'funcionarioId' | 'areaUnidad') {
   touched[field] = true
   validateField(field)
 }
 
 function validateAll(): boolean {
-  ;(Object.keys(rules) as (keyof typeof rules)[]).forEach((field) => {
+  ;(['funcionarioId', 'areaUnidad'] as const).forEach((field) => {
     touched[field] = true
     validateField(field)
   })
   validateComprobante()
-  return !errors.solicitanteId && !errors.areaUnidad && !errors.comprobante
+  return !errors.funcionarioId && !errors.areaUnidad && !errors.comprobante
 }
 
 function addComprobante(comprobante: ComprobanteC31) {
@@ -80,7 +79,6 @@ function removeComprobante(id: string) {
 
 function handleSubmit() {
   if (!validateAll()) return
-  const hoy = new Date().toISOString().slice(0, 10)
   if (
     form.fechaDevolucionEstimada &&
     form.fechaDevolucionEstimada < form.fechaHoraSalida.slice(0, 10)
@@ -88,11 +86,10 @@ function handleSubmit() {
     errors.comprobante = 'La devolución estimada no puede ser anterior a la salida'
     return
   }
-  void hoy
 
   emit('submit', {
     comprobanteIds: seleccionados.value.map((c) => Number(c.id)),
-    solicitanteId: form.solicitanteId,
+    funcionarioId: form.funcionarioId as number,
     areaUnidad: form.areaUnidad,
     fechaHoraSalida: new Date(form.fechaHoraSalida).toISOString(),
     fechaDevolucionEstimada: form.fechaDevolucionEstimada || undefined,
@@ -102,10 +99,10 @@ function handleSubmit() {
   })
 
   seleccionados.value = []
-  form.solicitanteId = ''
+  form.funcionarioId = null
   form.areaUnidad = ''
   form.observaciones = ''
-  touched.solicitanteId = false
+  touched.funcionarioId = false
   touched.areaUnidad = false
 }
 </script>
@@ -127,24 +124,14 @@ function handleSubmit() {
       <p v-if="errors.comprobante" class="mt-1 text-xs text-red-600">{{ errors.comprobante }}</p>
     </div>
 
-    <div>
-      <label class="mb-1.5 block text-sm font-medium text-ink-700 dark:text-ink-200">
-        Solicitante <span class="text-seal-600">*</span>
-      </label>
-      <select
-        v-model="form.solicitanteId"
-        class="w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
-        @blur="onBlur('solicitanteId')"
-      >
-        <option value="" disabled>Selecciona un usuario…</option>
-        <option v-for="u in solicitantes" :key="u.id" :value="u.id">
-          {{ u.nombreCompleto }}<span v-if="u.unidadOArea"> — {{ u.unidadOArea }}</span>
-        </option>
-      </select>
-      <p v-if="touched.solicitanteId && errors.solicitanteId" class="mt-1 text-xs text-red-600">
-        {{ errors.solicitanteId }}
-      </p>
-    </div>
+    <FuncionarioSelect
+      v-model="form.funcionarioId"
+      label="Funcionario solicitante"
+      required
+      :error="touched.funcionarioId ? errors.funcionarioId : ''"
+      @select="alElegirFuncionario"
+      @blur="onBlur('funcionarioId')"
+    />
 
     <BaseInput
       v-model="form.areaUnidad"

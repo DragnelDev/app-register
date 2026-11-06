@@ -6,6 +6,8 @@ import type {
   C31FilterState,
   C31ImportResult,
   C31Seguimiento,
+  C31Adjunto,
+  TipoAdjuntoC31,
 } from '@/types/c31.types'
 import type { EstadoFisico } from '@/types/common.types'
 
@@ -112,5 +114,35 @@ export const c31Service = {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       .then((r) => r.data)
+  },
+
+  // --- Digitalización: escaneos y respaldos (carpeta privada, solo con sesión) ---
+  listAdjuntos(comprobanteId: number | string) {
+    return apiClient.get<C31Adjunto[]>(`/uploads/c31/${comprobanteId}`).then((r) => r.data)
+  },
+
+  subirAdjunto(comprobanteId: number | string, file: File, tipo: TipoAdjuntoC31) {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('tipo', tipo)
+    return apiClient
+      .post<C31Adjunto>(`/uploads/c31/${comprobanteId}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120_000,
+      })
+      .then((r) => r.data)
+  },
+
+  eliminarAdjunto(comprobanteId: number | string, adjuntoId: number) {
+    return apiClient.delete(`/uploads/c31/${comprobanteId}/${adjuntoId}`).then((r) => r.data)
+  },
+
+  /** Descarga el archivo como blob (el endpoint exige JWT, no sirve un <a href> directo). */
+  async obtenerAdjunto(comprobanteId: number | string, adjuntoId: number): Promise<Blob> {
+    const response = await apiClient.get(`/uploads/c31/${comprobanteId}/${adjuntoId}/archivo`, {
+      responseType: 'blob',
+      timeout: 120_000,
+    })
+    return response.data as Blob
   },
 }

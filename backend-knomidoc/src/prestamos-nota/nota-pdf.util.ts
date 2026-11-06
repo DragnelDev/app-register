@@ -113,17 +113,24 @@ export function generarNotaPrestamoPdf({
   doc.font('Helvetica').fontSize(11).text('Señor(a):');
   doc
     .font('Helvetica-Bold')
-    .text(String(primera.funcionarioResponsable).toUpperCase());
+    .text(
+      String(
+        primera.destinatario ?? primera.funcionarioResponsable ?? '',
+      ).toUpperCase(),
+    );
   doc
     .font('Helvetica-Bold')
-    .text(String(primera.institucionSolicitante).toUpperCase());
+    .text(String(primera.institucionSolicitante ?? '').toUpperCase());
   doc.font('Helvetica-Bold').text('Presente.-');
   doc.moveDown(0.8);
 
   // --- Referencia
   doc.font('Helvetica-Bold').text('REF.: ', { continued: true });
   doc.text(
-    `REMISIÓN DE COMPROBANTES C31 EN CALIDAD DE PRÉSTAMO (RESPUESTA A SU NOTA ${String(primera.numeroNotaSolicitud).toUpperCase()})`,
+    (
+      primera.referencia?.trim() ||
+      `REMISIÓN DE COMPROBANTES C31 EN CALIDAD DE PRÉSTAMO (RESPUESTA A SU NOTA ${String(primera.numeroNotaSolicitud)})`
+    ).toUpperCase(),
     { underline: false },
   );
   doc.moveDown(0.8);
@@ -283,8 +290,8 @@ export function generarNotaPrestamoPdf({
   bloque(
     izq + mitad + 30,
     'RECIBÍ CONFORME',
-    String(primera.funcionarioResponsable),
-    String(primera.institucionSolicitante),
+    String(primera.funcionarioResponsable ?? ''),
+    String(primera.institucionSolicitante ?? ''),
   );
   doc
     .font('Helvetica')

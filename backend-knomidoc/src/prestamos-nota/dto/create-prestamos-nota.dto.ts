@@ -4,6 +4,7 @@ import {
   ArrayMaxSize,
   ArrayNotEmpty,
   IsArray,
+  IsBoolean,
   IsDateString,
   IsInt,
   IsNotEmpty,
@@ -11,7 +12,6 @@ import {
   IsString,
   Matches,
   MaxLength,
-  MinLength,
 } from 'class-validator';
 
 const trim = ({ value }: { value: unknown }): unknown =>
@@ -46,21 +46,46 @@ export class CreatePrestamosNotaDto {
   @Transform(trim)
   readonly numeroNotaSolicitud: string | undefined;
 
-  @ApiProperty({ example: 'Auditoría Interna' })
-  @IsNotEmpty({ message: 'La institución solicitante es obligatoria' })
-  @IsString()
-  @MinLength(3)
-  @MaxLength(150)
-  @Transform(trim)
-  readonly institucionSolicitante: string | undefined;
+  @ApiProperty({
+    example: 7,
+    description: 'Funcionario del directorio que solicita y recibe',
+  })
+  @Type(() => Number)
+  @IsInt({ message: 'Seleccione el funcionario solicitante' })
+  readonly funcionarioId: number | undefined;
 
-  @ApiProperty({ example: 'Lic. Pedro Gómez' })
-  @IsNotEmpty({ message: 'El funcionario responsable es obligatorio' })
+  @ApiPropertyOptional({
+    example: 'Auditoría Interna',
+    description:
+      'Unidad/institución solicitante. Si no se indica se usa la unidad del funcionario.',
+  })
+  @IsOptional()
+  @Transform(({ value }): unknown =>
+    vacioAUndefined({ value: trim({ value }) }),
+  )
   @IsString()
-  @MinLength(3)
   @MaxLength(150)
-  @Transform(trim)
-  readonly funcionarioResponsable: string | undefined;
+  readonly institucionSolicitante?: string;
+
+  @ApiPropertyOptional({
+    description: 'Referencia / glosa de la nota (texto de la línea REF.)',
+  })
+  @IsOptional()
+  @Transform(vacioAUndefined)
+  @IsString()
+  @MaxLength(500)
+  readonly referencia?: string;
+
+  @ApiPropertyOptional({
+    description: 'Destinatario impreso. Si no se indica, el funcionario.',
+  })
+  @IsOptional()
+  @Transform(({ value }): unknown =>
+    vacioAUndefined({ value: trim({ value }) }),
+  )
+  @IsString()
+  @MaxLength(200)
+  readonly destinatario?: string;
 
   @ApiPropertyOptional({
     example: '2026-07-20',
@@ -86,4 +111,14 @@ export class CreatePrestamosNotaDto {
   @IsString()
   @MaxLength(1000)
   readonly observaciones?: string;
+
+  @ApiPropertyOptional({
+    default: false,
+    description:
+      'false = guarda como BORRADOR (editable, el comprobante no sale). true = aprueba y entrega de inmediato.',
+  })
+  @IsOptional()
+  @Transform(({ value }): unknown => value === true || value === 'true')
+  @IsBoolean()
+  readonly aprobar?: boolean;
 }

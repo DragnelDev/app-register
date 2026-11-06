@@ -3,7 +3,7 @@
 export type EstadoFisico =
   'EN_TRAMITE' | 'EN_REVISION' | 'EN_ARCHIVO' | 'ARCHIVADO' | 'PRESTADO' | 'OBSERVADO' | 'ANULADO'
 export type TipoC31 = 'CON_IMPUTACION' | 'SIN_IMPUTACION'
-export type EstadoPrestamoNota = 'ENTREGADO' | 'DEVUELTO'
+export type EstadoPrestamoNota = 'BORRADOR' | 'ENTREGADO' | 'DEVUELTO'
 export type MetodoVerificacion = 'FIRMA_MANUAL' | 'HUELLA_DIGITAL'
 export type RolUsuario = 'ADMIN' | 'OPERADOR_ARCHIVOS' | 'ENCARGADO_PRESTAMOS' | 'CONSULTA_EXTERNA'
 

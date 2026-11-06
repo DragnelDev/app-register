@@ -110,6 +110,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { roles: PRESTAMOS },
   },
   {
+    path: '/funcionarios',
+    name: 'funcionarios',
+    component: () => import('@/modules/funcionarios/views/FuncionariosListView.vue'),
+    meta: { roles: PRESTAMOS },
+  },
+  {
     path: '/prestamos/notas',
     name: 'prestamos-notas',
     component: () => import('@/modules/prestamos/views/PrestamosNotasView.vue'),

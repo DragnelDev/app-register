@@ -4,11 +4,17 @@ import { PrestamosCuadernoController } from './prestamos-cuaderno.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PrestamosCuaderno } from './entities/prestamos-cuaderno.entity';
 import { ComprobantesC31 } from '../comprobantes_c31/entities/comprobantes_c31.entity';
+import { Funcionario } from '../funcionarios/entities/funcionario.entity';
 import { Usuario } from '../usuarios/entities/usuario.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PrestamosCuaderno, ComprobantesC31, Usuario]),
+    TypeOrmModule.forFeature([
+      PrestamosCuaderno,
+      ComprobantesC31,
+      Usuario,
+      Funcionario,
+    ]),
   ],
   controllers: [PrestamosCuadernoController],
   providers: [PrestamosCuadernoService],

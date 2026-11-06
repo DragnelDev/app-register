@@ -1,21 +1,40 @@
 import { defineStore } from 'pinia'
 import type {
+  CuadernoFilterState,
   DevolverPrestamoCuadernoPayload,
   DevolverPrestamoNotaPayload,
+  PrestamoCuaderno,
+  PrestamoNota,
 } from '@/types/prestamos.types'
 import { prestamosService } from '@/services/prestamos.service'
-import type { PrestamoCuaderno, PrestamoNota } from '@/types/prestamos.types'
 
 interface PrestamosState {
   cuaderno: PrestamoCuaderno[]
+  cuadernoTotal: number
+  cuadernoPage: number
+  cuadernoPageSize: number
+  cuadernoFiltros: CuadernoFilterState
   notas: PrestamoNota[]
   loadingCuaderno: boolean
   loadingNotas: boolean
 }
 
+export const filtrosCuadernoVacios = (): CuadernoFilterState => ({
+  gestion: '',
+  fechaDesde: '',
+  fechaHasta: '',
+  funcionarioId: null,
+  unidad: '',
+  devuelto: '',
+})
+
 export const usePrestamosStore = defineStore('prestamos', {
   state: (): PrestamosState => ({
     cuaderno: [],
+    cuadernoTotal: 0,
+    cuadernoPage: 1,
+    cuadernoPageSize: 15,
+    cuadernoFiltros: filtrosCuadernoVacios(),
     notas: [],
     loadingCuaderno: false,
     loadingNotas: false,
@@ -24,14 +43,25 @@ export const usePrestamosStore = defineStore('prestamos', {
   getters: {
     cuadernoPrestados: (state) => state.cuaderno.filter((p) => !p.devuelto),
     notasPrestadas: (state) => state.notas.filter((n) => n.estadoPrestamo === 'ENTREGADO'),
+    cuadernoTotalPages: (state) =>
+      Math.max(1, Math.ceil(state.cuadernoTotal / state.cuadernoPageSize)),
   },
 
   actions: {
+    setFiltrosCuaderno(filtros: CuadernoFilterState) {
+      this.cuadernoFiltros = { ...filtros }
+      this.cuadernoPage = 1
+    },
+
     async fetchCuaderno() {
       this.loadingCuaderno = true
       try {
-        const res = await prestamosService.listCuaderno()
+        const res = await prestamosService.listCuaderno(
+          { page: this.cuadernoPage, pageSize: this.cuadernoPageSize },
+          this.cuadernoFiltros,
+        )
         this.cuaderno = res.data
+        this.cuadernoTotal = res.total
       } finally {
         this.loadingCuaderno = false
       }
@@ -40,7 +70,7 @@ export const usePrestamosStore = defineStore('prestamos', {
     async fetchNotas() {
       this.loadingNotas = true
       try {
-        const res = await prestamosService.listNotas()
+        const res = await prestamosService.listNotas({ pageSize: 100 })
         this.notas = res.data
       } finally {
         this.loadingNotas = false
@@ -57,6 +87,12 @@ export const usePrestamosStore = defineStore('prestamos', {
       const updated = await prestamosService.devolverNota(id, payload)
       const idx = this.notas.findIndex((n) => n.id === id)
       if (idx !== -1) this.notas[idx] = updated
+    },
+
+    /** Descarta una nota en borrador. */
+    async descartarBorrador(numeroNota: string) {
+      await prestamosService.descartarBorrador(numeroNota)
+      await this.fetchNotas()
     },
   },
 })

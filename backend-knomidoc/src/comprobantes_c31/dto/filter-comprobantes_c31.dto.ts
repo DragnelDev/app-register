@@ -81,4 +81,53 @@ export class FilterComprobantesC31Dto extends PaginationQueryDto {
   @Transform(textoABooleano, { toClassOnly: true })
   @IsBoolean()
   sinCarpeta?: boolean;
+
+  @ApiPropertyOptional({
+    example: 'combustible',
+    description:
+      'Búsqueda por DETALLE / GLOSA del comprobante (ILIKE sobre `descripcion`). Se combina siempre con la gestión.',
+  })
+  @IsOptional()
+  @Transform(vacioAUndefined, { toClassOnly: true })
+  @IsString()
+  detalle?: string;
+
+  @ApiPropertyOptional({
+    example: '1234',
+    description:
+      'N° de preventivo (o de devengado en los sin imputación). Coincidencia parcial.',
+  })
+  @IsOptional()
+  @Transform(vacioAUndefined, { toClassOnly: true })
+  @IsString()
+  numeroPreventivo?: string;
+
+  @ApiPropertyOptional({ description: 'Depósito donde está archivado' })
+  @IsOptional()
+  @Transform(numeroOUndefined, { toClassOnly: true })
+  @Type(() => Number)
+  @IsInt()
+  depositoId?: number;
+
+  @ApiPropertyOptional({ description: 'Estante donde está archivado' })
+  @IsOptional()
+  @Transform(numeroOUndefined, { toClassOnly: true })
+  @Type(() => Number)
+  @IsInt()
+  estanteId?: number;
+
+  @ApiPropertyOptional({ description: 'Carpeta donde está archivado' })
+  @IsOptional()
+  @Transform(numeroOUndefined, { toClassOnly: true })
+  @Type(() => Number)
+  @IsInt()
+  carpetaId?: number;
+
+  @ApiPropertyOptional({
+    description: 'true = ya digitalizado, false = pendiente de digitalizar',
+  })
+  @IsOptional()
+  @Transform(textoABooleano, { toClassOnly: true })
+  @IsBoolean()
+  digitalizado?: boolean;
 }

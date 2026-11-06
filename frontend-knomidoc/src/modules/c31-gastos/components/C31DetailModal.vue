@@ -6,6 +6,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import C31DatosTab from './C31DatosTab.vue'
 import C31PagosTab from './C31PagosTab.vue'
 import C31SeguimientoTab from './C31SeguimientoTab.vue'
+import C31AdjuntosTab from './C31AdjuntosTab.vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { useC31Store } from '@/stores/c31.store'
 import { extractApiErrorMessage } from '@/utils/http-error'
@@ -17,14 +18,20 @@ const props = defineProps<{
   modelValue: boolean
   comprobante: ComprobanteC31 | null
   /** Pestaña con la que se abre */
-  tab?: 'datos' | 'pagos' | 'seguimiento'
+  tab?: 'datos' | 'pagos' | 'seguimiento' | 'adjuntos'
 }>()
-defineEmits<{ 'update:modelValue': [value: boolean] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: boolean]; digitalizacion: [] }>()
+
+// Tras subir/eliminar un escaneo se actualiza el comprobante abierto y el listado
+async function alCambiarAdjuntos() {
+  if (props.comprobante) await store.fetchOne(props.comprobante.id)
+  emit('digitalizacion')
+}
 
 const auth = useAuthStore()
 const store = useC31Store()
 
-const pestana = ref<'datos' | 'pagos' | 'seguimiento'>('datos')
+const pestana = ref<'datos' | 'pagos' | 'seguimiento' | 'adjuntos'>('datos')
 const cambiandoEstado = ref(false)
 const nuevoEstado = ref<EstadoFisico | ''>('')
 const motivo = ref('')
@@ -89,6 +96,7 @@ const tabs = [
   { id: 'datos', label: 'Datos' },
   { id: 'pagos', label: 'Pagos' },
   { id: 'seguimiento', label: 'Seguimiento' },
+  { id: 'adjuntos', label: 'Digitalización' },
 ] as const
 </script>
 
@@ -116,6 +124,13 @@ const tabs = [
         </div>
         <div class="flex flex-col items-end gap-1">
           <BaseBadge :estado="comprobante.estadoFisico" />
+          <span
+            class="text-xs font-medium"
+            :class="comprobante.archivoAdjuntoUrl ? 'text-emerald-600 dark:text-emerald-300' : 'text-amber-600 dark:text-amber-300'"
+          >
+            <i :class="comprobante.archivoAdjuntoUrl ? 'fa-solid fa-circle-check' : 'fa-solid fa-hourglass-half'" aria-hidden="true" />
+            {{ comprobante.archivoAdjuntoUrl ? 'Digitalizado' : 'Pendiente de digitalizar' }}
+          </span>
           <button
             v-if="auth.puedeRegistrarC31 && siguientes.length && !cambiandoEstado"
             type="button"
@@ -211,6 +226,12 @@ const tabs = [
         :key="`p${version}`"
         :comprobante-id="Number(comprobante.id)"
         :puede-editar="auth.puedeRegistrarC31 && comprobante.estadoFisico !== 'ANULADO'"
+      />
+      <C31AdjuntosTab
+        v-else-if="pestana === 'adjuntos'"
+        :comprobante-id="Number(comprobante.id)"
+        :puede-editar="auth.puedeRegistrarC31 && comprobante.estadoFisico !== 'ANULADO'"
+        @cambio="alCambiarAdjuntos"
       />
       <C31SeguimientoTab v-else :key="`s${version}`" :comprobante-id="comprobante.id" />
     </div>

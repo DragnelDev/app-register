@@ -29,6 +29,7 @@ import { ParametrosGestionModule } from './parametros-gestion/parametros-gestion
 import { AuditoriaModule } from './auditoria/auditoria.module';
 import { ReportesModule } from './reportes/reportes.module';
 import { ResumenModule } from './resumen/resumen.module';
+import { FuncionariosModule } from './funcionarios/funcionarios.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { ResumenModule } from './resumen/resumen.module';
       synchronize: true,
     }),
     UsuariosModule,
+    FuncionariosModule,
     ActasEntregaModule,
     ComprobantesC31Module,
     CarpetasModule,
