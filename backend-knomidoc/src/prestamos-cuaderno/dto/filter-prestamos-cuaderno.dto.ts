@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsInt, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString } from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
 const numeroOUndefined = ({ value }: { value: unknown }): unknown =>
@@ -25,6 +25,18 @@ export class FilterPrestamosCuadernoDto extends PaginationQueryDto {
   )
   @IsBoolean()
   devuelto?: boolean;
+
+  @ApiPropertyOptional({
+    enum: ['PENDIENTE', 'VENCIDO', 'DEVUELTO'],
+    description:
+      'PENDIENTE = aún no devuelto (incluye vencidos); VENCIDO = pendiente con fecha estimada pasada',
+  })
+  @IsOptional()
+  @Transform(({ value }): unknown => (value === '' ? undefined : value), {
+    toClassOnly: true,
+  })
+  @IsIn(['PENDIENTE', 'VENCIDO', 'DEVUELTO'])
+  estado?: 'PENDIENTE' | 'VENCIDO' | 'DEVUELTO';
 
   @ApiPropertyOptional({ example: 10 })
   @IsOptional()

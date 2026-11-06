@@ -61,7 +61,8 @@ export interface ComprobanteC31 {
   fechaCreacion?: string
   fechaModificacion?: string
 
-  // El backend devuelve listas; por la regla 1 a 1 según tipoC31 solo una de las dos trae un elemento.
+  /** Mismo valor en los comprobantes unidos (PREV + PREV, PREV + DEV). */
+  grupoUnionId?: string | null
   preventivos?: C31Preventivo[]
   devengados?: C31Devengado[]
   beneficiarios: C31Beneficiario[]
@@ -73,19 +74,43 @@ type ConIdentificadores = {
   devengados?: C31Devengado[] | null
 }
 
-/** N° de preventivo del comprobante (si es CON_IMPUTACION). */
+/** Todos los N° de preventivo del comprobante (puede haber varios unidos). */
+export function preventivosC31(c: ConIdentificadores): string[] {
+  return (c.preventivos ?? []).map((p) => p.numeroPreventivo?.trim()).filter(Boolean) as string[]
+}
+
+/** Todos los N° de devengado del comprobante. */
+export function devengadosC31(c: ConIdentificadores): string[] {
+  return (c.devengados ?? []).map((d) => d.numeroDevengado?.trim()).filter(Boolean) as string[]
+}
+
+/** "3 / 7" o undefined. */
 export function numeroPreventivoC31(c: ConIdentificadores): string | undefined {
-  return c.preventivos?.[0]?.numeroPreventivo || undefined
+  return preventivosC31(c).join(' / ') || undefined
 }
 
-/** N° de devengado del comprobante (si es SIN_IMPUTACION). */
+/** "45" o "45 / 46", o undefined. */
 export function numeroDevengadoC31(c: ConIdentificadores): string | undefined {
-  return c.devengados?.[0]?.numeroDevengado || undefined
+  return devengadosC31(c).join(' / ') || undefined
 }
 
-/** Identificador oficial del comprobante: numeroPreventivo o numeroDevengado según corresponda. */
+/** Identificador del comprobante: "3 / 7", "45", o "12 · Dev. 45" si vienen juntos. */
 export function identificadorC31(c: ConIdentificadores): string | undefined {
-  return numeroPreventivoC31(c) ?? numeroDevengadoC31(c)
+  const prev = numeroPreventivoC31(c)
+  const dev = numeroDevengadoC31(c)
+  if (prev && dev) return `${prev} · Dev. ${dev}`
+  return prev ?? dev
+}
+
+/**
+ * Identificador rotulado para mostrar: PREV y DEV tienen numeración propia
+ * (PREV 1 ≠ DEV 1). Ej.: "PREV 3", "DEV 45", "PREV 12 · DEV 45".
+ */
+export function rotuloC31(c: ConIdentificadores): string | undefined {
+  const prev = numeroPreventivoC31(c)
+  const dev = numeroDevengadoC31(c)
+  const partes = [prev && `PREV ${prev}`, dev && `DEV ${dev}`].filter(Boolean)
+  return partes.join(' · ') || undefined
 }
 
 /**
@@ -102,7 +127,7 @@ export interface ComprobanteC31FormPayload {
   gestion?: number
   ubicacionFisica?: string | null
   observaciones?: string | null
-  // Relación 1 a 1 estricta: solo se envía uno de los dos según tipoC31.
+  // Un solo identificador por comprobante, según tipoC31.
   numeroPreventivo?: string
   numeroDevengado?: string
   beneficiarios?: string[]
@@ -196,4 +221,14 @@ export interface C31Seguimiento {
   resumenPrestamos: { total: number; activos: number; vencidos: number; conNovedad: number }
   prestamos: C31PrestamoSeguimiento[]
   historial: C31HistorialItem[]
+}
+
+/** Comprobante unido a otro (GET /comprobantes-c31/:id/grupo). */
+export interface C31GrupoMiembro {
+  id: number
+  tipoC31: TipoC31
+  identificador: string
+  estadoFisico: string
+  montoTotal?: number | string | null
+  actaEntregaId?: number | null
 }

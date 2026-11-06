@@ -4,7 +4,7 @@ import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import { bs } from '@/utils/estados'
-import { identificadorC31 } from '@/types/c31.types'
+import { rotuloC31 } from '@/types/c31.types'
 import type { ActaAprobarPayload, ActaEntrega } from '@/types/actas-entrega.types'
 
 const props = defineProps<{
@@ -88,7 +88,7 @@ function confirmar() {
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p class="font-medium text-ink-900 dark:text-white">
-                N° {{ identificadorC31(c) ?? c.id }} · Bs {{ bs(c.montoTotal) }}
+                {{ rotuloC31(c) ?? c.id }} · Bs {{ bs(c.montoTotal) }}
               </p>
               <p class="text-xs text-ink-500">
                 {{ c.beneficiarios.map((b) => b.nombreBeneficiario).join(', ') }}

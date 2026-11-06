@@ -7,6 +7,8 @@ import type { Funcionario } from './funcionarios.types'
 export interface PrestamoCuaderno {
   id: string
   comprobanteId: string
+  /** Los comprobantes que salieron juntos comparten lote y se devuelven juntos. */
+  loteId?: string | null
   funcionarioId?: number | null
   areaUnidad: string
   fechaHoraSalida: string
@@ -43,8 +45,8 @@ export interface CuadernoFilterState {
   fechaHasta: string
   funcionarioId: number | null
   unidad: string
-  /** '' = todos · 'false' = pendientes · 'true' = devueltos */
-  devuelto: '' | 'true' | 'false'
+  /** '' = todos · PENDIENTE = falta devolver (incluye vencidos) · VENCIDO · DEVUELTO */
+  estado: '' | 'PENDIENTE' | 'VENCIDO' | 'DEVUELTO'
 }
 
 export type CondicionDevolucion = 'CONFORME' | 'CON_NOVEDAD'

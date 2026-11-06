@@ -1,3 +1,4 @@
+import { rotuloC31 } from '../common/utils/identificador-c31.util';
 import {
   BadRequestException,
   ConflictException,
@@ -80,8 +81,23 @@ export class ActasEntregaService {
     actaId: number,
     comprobanteIds: number[],
   ) {
-    const ids = [...new Set(comprobanteIds)];
+    let ids = [...new Set(comprobanteIds)];
     if (ids.length === 0) return;
+    // Los comprobantes unidos (PREV 3 + PREV 7, PREV + DEV) se entregan juntos
+    const grupos = await manager.find(ComprobantesC31, {
+      where: { id: In(ids) },
+      select: { id: true, grupoUnionId: true },
+    });
+    const gruposIds = [
+      ...new Set(grupos.map((g) => g.grupoUnionId).filter(Boolean)),
+    ] as string[];
+    if (gruposIds.length > 0) {
+      const hermanos = await manager.find(ComprobantesC31, {
+        where: { grupoUnionId: In(gruposIds) },
+        select: { id: true },
+      });
+      ids = [...new Set([...ids, ...hermanos.map((h) => h.id as number)])];
+    }
     const encontrados = await manager.find(ComprobantesC31, {
       where: { id: In(ids) },
       relations: { preventivos: true, devengados: true },
@@ -90,10 +106,7 @@ export class ActasEntregaService {
     for (const id of ids) {
       const c = porId.get(id);
       if (!c) throw new NotFoundException(`El comprobante ${id} no existe`);
-      const nombre =
-        c.preventivos?.[0]?.numeroPreventivo ??
-        c.devengados?.[0]?.numeroDevengado ??
-        `#${id}`;
+      const nombre = rotuloC31(c, `#${id}`);
       if (c.estadoFisico !== EstadoFisicoC31.EN_REVISION) {
         throw new ConflictException(
           `El comprobante ${nombre} está "${ESTADO_FISICO_LABELS[c.estadoFisico as EstadoFisicoC31]}": solo se entregan comprobantes "En revisión / firmado"`,
@@ -215,9 +228,21 @@ export class ActasEntregaService {
   async quitarComprobante(id: number, comprobanteId: number) {
     await this.dataSource.transaction(async (manager) => {
       await this.cargarBorrador(manager, id);
+      const c = await manager.findOne(ComprobantesC31, {
+        where: { id: comprobanteId },
+      });
+      // Si está unido a otros, salen juntos del acta
+      const ids = c?.grupoUnionId
+        ? (
+            await manager.find(ComprobantesC31, {
+              where: { grupoUnionId: c.grupoUnionId },
+              select: { id: true },
+            })
+          ).map((m) => m.id as number)
+        : [comprobanteId];
       await manager.update(
         ComprobantesC31,
-        { id: comprobanteId, actaEntregaId: id },
+        { id: In(ids), actaEntregaId: id },
         { actaEntregaId: null },
       );
       await this.sincronizarCantidad(manager, id);

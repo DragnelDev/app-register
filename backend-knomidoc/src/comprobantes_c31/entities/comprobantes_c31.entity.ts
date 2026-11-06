@@ -1,6 +1,7 @@
 import {
   Column,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -112,6 +113,20 @@ export class ComprobantesC31 extends BaseAuditoriaEntity {
 
   @Column({ name: 'acta_entrega_id', type: 'integer', nullable: true })
   actaEntregaId?: number | null;
+
+  /**
+   * Grupo de unión: los comprobantes que en la práctica vienen como uno solo
+   * (PREV 3 + PREV 7, PREV + DEV) comparten este identificador. Cada uno
+   * conserva su propio registro, monto y beneficiarios. Nulo = sin unir.
+   */
+  @Index()
+  @Column({
+    name: 'grupo_union_id',
+    type: 'varchar',
+    length: 36,
+    nullable: true,
+  })
+  grupoUnionId?: string | null;
 
   /** Gestión (año): 2021, 2025, 2026... */
   @Column({ name: 'gestion', type: 'int' })

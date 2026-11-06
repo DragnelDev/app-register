@@ -10,7 +10,7 @@ import C31DetailModal from '../components/C31DetailModal.vue'
 import { useC31Store } from '@/stores/c31.store'
 import { useAuthStore } from '@/stores/auth.store'
 import type { ComprobanteC31, C31FilterState } from '@/types/c31.types'
-import { esDigitalizado, identificadorC31 } from '@/types/c31.types'
+import { esDigitalizado, rotuloC31 } from '@/types/c31.types'
 
 const route = useRoute()
 const store = useC31Store()
@@ -198,7 +198,7 @@ onMounted(() => {
       @row-click="(r) => openDetail(r)"
     >
       <template #cell-id="{ row }">
-        <span class="font-mono text-xs">{{ identificadorC31(row) ?? '—' }}</span>
+        <span class="font-mono text-xs">{{ rotuloC31(row) ?? '—' }}</span>
       </template>
       <template #cell-montoTotal="{ row }">{{ Number(row.montoTotal).toFixed(2) }}</template>
       <template #cell-estadoFisico="{ row }"><BaseBadge :estado="row.estadoFisico" /></template>
@@ -206,11 +206,18 @@ onMounted(() => {
         <button
           type="button"
           class="inline-flex items-center gap-1 text-xs font-medium"
-          :class="esDigitalizado(row) ? 'text-emerald-600 dark:text-emerald-300' : 'text-amber-600 dark:text-amber-300'"
+          :class="
+            esDigitalizado(row)
+              ? 'text-emerald-600 dark:text-emerald-300'
+              : 'text-amber-600 dark:text-amber-300'
+          "
           :title="esDigitalizado(row) ? 'Digitalizado: abrir archivos' : 'Pendiente de digitalizar'"
           @click.stop="openDetail(row, 'adjuntos')"
         >
-          <i :class="esDigitalizado(row) ? 'fa-solid fa-circle-check' : 'fa-solid fa-hourglass-half'" aria-hidden="true" />
+          <i
+            :class="esDigitalizado(row) ? 'fa-solid fa-circle-check' : 'fa-solid fa-hourglass-half'"
+            aria-hidden="true"
+          />
           {{ esDigitalizado(row) ? 'Sí' : 'Pendiente' }}
         </button>
       </template>

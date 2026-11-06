@@ -78,6 +78,21 @@ export class PrestamosNotaController {
     );
   }
 
+  /** Devuelve TODOS los comprobantes de la nota en un solo acto. */
+  @Roles('ADMIN', 'ENCARGADO_PRESTAMOS')
+  @Patch('nota/devolver')
+  devolverNota(
+    @Query('numeroNota') numeroNota: string,
+    @Body() dto: DevolverPrestamosNotaDto,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    return this.prestamosNotaService.devolverNota(
+      (numeroNota ?? '').trim(),
+      dto,
+      usuario,
+    );
+  }
+
   /** Descarta una nota en borrador. */
   @Roles('ADMIN', 'ENCARGADO_PRESTAMOS')
   @Delete('nota')

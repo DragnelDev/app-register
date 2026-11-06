@@ -11,8 +11,10 @@ import { c31Service } from '@/services/c31.service'
 import { actasEntregaService } from '@/services/actas-entrega.service'
 import { carpetasService } from '@/services/carpetas.service'
 import { useResumenStore } from '@/stores/resumen.store'
+import { useAuthStore } from '@/stores/auth.store'
+import UbicacionRapida from '@/components/shared/UbicacionRapida.vue'
 import { extractApiErrorMessage } from '@/utils/http-error'
-import { identificadorC31, type ComprobanteC31, type Carpeta } from '@/types/c31.types'
+import { rotuloC31, type ComprobanteC31, type Carpeta } from '@/types/c31.types'
 import type { ActaEntrega } from '@/types/actas-entrega.types'
 
 type Pestana = 'sinActa' | 'sinCarpeta'
@@ -30,6 +32,27 @@ const aviso = ref('')
 
 const actas = ref<ActaEntrega[]>([])
 const carpetas = ref<Carpeta[]>([])
+const auth = useAuthStore()
+const ubicacionRapida = ref<InstanceType<typeof UbicacionRapida>>()
+
+/** Tras crear una carpeta (o su estante/depósito) se recargan las carpetas y se selecciona la nueva. */
+async function alCrearUbicacion({
+  tipo,
+  id,
+}: {
+  tipo: 'deposito' | 'estante' | 'carpeta'
+  id: number
+}) {
+  if (tipo !== 'carpeta') {
+    // Un depósito o estante recién creado no tiene carpetas: se encadena el siguiente alta
+    if (tipo === 'deposito') ubicacionRapida.value?.abrir('estante', { depositoId: id })
+    else ubicacionRapida.value?.abrir('carpeta', { estanteId: id })
+    return
+  }
+  const c = await carpetasService.list({ page: 1, pageSize: 100 }).catch(() => null)
+  carpetas.value = c?.data ?? carpetas.value
+  carpetaId.value = id
+}
 
 // Modal de regularización (sirve para ambas pestañas)
 const modalOpen = ref(false)
@@ -228,7 +251,7 @@ onMounted(async () => {
       "
     >
       <template #cell-id="{ row }">
-        <span class="font-mono text-xs">{{ identificadorC31(row) ?? '—' }}</span>
+        <span class="font-mono text-xs">{{ rotuloC31(row) ?? '—' }}</span>
       </template>
       <template #cell-montoTotal="{ row }">{{ Number(row.montoTotal).toFixed(2) }}</template>
       <template #cell-estadoFisico="{ row }"><BaseBadge :estado="row.estadoFisico" /></template>
@@ -253,7 +276,7 @@ onMounted(async () => {
     >
       <form id="vinculo-form" class="space-y-4" @submit.prevent="guardar">
         <p v-if="seleccionado" class="text-sm text-ink-600 dark:text-ink-300">
-          <strong>{{ identificadorC31(seleccionado) ?? `#${seleccionado.id}` }}</strong> —
+          <strong>{{ rotuloC31(seleccionado) ?? `#${seleccionado.id}` }}</strong> —
           {{ seleccionado.descripcion }}
         </p>
 
@@ -285,6 +308,32 @@ onMounted(async () => {
               }))
             "
           />
+          <div
+            v-if="auth.puedeGestionarArchivo"
+            class="-mt-2 flex flex-wrap gap-3 text-xs font-medium"
+          >
+            <button
+              type="button"
+              class="text-seal-600 hover:underline dark:text-seal-300"
+              @click="ubicacionRapida?.abrir('carpeta')"
+            >
+              + Nueva carpeta
+            </button>
+            <button
+              type="button"
+              class="text-seal-600 hover:underline dark:text-seal-300"
+              @click="ubicacionRapida?.abrir('estante')"
+            >
+              + Nuevo estante
+            </button>
+            <button
+              type="button"
+              class="text-seal-600 hover:underline dark:text-seal-300"
+              @click="ubicacionRapida?.abrir('deposito')"
+            >
+              + Nuevo depósito
+            </button>
+          </div>
           <BaseInput
             v-model="numeroParte"
             type="number"
@@ -305,5 +354,6 @@ onMounted(async () => {
         <BaseButton type="submit" form="vinculo-form" :loading="saving">Guardar</BaseButton>
       </template>
     </BaseModal>
+    <UbicacionRapida ref="ubicacionRapida" @creado="alCrearUbicacion" />
   </div>
 </template>

@@ -11,6 +11,8 @@ const props = defineProps<{
   modelValue: boolean
   carpeta?: Carpeta | null
   estantes: Estante[]
+  /** Estante preseleccionado al registrar una carpeta nueva */
+  estanteInicial?: number | string | null
   saving?: boolean
   errorMessage?: string
 }>()
@@ -29,11 +31,11 @@ const form = reactive({
 })
 
 watch(
-  () => props.carpeta,
-  (carpeta) => {
+  () => [props.carpeta, props.modelValue] as const,
+  ([carpeta]) => {
     form.codigoCarpeta = carpeta?.codigoCarpeta ?? ''
     form.ubicacionFisica = carpeta?.ubicacionFisica ?? ''
-    form.estanteId = carpeta?.estanteId ?? ''
+    form.estanteId = carpeta?.estanteId ?? props.estanteInicial ?? ''
     form.estadoFisico = (carpeta?.estadoFisico as 'EN_ARCHIVO' | 'PRESTADO') ?? 'EN_ARCHIVO'
   },
   { immediate: true },

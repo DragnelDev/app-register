@@ -147,6 +147,31 @@ SELECT (SELECT id FROM comprobantes_c31 WHERE observaciones = 'SEED:S14'),
        'DEVUELTO', 'CONFORME', 'Auditoría gestión 2025'
 FROM funcionarios f WHERE f.ci = '5678901';
 
+-- ───────────────────────── Comprobantes UNIDOS (grupo) ─────────────────────────
+-- Cada uno nace con un solo PREV o DEV; luego se agrupan.
+-- Grupo 1: PREV 3 + PREV 7. Grupo 2: PREV 8 + DEV 12 (la numeración de PREV y DEV es independiente).
+INSERT INTO comprobantes_c31
+  (gestion, tipo_c31, monto_total, fecha_elaboracion, descripcion, numero_folio, estado_fisico, ubicacion_fisica, observaciones)
+VALUES
+  (2026, 'CON_IMPUTACION', 8800.00, DATE '2026-02-10', 'MATERIAL DE ESCRITORIO', NULL, 'EN_REVISION', NULL, 'SEED:U1'),
+  (2026, 'CON_IMPUTACION', 7000.00, DATE '2026-02-10', 'MATERIAL DE LIMPIEZA', NULL, 'EN_REVISION', NULL, 'SEED:U2'),
+  (2026, 'CON_IMPUTACION', 9200.50, DATE '2026-02-18', 'MANTENIMIENTO (PREVENTIVO)', NULL, 'EN_REVISION', NULL, 'SEED:U3'),
+  (2026, 'SIN_IMPUTACION', 9200.50, DATE '2026-02-18', 'MANTENIMIENTO (DEVENGADO)', NULL, 'EN_REVISION', NULL, 'SEED:U4');
+
+INSERT INTO c31_preventivos (comprobante_id, numero_preventivo)
+SELECT id, CASE observaciones WHEN 'SEED:U1' THEN '3' WHEN 'SEED:U2' THEN '7' ELSE '8' END
+FROM comprobantes_c31 WHERE observaciones IN ('SEED:U1','SEED:U2','SEED:U3');
+
+INSERT INTO c31_devengados (comprobante_id, numero_devengado)
+SELECT id, '12' FROM comprobantes_c31 WHERE observaciones = 'SEED:U4';
+
+INSERT INTO c31_beneficiarios (comprobante_id, nombre_beneficiario)
+SELECT id, CASE WHEN observaciones IN ('SEED:U1','SEED:U2') THEN 'PROVEEDORA COMERCIAL ANDINA S.R.L.' ELSE 'SERVICIOS TÉCNICOS BOLIVIA LTDA.' END
+FROM comprobantes_c31 WHERE observaciones IN ('SEED:U1','SEED:U2','SEED:U3','SEED:U4');
+
+UPDATE comprobantes_c31 SET grupo_union_id = '00000000-0000-4000-8000-0000000000a1' WHERE observaciones IN ('SEED:U1','SEED:U2');
+UPDATE comprobantes_c31 SET grupo_union_id = '00000000-0000-4000-8000-0000000000a2' WHERE observaciones IN ('SEED:U3','SEED:U4');
+
 COMMIT;
 
 -- ───────────────────────── Verificación rápida ─────────────────────────

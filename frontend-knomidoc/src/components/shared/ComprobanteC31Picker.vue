@@ -3,7 +3,7 @@ import { ref, watch, onBeforeUnmount, onMounted } from 'vue'
 import { c31Service } from '@/services/c31.service'
 import { extractApiErrorMessage } from '@/utils/http-error'
 import type { ComprobanteC31 } from '@/types/c31.types'
-import { identificadorC31, numeroPreventivoC31, numeroDevengadoC31 } from '@/types/c31.types'
+import { rotuloC31, numeroPreventivoC31, numeroDevengadoC31 } from '@/types/c31.types'
 
 const props = withDefaults(
   defineProps<{
@@ -171,7 +171,7 @@ onBeforeUnmount(() => {
         <div class="flex items-center justify-between gap-2">
           <span class="font-medium text-ink-800 dark:text-ink-100">
             Comprobante N°
-            {{ identificadorC31(comprobante) ?? comprobante.numeroFolio ?? comprobante.id }}
+            {{ rotuloC31(comprobante) ?? comprobante.numeroFolio ?? comprobante.id }}
           </span>
           <span class="whitespace-nowrap text-ink-600 dark:text-ink-300"
             >Bs {{ formatMonto(comprobante.montoTotal) }}</span

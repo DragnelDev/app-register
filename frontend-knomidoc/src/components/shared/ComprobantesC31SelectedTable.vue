@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import type { ComprobanteC31 } from '@/types/c31.types'
-import { identificadorC31, numeroPreventivoC31, numeroDevengadoC31 } from '@/types/c31.types'
+import { rotuloC31, numeroPreventivoC31, numeroDevengadoC31 } from '@/types/c31.types'
 
 const props = withDefaults(
   defineProps<{
@@ -54,7 +54,7 @@ function joinNombres(items: { nombreBeneficiario?: string }[] | undefined) {
         </tr>
         <tr v-for="comprobante in items" :key="comprobante.id" class="dark:bg-ink-950">
           <td class="table-cell">
-            {{ identificadorC31(comprobante) ?? comprobante.numeroFolio ?? comprobante.id }}
+            {{ rotuloC31(comprobante) ?? comprobante.numeroFolio ?? comprobante.id }}
           </td>
           <td class="table-cell">{{ numeroPreventivoC31(comprobante) ?? '—' }}</td>
           <td class="table-cell">{{ numeroDevengadoC31(comprobante) ?? '—' }}</td>

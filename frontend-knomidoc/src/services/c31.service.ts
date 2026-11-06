@@ -6,6 +6,7 @@ import type {
   C31FilterState,
   C31ImportResult,
   C31Seguimiento,
+  C31GrupoMiembro,
   C31Adjunto,
   TipoAdjuntoC31,
 } from '@/types/c31.types'
@@ -61,6 +62,25 @@ export const c31Service = {
     return apiClient
       .patch<ComprobanteC31>(`${RESOURCE}/${id}/estado`, { estado, motivo })
       .then((r) => r.data)
+  },
+
+  /** Comprobantes unidos al indicado (incluido él). Vacío si no está unido. */
+  grupo(id: string | number) {
+    return apiClient.get<C31GrupoMiembro[]>(`${RESOURCE}/${id}/grupo`).then((r) => r.data)
+  },
+
+  /** Une comprobantes que vienen como uno solo; cada uno conserva su registro. */
+  unir(comprobanteIds: (string | number)[]) {
+    return apiClient
+      .post<C31GrupoMiembro[]>(`${RESOURCE}/unir`, {
+        comprobanteIds: comprobanteIds.map(Number),
+      })
+      .then((r) => r.data)
+  },
+
+  /** Saca el comprobante de su grupo. */
+  separar(id: string | number) {
+    return apiClient.delete(`${RESOURCE}/${id}/grupo`).then((r) => r.data)
   },
 
   /** Bitácora de estados y detalle de préstamos del comprobante. */

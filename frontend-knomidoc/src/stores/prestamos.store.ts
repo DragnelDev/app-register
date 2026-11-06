@@ -25,7 +25,7 @@ export const filtrosCuadernoVacios = (): CuadernoFilterState => ({
   fechaHasta: '',
   funcionarioId: null,
   unidad: '',
-  devuelto: '',
+  estado: '',
 })
 
 export const usePrestamosStore = defineStore('prestamos', {
@@ -81,6 +81,18 @@ export const usePrestamosStore = defineStore('prestamos', {
       const updated = await prestamosService.devolverCuaderno(id, payload)
       const idx = this.cuaderno.findIndex((p) => p.id === id)
       if (idx !== -1) this.cuaderno[idx] = updated
+    },
+
+    /** Devuelve todos los comprobantes del lote de una sola vez. */
+    async devolverLoteCuaderno(loteId: string, payload: DevolverPrestamoCuadernoPayload = {}) {
+      await prestamosService.devolverLoteCuaderno(loteId, payload)
+      await this.fetchCuaderno()
+    },
+
+    /** Devuelve todos los comprobantes de la nota de una sola vez. */
+    async devolverNotaCompleta(numeroNota: string, payload: DevolverPrestamoNotaPayload = {}) {
+      await prestamosService.devolverNotaCompleta(numeroNota, payload)
+      await this.fetchNotas()
     },
 
     async devolverNota(id: string, payload: DevolverPrestamoNotaPayload = {}) {

@@ -15,7 +15,7 @@ import {
   fechaRazonable,
 } from '@/utils/validators'
 import { bs } from '@/utils/estados'
-import { identificadorC31, type ComprobanteC31 } from '@/types/c31.types'
+import { rotuloC31, type ComprobanteC31 } from '@/types/c31.types'
 import type { ActaEntrega, ActaEntregaCreatePayload } from '@/types/actas-entrega.types'
 
 const props = defineProps<{
@@ -284,7 +284,7 @@ const ver = (e: string) => (intentado.value ? e : '')
                     @change="alternar(c)"
                   />
                 </td>
-                <td class="table-cell font-mono text-xs">{{ identificadorC31(c) ?? c.id }}</td>
+                <td class="table-cell font-mono text-xs">{{ rotuloC31(c) ?? c.id }}</td>
                 <td class="table-cell">
                   {{ c.beneficiarios.map((b) => b.nombreBeneficiario).join(', ') || '—' }}
                 </td>

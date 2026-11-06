@@ -20,6 +20,7 @@ import { ComprobantesC31Service } from './comprobantes_c31.service';
 import { CreateComprobantesC31Dto } from './dto/create-comprobantes_c31.dto';
 import { UpdateComprobantesC31Dto } from './dto/update-comprobantes_c31.dto';
 import { FilterComprobantesC31Dto } from './dto/filter-comprobantes_c31.dto';
+import { UnirComprobantesC31Dto } from './dto/unir-comprobantes_c31.dto';
 import { CambiarEstadoC31Dto } from './dto/cambiar-estado-comprobantes_c31.dto';
 import { C31SeguimientoService } from './c31-seguimiento.service';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -42,6 +43,13 @@ export class ComprobantesC31Controller {
     @CurrentUser() usuario: Usuario,
   ) {
     return this.comprobantesC31Service.create(dto, usuario);
+  }
+
+  /** Une comprobantes que vienen como uno solo (PREV + PREV, PREV + DEV). */
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Post('unir')
+  unir(@Body() dto: UnirComprobantesC31Dto) {
+    return this.comprobantesC31Service.unir(dto.comprobanteIds);
   }
 
   @Get()
@@ -86,6 +94,17 @@ export class ComprobantesC31Controller {
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.comprobantesC31Service.findOne(id);
+  }
+
+  @Get(':id/grupo')
+  grupo(@Param('id', ParseIntPipe) id: number) {
+    return this.comprobantesC31Service.grupoDe(id);
+  }
+
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Delete(':id/grupo')
+  separar(@Param('id', ParseIntPipe) id: number) {
+    return this.comprobantesC31Service.separar(id);
   }
 
   /** Bitácora de estados y detalle de préstamos del comprobante. */

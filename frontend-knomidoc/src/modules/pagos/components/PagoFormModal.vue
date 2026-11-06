@@ -7,7 +7,7 @@ import { pagosService } from '@/services/pagos.service'
 import { extractApiErrorMessage } from '@/utils/http-error'
 import { bs } from '@/utils/estados'
 import { codigoDocumento, fechaRazonable, maxLength, runValidators } from '@/utils/validators'
-import { identificadorC31, type ComprobanteC31 } from '@/types/c31.types'
+import { rotuloC31, type ComprobanteC31 } from '@/types/c31.types'
 import type { Pago, PagosDeComprobante, TipoPago } from '@/types/pagos.types'
 
 const props = defineProps<{
@@ -172,7 +172,7 @@ const etiqueta = 'mb-1 block text-xs font-semibold text-ink-700 dark:text-ink-20
           @select="elegirComprobante"
         />
         <p v-if="comprobante" class="mt-1 text-xs text-ink-600 dark:text-ink-300">
-          Seleccionado: N° {{ identificadorC31(comprobante) ?? comprobante.id }} · Bs
+          Seleccionado: {{ rotuloC31(comprobante) ?? comprobante.id }} · Bs
           {{ bs(comprobante.montoTotal) }}
         </p>
       </div>

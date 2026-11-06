@@ -5,7 +5,7 @@ import { useC31Store } from '@/stores/c31.store'
 import { useResumenStore } from '@/stores/resumen.store'
 import { useAuthStore } from '@/stores/auth.store'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
-import { identificadorC31 } from '@/types/c31.types'
+import { rotuloC31 } from '@/types/c31.types'
 
 const c31Store = useC31Store()
 const resumen = useResumenStore()
@@ -140,11 +140,9 @@ const ultimosComprobantes = computed(() => c31Store.items.slice(0, 6))
         >
           <div class="min-w-0">
             <p class="truncate font-medium text-ink-800 dark:text-ink-100">
-              <span
-                v-if="identificadorC31(comprobante)"
-                class="mr-2 font-mono text-xs text-ink-500"
-                >{{ identificadorC31(comprobante) }}</span
-              >
+              <span v-if="rotuloC31(comprobante)" class="mr-2 font-mono text-xs text-ink-500">{{
+                rotuloC31(comprobante)
+              }}</span>
               {{ comprobante.descripcion }}
             </p>
             <p class="text-xs text-ink-600 dark:text-ink-400">

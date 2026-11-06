@@ -1,3 +1,4 @@
+import { rotuloC31 } from '../common/utils/identificador-c31.util';
 import {
   BadRequestException,
   ConflictException,
@@ -508,10 +509,7 @@ export class C31PagosService {
     pagos.forEach((p) =>
       hoja.addRow({
         gestion: p.comprobante?.gestion,
-        ident:
-          p.comprobante?.preventivos?.[0]?.numeroPreventivo ??
-          p.comprobante?.devengados?.[0]?.numeroDevengado ??
-          '',
+        ident: rotuloC31(p.comprobante),
         beneficiario: p.beneficiario?.nombreBeneficiario ?? '',
         tipo: p.tipoPago === TipoPago.CHEQUE ? 'Cheque' : 'Pago electrónico',
         doc: p.numeroDocumento ?? '',

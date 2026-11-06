@@ -1,3 +1,4 @@
+import { identificadorC31 } from '../common/utils/identificador-c31.util';
 import {
   BadRequestException,
   ConflictException,
@@ -5,7 +6,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository, SelectQueryBuilder } from 'typeorm';
+import { randomUUID } from 'crypto';
+import {
+  DataSource,
+  EntityManager,
+  In,
+  Repository,
+  SelectQueryBuilder,
+} from 'typeorm';
 import { CreatePrestamosCuadernoDto } from './dto/create-prestamos-cuaderno.dto';
 import { UpdatePrestamosCuadernoDto } from './dto/update-prestamos-cuaderno.dto';
 import { DevolverPrestamosCuadernoDto } from './dto/devolver-prestamos-cuaderno.dto';
@@ -81,16 +89,14 @@ export class PrestamosCuadernoService {
         relations: { preventivos: true, devengados: true },
       });
       const creados: number[] = [];
+      const loteId = randomUUID();
 
       for (const id of ids) {
         const comprobante = comprobantes.find((c) => c.id === id);
         if (!comprobante) {
           throw new NotFoundException(`El comprobante ${id} no existe`);
         }
-        const nombre =
-          comprobante.preventivos?.[0]?.numeroPreventivo ??
-          comprobante.devengados?.[0]?.numeroDevengado ??
-          `#${id}`;
+        const nombre = identificadorC31(comprobante, `#${id}`);
         if (comprobante.estadoFisico === EstadoFisicoC31.PRESTADO) {
           throw new ConflictException(
             `El comprobante ${nombre} ya se encuentra prestado`,
@@ -106,6 +112,7 @@ export class PrestamosCuadernoService {
           PrestamosCuaderno,
           manager.create(PrestamosCuaderno, {
             comprobanteId: id,
+            loteId,
             funcionarioId: dto.funcionarioId,
             areaUnidad,
             fechaHoraSalida: salida,
@@ -160,6 +167,14 @@ export class PrestamosCuadernoService {
 
     if (query.devuelto !== undefined)
       qb.andWhere('p.devuelto = :devuelto', { devuelto: query.devuelto });
+    // Estado: PENDIENTE (aún no devuelto, incluye vencidos), VENCIDO (pendiente con
+    // fecha estimada pasada) o DEVUELTO
+    if (query.estado === 'DEVUELTO') qb.andWhere('p.devuelto = true');
+    if (query.estado === 'PENDIENTE') qb.andWhere('p.devuelto = false');
+    if (query.estado === 'VENCIDO')
+      qb.andWhere('p.devuelto = false').andWhere(
+        'p.fechaDevolucionEstimada < CURRENT_DATE',
+      );
     if (query.comprobanteId)
       qb.andWhere('p.comprobanteId = :comprobanteId', {
         comprobanteId: query.comprobanteId,
@@ -240,6 +255,10 @@ export class PrestamosCuadernoService {
     if (query.unidad?.trim()) filtros.push(`Unidad: ${query.unidad.trim()}`);
     if (query.devuelto !== undefined)
       filtros.push(`Estado: ${query.devuelto ? 'Devuelto' : 'Pendiente'}`);
+    if (query.estado)
+      filtros.push(
+        `Estado: ${{ PENDIENTE: 'Pendientes de devolución', VENCIDO: 'Vencidos', DEVUELTO: 'Devueltos' }[query.estado]}`,
+      );
 
     return generarReporteCuadernoPdf({
       filas,
@@ -298,7 +317,54 @@ export class PrestamosCuadernoService {
     return this.findOne(id);
   }
 
-  /** RF-03.3: registro de devolución */
+  /** Registra la devolución de una fila ya cargada (dentro de la transacción). */
+  private async devolverFila(
+    manager: EntityManager,
+    prestamo: PrestamosCuaderno,
+    dto: DevolverPrestamosCuadernoDto,
+    usuario?: Usuario,
+  ) {
+    if (prestamo.devuelto) {
+      throw new ConflictException('El préstamo ya fue devuelto');
+    }
+    const fechaHoraDevolucion = dto.fechaHoraDevolucion
+      ? new Date(dto.fechaHoraDevolucion)
+      : new Date();
+    if (
+      prestamo.fechaHoraSalida &&
+      fechaHoraDevolucion < prestamo.fechaHoraSalida
+    ) {
+      throw new BadRequestException(
+        'La devolución no puede ser anterior a la salida',
+      );
+    }
+    prestamo.devuelto = true;
+    prestamo.fechaHoraDevolucion = fechaHoraDevolucion;
+    prestamo.condicionDevolucion = dto.condicion ?? 'CONFORME';
+    if (dto.observaciones) prestamo.observacionesDevolucion = dto.observaciones;
+    prestamo.recibidoPorId = usuario?.id ?? null;
+    await manager.save(PrestamosCuaderno, prestamo);
+
+    await manager.update(ComprobantesC31, prestamo.comprobanteId, {
+      estadoFisico: EstadoFisicoC31.ARCHIVADO,
+    });
+    await registrarCambioEstado(manager, {
+      comprobanteId: prestamo.comprobanteId as number,
+      estadoAnterior: EstadoFisicoC31.PRESTADO,
+      estadoNuevo: EstadoFisicoC31.ARCHIVADO,
+      origen: 'PRESTAMO',
+      usuarioId: usuario?.id,
+      referencia: 'Cuaderno de salida',
+      detalle:
+        `Devuelto ${prestamo.condicionDevolucion === 'CON_NOVEDAD' ? 'con novedad' : 'conforme'}` +
+        (dto.observaciones ? `: ${dto.observaciones}` : ''),
+    });
+  }
+
+  /**
+   * RF-03.3: devolución de UN comprobante. Si pertenece a un lote con otros
+   * pendientes se rechaza: el lote se devuelve completo (devolverLote).
+   */
   async devolver(
     id: number,
     dto: DevolverPrestamosCuadernoDto,
@@ -309,51 +375,50 @@ export class PrestamosCuadernoService {
         where: { id },
       });
       if (!prestamo) throw new NotFoundException('El préstamo no existe');
-      if (prestamo.devuelto) {
-        throw new ConflictException('El préstamo ya fue devuelto');
+      if (prestamo.loteId) {
+        const pendientes = await manager.count(PrestamosCuaderno, {
+          where: { loteId: prestamo.loteId, devuelto: false },
+        });
+        if (pendientes > 1) {
+          throw new ConflictException(
+            'Este préstamo salió junto con otros comprobantes: se devuelven todos juntos con "Devolver lote"',
+          );
+        }
       }
-
-      const fechaHoraDevolucion = dto.fechaHoraDevolucion
-        ? new Date(dto.fechaHoraDevolucion)
-        : new Date();
-      if (
-        prestamo.fechaHoraSalida &&
-        fechaHoraDevolucion < prestamo.fechaHoraSalida
-      ) {
-        throw new BadRequestException(
-          'La devolución no puede ser anterior a la salida',
-        );
-      }
-
-      prestamo.devuelto = true;
-      prestamo.fechaHoraDevolucion = fechaHoraDevolucion;
-      prestamo.condicionDevolucion = dto.condicion ?? 'CONFORME';
-      if (dto.observaciones)
-        prestamo.observacionesDevolucion = dto.observaciones;
-      prestamo.recibidoPorId = usuario?.id ?? null;
-      await manager.save(PrestamosCuaderno, prestamo);
-
-      await manager.update(ComprobantesC31, prestamo.comprobanteId, {
-        estadoFisico: EstadoFisicoC31.ARCHIVADO,
-      });
-      await registrarCambioEstado(manager, {
-        comprobanteId: prestamo.comprobanteId as number,
-        estadoAnterior: EstadoFisicoC31.PRESTADO,
-        estadoNuevo: EstadoFisicoC31.ARCHIVADO,
-        origen: 'PRESTAMO',
-        usuarioId: usuario?.id,
-        referencia: 'Cuaderno de salida',
-        detalle:
-          `Devuelto ${prestamo.condicionDevolucion === 'CON_NOVEDAD' ? 'con novedad' : 'conforme'}` +
-          (dto.observaciones ? `: ${dto.observaciones}` : ''),
-      });
-
+      await this.devolverFila(manager, prestamo, dto, usuario);
       const completo = await manager.findOne(PrestamosCuaderno, {
         where: { id },
         relations: RELATIONS,
       });
       if (!completo) throw new NotFoundException('El préstamo no existe');
       return completo;
+    });
+  }
+
+  /** Devuelve de una vez todos los comprobantes pendientes del lote (todo o nada). */
+  async devolverLote(
+    loteId: string,
+    dto: DevolverPrestamosCuadernoDto,
+    usuario?: Usuario,
+  ): Promise<PrestamosCuaderno[]> {
+    return this.dataSource.transaction(async (manager) => {
+      const filas = await manager.find(PrestamosCuaderno, {
+        where: { loteId },
+        order: { id: 'ASC' },
+      });
+      if (filas.length === 0) throw new NotFoundException('El lote no existe');
+      const pendientes = filas.filter((f) => !f.devuelto);
+      if (pendientes.length === 0) {
+        throw new ConflictException('El lote ya fue devuelto completo');
+      }
+      for (const fila of pendientes) {
+        await this.devolverFila(manager, fila, dto, usuario);
+      }
+      return manager.find(PrestamosCuaderno, {
+        where: { loteId },
+        relations: RELATIONS,
+        order: { id: 'ASC' },
+      });
     });
   }
 

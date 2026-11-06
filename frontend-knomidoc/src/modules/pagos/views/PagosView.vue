@@ -11,7 +11,7 @@ import { c31Service } from '@/services/c31.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { extractApiErrorMessage } from '@/utils/http-error'
 import { bs, fechaCorta, TIPO_PAGO_LABEL } from '@/utils/estados'
-import { identificadorC31, type ComprobanteC31 } from '@/types/c31.types'
+import { rotuloC31, type ComprobanteC31 } from '@/types/c31.types'
 import type { Pago, PagoFiltros, PagoPorBeneficiario, PagosResumen } from '@/types/pagos.types'
 
 const auth = useAuthStore()
@@ -256,10 +256,7 @@ onMounted(async () => {
         <button
           type="button"
           class="ml-2 text-seal-600 hover:underline dark:text-seal-300"
-          @click="
-            filtros.beneficiario = '';
-            aplicar()
-          "
+          @click="((filtros.beneficiario = ''), aplicar())"
         >
           quitar
         </button>
@@ -317,9 +314,7 @@ onMounted(async () => {
           @click="verComprobante(row)"
         >
           {{
-            row.comprobante
-              ? (identificadorC31(row.comprobante) ?? row.comprobanteId)
-              : row.comprobanteId
+            row.comprobante ? (rotuloC31(row.comprobante) ?? row.comprobanteId) : row.comprobanteId
           }}
         </button>
       </template>

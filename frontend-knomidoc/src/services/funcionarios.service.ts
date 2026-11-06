@@ -7,9 +7,7 @@ const RESOURCE = '/funcionarios'
 export const funcionariosService = {
   /** ?search= busca por CI, nombres, apellidos o unidad. */
   list(params: QueryParams & { estado?: string } = {}) {
-    return apiClient
-      .get<PaginatedResponse<Funcionario>>(RESOURCE, { params })
-      .then((r) => r.data)
+    return apiClient.get<PaginatedResponse<Funcionario>>(RESOURCE, { params }).then((r) => r.data)
   },
 
   getById(id: number) {

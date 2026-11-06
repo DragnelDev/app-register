@@ -1,4 +1,10 @@
 import {
+  devengadosDe,
+  identificadorC31,
+  preventivosDe,
+  rotuloC31,
+} from '../common/utils/identificador-c31.util';
+import {
   BadRequestException,
   ConflictException,
   Injectable,
@@ -9,9 +15,11 @@ import {
   DataSource,
   EntityManager,
   FindOptionsWhere,
+  In,
   Repository,
 } from 'typeorm';
 import * as ExcelJS from 'exceljs';
+import { randomUUID } from 'crypto';
 import {
   ComprobantesC31,
   ESTADO_FISICO_LABELS,
@@ -129,74 +137,86 @@ export class ComprobantesC31Service {
   ) {}
 
   /**
-   * Regla del DER: relación 1 a 1 estricta entre comprobantes_c31 y sus
-   * tablas hijas de identificación.
-   *  - tipoC31 = CON_IMPUTACION -> debe existir numeroPreventivo y NO debe
-   *    enviarse numeroDevengado.
-   *  - tipoC31 = SIN_IMPUTACION -> debe existir numeroDevengado y NO debe
-   *    enviarse numeroPreventivo.
+   * Un C31 real puede agrupar varios preventivos (PREV 3 y 7 como un solo
+   * comprobante) y/o devengados. Reúne todos los números que llegan en el DTO
+   * (listas + atajos de uno solo), sin vacíos ni repetidos.
    */
-  private validarTipoCoincideConIdentificador(
-    tipoC31: TipoC31,
-    numeroPreventivo?: string,
-    numeroDevengado?: string,
-  ) {
-    if (tipoC31 === TipoC31.CON_IMPUTACION) {
-      if (!numeroPreventivo) {
-        throw new BadRequestException(
-          'Un comprobante CON_IMPUTACION debe tener un N° de preventivo',
-        );
-      }
-      if (numeroDevengado) {
-        throw new BadRequestException(
-          'Un comprobante CON_IMPUTACION no puede tener N° de devengado',
-        );
-      }
-    } else {
-      if (!numeroDevengado) {
-        throw new BadRequestException(
-          'Un comprobante SIN_IMPUTACION debe tener un N° de devengado',
-        );
-      }
-      if (numeroPreventivo) {
-        throw new BadRequestException(
-          'Un comprobante SIN_IMPUTACION no puede tener N° de preventivo',
-        );
-      }
+  private numerosDelDto(dto: {
+    preventivos?: string[];
+    devengados?: string[];
+    numeroPreventivo?: string;
+    numeroDevengado?: string;
+  }) {
+    return {
+      preventivos: limpiarLista([
+        ...(dto.preventivos ?? []),
+        ...(dto.numeroPreventivo ? [dto.numeroPreventivo] : []),
+      ]),
+      devengados: limpiarLista([
+        ...(dto.devengados ?? []),
+        ...(dto.numeroDevengado ? [dto.numeroDevengado] : []),
+      ]),
+    };
+  }
+
+  /** Con al menos un preventivo es CON_IMPUTACION (también si trae devengados). */
+  private derivarTipo(preventivos: string[], devengados: string[]): TipoC31 {
+    if (preventivos.length === 0 && devengados.length === 0) {
+      throw new BadRequestException(
+        'Registre al menos un N° de preventivo o de devengado',
+      );
     }
+    if (preventivos.length + devengados.length > 1) {
+      throw new BadRequestException(
+        'Cada comprobante nace con un solo N° de preventivo o de devengado. Para unirlos use la opción "Unir comprobantes".',
+      );
+    }
+    return preventivos.length > 0
+      ? TipoC31.CON_IMPUTACION
+      : TipoC31.SIN_IMPUTACION;
   }
 
   /**
-   * El N° de preventivo / devengado reserva el correlativo: no puede repetirse
-   * dentro de la misma gestión (los comprobantes anulados liberan el número).
+   * Cada N° de preventivo / devengado reserva su correlativo: no puede repetirse
+   * en otro comprobante de la misma gestión (los anulados liberan el número).
    */
-  private async validarIdentificadorUnico(
+  private async validarIdentificadoresUnicos(
     manager: EntityManager,
-    tipoC31: TipoC31,
-    numero: string,
+    preventivos: string[],
+    devengados: string[],
     gestion: number,
     excluirId?: number,
   ) {
-    const esPreventivo = tipoC31 === TipoC31.CON_IMPUTACION;
-    const qb = manager
-      .createQueryBuilder(ComprobantesC31, 'c')
-      .innerJoin(esPreventivo ? 'c.preventivos' : 'c.devengados', 'i')
-      .where('c.gestion = :gestion', { gestion })
-      .andWhere('c.estado_fisico <> :anulado', {
-        anulado: EstadoFisicoC31.ANULADO,
-      })
-      .andWhere(
-        esPreventivo
-          ? 'UPPER(i.numero_preventivo) = UPPER(:numero)'
-          : 'UPPER(i.numero_devengado) = UPPER(:numero)',
-        { numero },
-      );
-    if (excluirId) qb.andWhere('c.id <> :excluirId', { excluirId });
-    if (await qb.getExists()) {
-      throw new ConflictException(
-        `Ya existe un comprobante con el N° de ${esPreventivo ? 'preventivo' : 'devengado'} ${numero} en la gestión ${gestion}`,
-      );
-    }
+    const revisar = async (
+      numeros: string[],
+      relacion: 'c.preventivos' | 'c.devengados',
+      columna: string,
+      etiqueta: string,
+    ) => {
+      for (const numero of numeros) {
+        const qb = manager
+          .createQueryBuilder(ComprobantesC31, 'c')
+          .innerJoin(relacion, 'i')
+          .where('c.gestion = :gestion', { gestion })
+          .andWhere('c.estado_fisico <> :anulado', {
+            anulado: EstadoFisicoC31.ANULADO,
+          })
+          .andWhere(`UPPER(i.${columna}) = UPPER(:numero)`, { numero });
+        if (excluirId) qb.andWhere('c.id <> :excluirId', { excluirId });
+        if (await qb.getExists()) {
+          throw new ConflictException(
+            `Ya existe un comprobante con el N° de ${etiqueta} ${numero} en la gestión ${gestion}`,
+          );
+        }
+      }
+    };
+    await revisar(
+      preventivos,
+      'c.preventivos',
+      'numero_preventivo',
+      'preventivo',
+    );
+    await revisar(devengados, 'c.devengados', 'numero_devengado', 'devengado');
   }
 
   /** Mantiene actas_entrega_tesoreria.cantidad_comprobantes = comprobantes vinculados. */
@@ -217,14 +237,8 @@ export class ComprobantesC31Service {
     dto: CreateComprobantesC31Dto,
     usuario: Usuario,
   ): Promise<ComprobantesC31> {
-    const tipoC31 = (dto.tipoC31 as TipoC31) ?? TipoC31.CON_IMPUTACION;
-    const numeroPreventivo = dto.numeroPreventivo?.trim() || undefined;
-    const numeroDevengado = dto.numeroDevengado?.trim() || undefined;
-    this.validarTipoCoincideConIdentificador(
-      tipoC31,
-      numeroPreventivo,
-      numeroDevengado,
-    );
+    const { preventivos, devengados } = this.numerosDelDto(dto);
+    const tipoC31 = this.derivarTipo(preventivos, devengados);
     validarRangoFecha(dto.fechaElaboracion);
     const gestion =
       dto.gestion ??
@@ -238,10 +252,10 @@ export class ComprobantesC31Service {
       : EstadoFisicoC31.EN_TRAMITE;
 
     return this.dataSource.transaction(async (manager) => {
-      await this.validarIdentificadorUnico(
+      await this.validarIdentificadoresUnicos(
         manager,
-        tipoC31,
-        (numeroPreventivo ?? numeroDevengado) as string,
+        preventivos,
+        devengados,
         gestion,
       );
 
@@ -258,12 +272,12 @@ export class ComprobantesC31Service {
         ubicacionFisica: dto.ubicacionFisica,
         observaciones: dto.observaciones,
         creadoPorId: usuario.id,
-        preventivos: numeroPreventivo
-          ? [manager.create(C31Preventivo, { numeroPreventivo })]
-          : [],
-        devengados: numeroDevengado
-          ? [manager.create(C31Devengado, { numeroDevengado })]
-          : [],
+        preventivos: preventivos.map((numeroPreventivo) =>
+          manager.create(C31Preventivo, { numeroPreventivo }),
+        ),
+        devengados: devengados.map((numeroDevengado) =>
+          manager.create(C31Devengado, { numeroDevengado }),
+        ),
         beneficiarios: nombres.map((nombreBeneficiario) =>
           manager.create(C31Beneficiario, { nombreBeneficiario }),
         ),
@@ -354,14 +368,19 @@ export class ComprobantesC31Service {
       });
     }
 
-    // N° de preventivo (o devengado en los sin imputación)
+    // N° de preventivo o de devengado. Son numeraciones distintas (PREV 1 ≠ DEV 1):
+    // con el tipo elegido se busca solo en su tabla; sin tipo, en ambas.
     const numero = query.numeroPreventivo?.trim();
     if (numero) {
-      qb.andWhere(
-        `(EXISTS (SELECT 1 FROM c31_preventivos pv WHERE pv.comprobante_id = c.id AND pv.numero_preventivo ILIKE :numero)
-          OR EXISTS (SELECT 1 FROM c31_devengados dv WHERE dv.comprobante_id = c.id AND dv.numero_devengado ILIKE :numero))`,
-        { numero: `%${escaparLike(numero)}%` },
-      );
+      const enPrev = `EXISTS (SELECT 1 FROM c31_preventivos pv WHERE pv.comprobante_id = c.id AND pv.numero_preventivo ILIKE :numero)`;
+      const enDev = `EXISTS (SELECT 1 FROM c31_devengados dv WHERE dv.comprobante_id = c.id AND dv.numero_devengado ILIKE :numero)`;
+      const donde =
+        query.tipoC31 === 'CON_IMPUTACION'
+          ? enPrev
+          : query.tipoC31 === 'SIN_IMPUTACION'
+            ? enDev
+            : `(${enPrev} OR ${enDev})`;
+      qb.andWhere(donde, { numero: `%${escaparLike(numero)}%` });
     }
 
     // Ubicación física: depósito > estante > carpeta
@@ -420,6 +439,97 @@ export class ComprobantesC31Service {
     return new PaginatedResponseDto(data, total, page, pageSize);
   }
 
+  /**
+   * Une comprobantes que en la práctica vienen como uno solo (PREV 3 + PREV 7,
+   * PREV + DEV). No fusiona registros: solo los agrupa. Si alguno ya pertenecía
+   * a un grupo, ese grupo completo se suma al nuevo.
+   */
+  async unir(ids: number[]) {
+    const unicos = [...new Set(ids)];
+    if (unicos.length < 2) {
+      throw new BadRequestException(
+        'Seleccione al menos 2 comprobantes para unir',
+      );
+    }
+    return this.dataSource.transaction(async (manager) => {
+      const items = await manager.find(ComprobantesC31, {
+        where: { id: In(unicos) },
+      });
+      if (items.length !== unicos.length) {
+        throw new NotFoundException('Algún comprobante no existe');
+      }
+      if (items.some((c) => c.estadoFisico === EstadoFisicoC31.ANULADO)) {
+        throw new ConflictException('No se pueden unir comprobantes anulados');
+      }
+      if (new Set(items.map((c) => c.gestion)).size > 1) {
+        throw new ConflictException(
+          'Solo se unen comprobantes de la misma gestión',
+        );
+      }
+      const gruposPrevios = [
+        ...new Set(items.map((c) => c.grupoUnionId).filter(Boolean)),
+      ] as string[];
+      const grupo = gruposPrevios[0] ?? randomUUID();
+      const idsFinal = new Set(unicos);
+      if (gruposPrevios.length > 0) {
+        const miembros = await manager.find(ComprobantesC31, {
+          where: { grupoUnionId: In(gruposPrevios) },
+          select: { id: true },
+        });
+        miembros.forEach((m) => idsFinal.add(m.id as number));
+      }
+      await manager.update(
+        ComprobantesC31,
+        { id: In([...idsFinal]) },
+        { grupoUnionId: grupo },
+      );
+      return this.grupoDe(unicos[0], manager);
+    });
+  }
+
+  /** Saca un comprobante de su grupo; si el grupo queda con uno solo, se disuelve. */
+  async separar(id: number) {
+    await this.dataSource.transaction(async (manager) => {
+      const c = await manager.findOne(ComprobantesC31, { where: { id } });
+      if (!c) throw new NotFoundException('El comprobante C31 no existe');
+      if (!c.grupoUnionId) return;
+      const grupo = c.grupoUnionId;
+      await manager.update(ComprobantesC31, { id }, { grupoUnionId: null });
+      const restantes = await manager.count(ComprobantesC31, {
+        where: { grupoUnionId: grupo },
+      });
+      if (restantes < 2) {
+        await manager.update(
+          ComprobantesC31,
+          { grupoUnionId: grupo },
+          { grupoUnionId: null },
+        );
+      }
+    });
+    return { separado: true };
+  }
+
+  /** Comprobantes unidos al indicado (incluido él mismo). Vacío si no está unido. */
+  async grupoDe(id: number, manager?: EntityManager) {
+    const m = manager ?? this.dataSource.manager;
+    const c = await m.findOne(ComprobantesC31, { where: { id } });
+    if (!c) throw new NotFoundException('El comprobante C31 no existe');
+    if (!c.grupoUnionId) return [];
+    const miembros = await m.find(ComprobantesC31, {
+      where: { grupoUnionId: c.grupoUnionId },
+      relations: { preventivos: true, devengados: true },
+      order: { id: 'ASC' },
+    });
+    return miembros.map((x) => ({
+      id: x.id,
+      tipoC31: x.tipoC31,
+      identificador: rotuloC31(x, `#${x.id}`),
+      estadoFisico: x.estadoFisico,
+      montoTotal: x.montoTotal,
+      actaEntregaId: x.actaEntregaId,
+    }));
+  }
+
   async findOne(id: number): Promise<ComprobantesC31> {
     const comprobante = await this.repo.findOne({
       where: { id },
@@ -444,26 +554,25 @@ export class ComprobantesC31Service {
       );
     }
 
-    // Si cambia el tipo o el identificador, el resultado final debe
-    // seguir cumpliendo la relación 1 a 1 estricta con tipoC31.
-    const prevFinal =
-      dto.numeroPreventivo !== undefined
-        ? dto.numeroPreventivo.trim() || undefined
-        : comprobante.preventivos?.[0]?.numeroPreventivo;
-    const devFinal =
-      dto.numeroDevengado !== undefined
-        ? dto.numeroDevengado.trim() || undefined
-        : comprobante.devengados?.[0]?.numeroDevengado;
-    const tipoFinal = (dto.tipoC31 as TipoC31) ?? comprobante.tipoC31;
+    // Si se envía alguna lista/atajo de identificadores, esa lista reemplaza a la
+    // del mismo tipo; la que no se envía se conserva. El tipo se deriva del resultado.
+    const enviaPrev =
+      dto.preventivos !== undefined || dto.numeroPreventivo !== undefined;
+    const enviaDev =
+      dto.devengados !== undefined || dto.numeroDevengado !== undefined;
+    const numeros = this.numerosDelDto(dto);
+    const prevFinal = enviaPrev
+      ? numeros.preventivos
+      : preventivosDe(comprobante);
+    const devFinal = enviaDev ? numeros.devengados : devengadosDe(comprobante);
+    // Los registros existentes se conservan: solo se re-deriva el tipo si cambian los identificadores.
+    const tipoFinal =
+      enviaPrev || enviaDev
+        ? this.derivarTipo(prevFinal, devFinal)
+        : comprobante.tipoC31;
     const gestionFinal = dto.gestion ?? comprobante.gestion;
     const cambiaIdentificador =
-      dto.tipoC31 !== undefined ||
-      dto.numeroPreventivo !== undefined ||
-      dto.numeroDevengado !== undefined ||
-      dto.gestion !== undefined;
-    if (cambiaIdentificador) {
-      this.validarTipoCoincideConIdentificador(tipoFinal, prevFinal, devFinal);
-    }
+      enviaPrev || enviaDev || dto.gestion !== undefined;
     if (dto.beneficiarios !== undefined) {
       if (limpiarLista(dto.beneficiarios).length === 0) {
         throw new BadRequestException(
@@ -474,12 +583,10 @@ export class ComprobantesC31Service {
 
     return this.dataSource.transaction(async (manager) => {
       if (cambiaIdentificador) {
-        await this.validarIdentificadorUnico(
+        await this.validarIdentificadoresUnicos(
           manager,
-          tipoFinal,
-          (tipoFinal === TipoC31.CON_IMPUTACION
-            ? prevFinal
-            : devFinal) as string,
+          prevFinal,
+          devFinal,
           gestionFinal as number,
           id,
         );
@@ -505,7 +612,7 @@ export class ComprobantesC31Service {
 
       // Campos simples
       const camposSimples: Record<string, unknown> = {};
-      if (dto.tipoC31 !== undefined) camposSimples.tipoC31 = dto.tipoC31;
+      if (tipoFinal !== comprobante.tipoC31) camposSimples.tipoC31 = tipoFinal;
       if (dto.montoTotal !== undefined)
         camposSimples.montoTotal = dto.montoTotal;
       if (dto.fechaElaboracion !== undefined)
@@ -526,28 +633,32 @@ export class ComprobantesC31Service {
         await manager.update(ComprobantesC31, id, camposSimples);
       }
 
-      // Reemplazo del identificador 1 a 1 si viene en el DTO
-      if (dto.numeroPreventivo !== undefined || dto.tipoC31 !== undefined) {
+      // Reemplazo de las listas de identificadores enviadas en el DTO
+      if (enviaPrev) {
         await manager.delete(C31Preventivo, { comprobante: { id } });
-        if (tipoFinal === TipoC31.CON_IMPUTACION && prevFinal) {
+        if (prevFinal.length > 0) {
           await manager.save(
             C31Preventivo,
-            manager.create(C31Preventivo, {
-              numeroPreventivo: prevFinal,
-              comprobante: { id } as ComprobantesC31,
-            }),
+            prevFinal.map((numeroPreventivo) =>
+              manager.create(C31Preventivo, {
+                numeroPreventivo,
+                comprobante: { id } as ComprobantesC31,
+              }),
+            ),
           );
         }
       }
-      if (dto.numeroDevengado !== undefined || dto.tipoC31 !== undefined) {
+      if (enviaDev) {
         await manager.delete(C31Devengado, { comprobante: { id } });
-        if (tipoFinal === TipoC31.SIN_IMPUTACION && devFinal) {
+        if (devFinal.length > 0) {
           await manager.save(
             C31Devengado,
-            manager.create(C31Devengado, {
-              numeroDevengado: devFinal,
-              comprobante: { id } as ComprobantesC31,
-            }),
+            devFinal.map((numeroDevengado) =>
+              manager.create(C31Devengado, {
+                numeroDevengado,
+                comprobante: { id } as ComprobantesC31,
+              }),
+            ),
           );
         }
       }
@@ -838,10 +949,7 @@ export class ComprobantesC31Service {
     // Filas de datos
     comprobantes.forEach((c) => {
       const fila = hoja.addRow({
-        prev:
-          c.preventivos?.[0]?.numeroPreventivo ??
-          c.devengados?.[0]?.numeroDevengado ??
-          '',
+        prev: identificadorC31(c),
         cheque: (c.pagos ?? [])
           .filter(
             (p) =>
@@ -957,10 +1065,9 @@ export class ComprobantesC31Service {
           throw new Error('La fecha no es válida');
         }
 
-        // Un solo identificador por comprobante (relación 1 a 1 estricta).
-        // Si la celda trae varios números (formato "2 en 1"), se conservan
-        // juntos como texto libre en numeroPreventivo.
-        const numeroPreventivo = textoDeCelda(prev).trim() || 'S/N';
+        // Un solo identificador por comprobante; si la celda trae varios
+        // (formato "2 en 1") se conservan juntos como texto libre.
+        const preventivosCelda = [textoDeCelda(prev).trim() || 'S/N'];
 
         const cheques = textoDeCelda(cheque)
           .split(/\s+/)
@@ -991,7 +1098,9 @@ export class ComprobantesC31Service {
                 ? EstadoFisicoC31.ARCHIVADO
                 : EstadoFisicoC31.EN_ARCHIVO,
             creadoPorId: usuario.id,
-            preventivos: [manager.create(C31Preventivo, { numeroPreventivo })],
+            preventivos: preventivosCelda.map((numeroPreventivo) =>
+              manager.create(C31Preventivo, { numeroPreventivo }),
+            ),
             beneficiarios: beneficiarios.map((nombreBeneficiario) =>
               manager.create(C31Beneficiario, { nombreBeneficiario }),
             ),

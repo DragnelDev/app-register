@@ -6,6 +6,8 @@ import type { Deposito, Estante } from '@/types/archivo.types'
 import { ESTADOS_C31 } from '@/utils/estados'
 import { depositosService, estantesService } from '@/services/archivo.service'
 import { carpetasService } from '@/services/carpetas.service'
+import UbicacionRapida from '@/components/shared/UbicacionRapida.vue'
+import { useAuthStore } from '@/stores/auth.store'
 
 const props = defineProps<{ modelValue: C31FilterState; gestiones: number[]; lockTipo?: boolean }>()
 const emit = defineEmits<{
@@ -22,6 +24,31 @@ watch(
 )
 
 // --- Ubicación física en cascada: Depósito → Estante → Carpeta ---
+const auth = useAuthStore()
+const ubicacionRapida = ref<InstanceType<typeof UbicacionRapida>>()
+
+/** Tras crear un depósito/estante/carpeta se recargan las opciones y se selecciona el nuevo. */
+async function alCrearUbicacion({
+  tipo,
+  id,
+}: {
+  tipo: 'deposito' | 'estante' | 'carpeta'
+  id: number
+}) {
+  if (tipo === 'deposito') {
+    depositos.value = await depositosService.opciones()
+    local.depositoId = id as never
+    await alCambiarDeposito()
+  } else if (tipo === 'estante') {
+    await cargarEstantes()
+    local.estanteId = id as never
+    await alCambiarEstante()
+  } else {
+    await cargarCarpetas()
+    local.carpetaId = id as never
+  }
+}
+
 const depositos = ref<Deposito[]>([])
 const estantes = ref<Estante[]>([])
 const carpetas = ref<Carpeta[]>([])
@@ -64,9 +91,7 @@ onMounted(async () => {
 })
 
 // Los N° de preventivo se repiten entre gestiones: se avisa si se busca sin fijar una
-const avisoGestion = computed(
-  () => Boolean(local.numeroPreventivo?.trim()) && !local.gestion,
-)
+const avisoGestion = computed(() => Boolean(local.numeroPreventivo?.trim()) && !local.gestion)
 
 const hayFiltrosAvanzados = computed(
   () =>
@@ -109,11 +134,7 @@ const etiqueta = 'mb-1 block text-xs font-medium text-ink-500'
       <!-- 1. Gestión: filtro principal, aísla los resultados por año fiscal -->
       <div class="w-32">
         <label :class="etiqueta" for="c31-gestion">Gestión</label>
-        <select
-          id="c31-gestion"
-          v-model="local.gestion"
-          :class="[campo, 'font-semibold']"
-        >
+        <select id="c31-gestion" v-model="local.gestion" :class="[campo, 'font-semibold']">
           <option value="">Todas</option>
           <option v-for="g in gestiones" :key="g" :value="g">{{ g }}</option>
         </select>
@@ -133,13 +154,19 @@ const etiqueta = 'mb-1 block text-xs font-medium text-ink-500'
 
       <!-- 3. N° de preventivo -->
       <div class="w-40">
-        <label :class="etiqueta" for="c31-prev">N° de preventivo</label>
+        <label :class="etiqueta" for="c31-prev">{{
+          local.tipoC31 === 'SIN_IMPUTACION'
+            ? 'N° de devengado'
+            : local.tipoC31 === 'CON_IMPUTACION'
+              ? 'N° de preventivo'
+              : 'N° de PREV / DEV'
+        }}</label>
         <input
           id="c31-prev"
           v-model="local.numeroPreventivo"
           type="text"
           inputmode="numeric"
-          placeholder="Opcional"
+          :placeholder="local.tipoC31 ? 'Opcional' : 'Busca en PREV y DEV'"
           :class="campo"
         />
       </div>
@@ -170,6 +197,14 @@ const etiqueta = 'mb-1 block text-xs font-medium text-ink-500'
           <option value="">Todos</option>
           <option v-for="d in depositos" :key="d.id" :value="d.id">{{ d.nombre }}</option>
         </select>
+        <button
+          v-if="auth.puedeGestionarArchivo"
+          type="button"
+          class="mt-1 text-xs font-medium text-seal-600 hover:underline dark:text-seal-300"
+          @click="ubicacionRapida?.abrir('deposito')"
+        >
+          + Nuevo depósito
+        </button>
       </div>
       <div class="w-44">
         <label :class="etiqueta" for="c31-est">Estante</label>
@@ -183,18 +218,29 @@ const etiqueta = 'mb-1 block text-xs font-medium text-ink-500'
           <option value="">Todos</option>
           <option v-for="e in estantes" :key="e.id" :value="e.id">{{ e.codigo }}</option>
         </select>
+        <button
+          v-if="auth.puedeGestionarArchivo"
+          type="button"
+          class="mt-1 text-xs font-medium text-seal-600 hover:underline dark:text-seal-300"
+          @click="ubicacionRapida?.abrir('estante', { depositoId: local.depositoId })"
+        >
+          + Nuevo estante
+        </button>
       </div>
       <div class="w-44">
         <label :class="etiqueta" for="c31-carp">Carpeta</label>
-        <select
-          id="c31-carp"
-          v-model="local.carpetaId"
-          :disabled="!carpetas.length"
-          :class="campo"
-        >
+        <select id="c31-carp" v-model="local.carpetaId" :disabled="!carpetas.length" :class="campo">
           <option value="">Todas</option>
           <option v-for="c in carpetas" :key="c.id" :value="c.id">{{ c.codigoCarpeta }}</option>
         </select>
+        <button
+          v-if="auth.puedeGestionarArchivo"
+          type="button"
+          class="mt-1 text-xs font-medium text-seal-600 hover:underline dark:text-seal-300"
+          @click="ubicacionRapida?.abrir('carpeta', { estanteId: local.estanteId })"
+        >
+          + Nuevo carpeta
+        </button>
       </div>
 
       <div class="ml-auto flex gap-2">
@@ -220,10 +266,13 @@ const etiqueta = 'mb-1 block text-xs font-medium text-ink-500'
         </button>
       </div>
     </fieldset>
+    <UbicacionRapida ref="ubicacionRapida" @creado="alCrearUbicacion" />
 
     <!-- Filtros adicionales (los que ya existían) -->
     <details :open="hayFiltrosAvanzados">
-      <summary class="cursor-pointer text-xs font-medium text-ink-500 hover:text-ink-800 dark:hover:text-ink-200">
+      <summary
+        class="cursor-pointer text-xs font-medium text-ink-500 hover:text-ink-800 dark:hover:text-ink-200"
+      >
         Más filtros (búsqueda libre, estado físico, fechas, digitalización)
       </summary>
       <div class="mt-3 flex flex-wrap items-end gap-3">

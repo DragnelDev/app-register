@@ -1,3 +1,4 @@
+import { rotuloC31 } from '../common/utils/identificador-c31.util';
 import PDFDocument from 'pdfkit';
 import { PrestamosNota } from './entities/prestamos-nota.entity';
 
@@ -201,10 +202,7 @@ export function generarNotaPrestamoPdf({
   let total = 0;
   filas.forEach((f, i) => {
     const c = f.comprobante;
-    const ident =
-      c?.preventivos?.[0]?.numeroPreventivo ??
-      c?.devengados?.[0]?.numeroDevengado ??
-      '—';
+    const ident = rotuloC31(c, '—');
     const benef = (c?.beneficiarios ?? [])
       .map((b) => b.nombreBeneficiario)
       .join(', ');

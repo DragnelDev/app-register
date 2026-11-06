@@ -1,6 +1,7 @@
 import {
   Column,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -20,6 +21,14 @@ export enum MetodoVerificacion {
 export class PrestamosCuaderno {
   @PrimaryGeneratedColumn('identity')
   id: number | undefined;
+
+  /**
+   * Salida conjunta: los comprobantes prestados en un mismo registro comparten
+   * lote y se devuelven todos juntos. Nulo en préstamos anteriores a esta regla.
+   */
+  @Index()
+  @Column({ name: 'lote_id', type: 'varchar', length: 36, nullable: true })
+  loteId?: string | null;
 
   @ManyToOne(() => ComprobantesC31, (c31) => c31.prestamosCuaderno, {
     nullable: false,

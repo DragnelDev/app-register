@@ -61,6 +61,17 @@ export class PrestamosCuadernoController {
     });
   }
 
+  /** Devuelve todos los comprobantes que salieron juntos (lote), en un solo acto. */
+  @Roles('ADMIN', 'ENCARGADO_PRESTAMOS')
+  @Patch('lote/:loteId/devolver')
+  devolverLote(
+    @Param('loteId') loteId: string,
+    @Body() dto: DevolverPrestamosCuadernoDto,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    return this.prestamosCuadernoService.devolverLote(loteId, dto, usuario);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.prestamosCuadernoService.findOne(id);

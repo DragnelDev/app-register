@@ -19,7 +19,7 @@ function paramsCuaderno(f: Partial<CuadernoFilterState>) {
     fechaHasta: f.fechaHasta || undefined,
     funcionarioId: f.funcionarioId || undefined,
     unidad: f.unidad?.trim() || undefined,
-    devuelto: f.devuelto || undefined,
+    estado: f.estado || undefined,
   }
   return Object.fromEntries(Object.entries(p).filter(([, v]) => v !== undefined))
 }
@@ -96,6 +96,20 @@ export const prestamosService = {
   /** Descarta una nota que sigue en borrador. */
   descartarBorrador(numeroNota: string) {
     return apiClient.delete('/prestamos-nota/nota', { params: { numeroNota } }).then((r) => r.data)
+  },
+
+  /** Devuelve todos los comprobantes que salieron juntos (todo o nada). */
+  devolverLoteCuaderno(loteId: string, payload: DevolverPrestamoCuadernoPayload = {}) {
+    return apiClient
+      .patch<PrestamoCuaderno[]>(`/prestamos-cuaderno/lote/${loteId}/devolver`, payload)
+      .then((r) => r.data)
+  },
+
+  /** Devuelve la nota completa. El N° puede llevar "/", por eso va como query param. */
+  devolverNotaCompleta(numeroNota: string, payload: DevolverPrestamoNotaPayload = {}) {
+    return apiClient
+      .patch<PrestamoNota[]>('/prestamos-nota/nota/devolver', payload, { params: { numeroNota } })
+      .then((r) => r.data)
   },
 
   devolverNota(id: string, payload: DevolverPrestamoNotaPayload = {}) {

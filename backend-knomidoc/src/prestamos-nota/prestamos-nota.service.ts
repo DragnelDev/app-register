@@ -396,7 +396,54 @@ export class PrestamosNotaService {
     return this.findOne(id);
   }
 
-  /** RF-03.3: registra la devolución del comprobante prestado por nota. */
+  /** Registra la devolución de una fila ya cargada (dentro de la transacción). */
+  private async devolverFila(
+    manager: EntityManager,
+    prestamo: PrestamosNota,
+    dto: DevolverPrestamosNotaDto,
+    usuario?: Usuario,
+  ) {
+    if (prestamo.estadoPrestamo === EstadoPrestamoNota.DEVUELTO) {
+      throw new ConflictException('El préstamo ya fue devuelto');
+    }
+    if (prestamo.estadoPrestamo === EstadoPrestamoNota.BORRADOR) {
+      throw new ConflictException(
+        'La nota está en borrador: apruébela antes de registrar la devolución',
+      );
+    }
+    const fechaReal = dto.fechaDevolucionReal ?? hoy();
+    if (prestamo.fechaPrestamo && fechaReal < prestamo.fechaPrestamo) {
+      throw new BadRequestException(
+        'La fecha de devolución no puede ser anterior a la fecha de préstamo',
+      );
+    }
+    prestamo.estadoPrestamo = EstadoPrestamoNota.DEVUELTO;
+    prestamo.fechaDevolucionReal = fechaReal;
+    prestamo.condicionDevolucion = dto.condicion ?? 'CONFORME';
+    if (dto.observaciones) prestamo.observacionesDevolucion = dto.observaciones;
+    prestamo.recibidoPorId = usuario?.id ?? null;
+    await manager.save(PrestamosNota, prestamo);
+
+    await manager.update(ComprobantesC31, prestamo.comprobanteId, {
+      estadoFisico: EstadoFisicoC31.ARCHIVADO,
+    });
+    await registrarCambioEstado(manager, {
+      comprobanteId: prestamo.comprobanteId as number,
+      estadoAnterior: EstadoFisicoC31.PRESTADO,
+      estadoNuevo: EstadoFisicoC31.ARCHIVADO,
+      origen: 'PRESTAMO',
+      usuarioId: usuario?.id,
+      referencia: `Nota ${prestamo.numeroNotaSolicitud}`,
+      detalle:
+        `Devuelto ${prestamo.condicionDevolucion === 'CON_NOVEDAD' ? 'con novedad' : 'conforme'}` +
+        (dto.observaciones ? `: ${dto.observaciones}` : ''),
+    });
+  }
+
+  /**
+   * Devolución de UN comprobante. Si la nota todavía tiene otros comprobantes
+   * pendientes se rechaza: la nota se devuelve completa (devolverNota).
+   */
   async devolver(
     id: number,
     dto: DevolverPrestamosNotaDto,
@@ -406,45 +453,18 @@ export class PrestamosNotaService {
       const prestamo = await manager.findOne(PrestamosNota, { where: { id } });
       if (!prestamo)
         throw new NotFoundException('El préstamo por nota no existe');
-      if (prestamo.estadoPrestamo === EstadoPrestamoNota.DEVUELTO) {
-        throw new ConflictException('El préstamo ya fue devuelto');
-      }
-      if (prestamo.estadoPrestamo === EstadoPrestamoNota.BORRADOR) {
+      const pendientes = await manager.count(PrestamosNota, {
+        where: {
+          numeroNotaSolicitud: prestamo.numeroNotaSolicitud,
+          estadoPrestamo: EstadoPrestamoNota.ENTREGADO,
+        },
+      });
+      if (pendientes > 1) {
         throw new ConflictException(
-          'La nota está en borrador: apruébela antes de registrar la devolución',
+          'La nota tiene varios comprobantes pendientes: se devuelven todos juntos con "Devolver nota completa"',
         );
       }
-
-      const fechaReal = dto.fechaDevolucionReal ?? hoy();
-      if (prestamo.fechaPrestamo && fechaReal < prestamo.fechaPrestamo) {
-        throw new BadRequestException(
-          'La fecha de devolución no puede ser anterior a la fecha de préstamo',
-        );
-      }
-
-      prestamo.estadoPrestamo = EstadoPrestamoNota.DEVUELTO;
-      prestamo.fechaDevolucionReal = fechaReal;
-      prestamo.condicionDevolucion = dto.condicion ?? 'CONFORME';
-      if (dto.observaciones)
-        prestamo.observacionesDevolucion = dto.observaciones;
-      prestamo.recibidoPorId = usuario?.id ?? null;
-      await manager.save(PrestamosNota, prestamo);
-
-      await manager.update(ComprobantesC31, prestamo.comprobanteId, {
-        estadoFisico: EstadoFisicoC31.ARCHIVADO,
-      });
-      await registrarCambioEstado(manager, {
-        comprobanteId: prestamo.comprobanteId as number,
-        estadoAnterior: EstadoFisicoC31.PRESTADO,
-        estadoNuevo: EstadoFisicoC31.ARCHIVADO,
-        origen: 'PRESTAMO',
-        usuarioId: usuario?.id,
-        referencia: `Nota ${prestamo.numeroNotaSolicitud}`,
-        detalle:
-          `Devuelto ${prestamo.condicionDevolucion === 'CON_NOVEDAD' ? 'con novedad' : 'conforme'}` +
-          (dto.observaciones ? `: ${dto.observaciones}` : ''),
-      });
-
+      await this.devolverFila(manager, prestamo, dto, usuario);
       const completo = await manager.findOne(PrestamosNota, {
         where: { id },
         relations: RELATIONS,
@@ -452,6 +472,31 @@ export class PrestamosNotaService {
       if (!completo)
         throw new NotFoundException('El préstamo por nota no existe');
       return completo;
+    });
+  }
+
+  /** Devuelve de una vez TODOS los comprobantes pendientes de la nota (todo o nada). */
+  async devolverNota(
+    numeroNota: string,
+    dto: DevolverPrestamosNotaDto,
+    usuario?: Usuario,
+  ): Promise<PrestamosNota[]> {
+    return this.dataSource.transaction(async (manager) => {
+      const filas = await this.filasDeNota(manager, numeroNota);
+      const pendientes = filas.filter(
+        (f) => f.estadoPrestamo !== EstadoPrestamoNota.DEVUELTO,
+      );
+      if (pendientes.length === 0) {
+        throw new ConflictException('La nota ya fue devuelta completa');
+      }
+      for (const fila of pendientes) {
+        await this.devolverFila(manager, fila, dto, usuario);
+      }
+      return manager.find(PrestamosNota, {
+        where: { numeroNotaSolicitud: numeroNota },
+        relations: RELATIONS,
+        order: { id: 'ASC' },
+      });
     });
   }
 

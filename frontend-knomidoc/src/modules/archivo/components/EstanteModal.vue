@@ -10,6 +10,8 @@ const props = defineProps<{
   modelValue: boolean
   estante?: Estante | null
   depositos: Deposito[]
+  /** Depósito preseleccionado al registrar un estante nuevo */
+  depositoInicial?: number | string | null
   saving?: boolean
   errorMessage?: string
 }>()
@@ -31,7 +33,7 @@ watch(
   () => [props.estante, props.modelValue] as const,
   ([e]) => {
     form.codigo = e?.codigo ?? ''
-    form.depositoId = e?.depositoId ?? ''
+    form.depositoId = e?.depositoId ?? props.depositoInicial ?? ''
     form.descripcion = e?.descripcion ?? ''
     form.niveles = e?.niveles ?? ''
     form.activo = e?.activo ?? true

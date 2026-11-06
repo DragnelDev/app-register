@@ -1,3 +1,4 @@
+import { identificadorC31 } from '../common/utils/identificador-c31.util';
 import PDFDocument from 'pdfkit';
 import { PrestamosCuaderno } from './entities/prestamos-cuaderno.entity';
 
@@ -132,18 +133,22 @@ export function generarReporteCuadernoPdf({
   y += 16;
 
   let pendientes = 0;
+  let vencidos = 0;
+  const hoyIso = new Date().toISOString().slice(0, 10);
   filas.forEach((p, i) => {
     const c = p.comprobante;
-    const ident =
-      c?.preventivos?.[0]?.numeroPreventivo ??
-      c?.devengados?.[0]?.numeroDevengado ??
-      `#${p.comprobanteId}`;
+    const ident = identificadorC31(c, `#${p.comprobanteId}`);
     const tipo = c?.tipoC31 === 'SIN_IMPUTACION' ? 'Dev.' : 'Prev.';
     const f = p.funcionario;
     const nombre = f
       ? `${f.nombres} ${f.apellidos}`
       : (p.solicitante?.nombreCompleto ?? '—');
+    const vencido =
+      !p.devuelto &&
+      !!p.fechaDevolucionEstimada &&
+      String(p.fechaDevolucionEstimada).slice(0, 10) < hoyIso;
     if (!p.devuelto) pendientes++;
+    if (vencido) vencidos++;
     const celdas = [
       String(i + 1),
       fechaHora(p.fechaHoraSalida),
@@ -156,7 +161,9 @@ export function generarReporteCuadernoPdf({
         ? p.condicionDevolucion === 'CON_NOVEDAD'
           ? 'Devuelto (novedad)'
           : 'Devuelto'
-        : 'Pendiente',
+        : vencido
+          ? 'Vencido'
+          : 'Pendiente',
     ];
     const h = alto(celdas);
     if (y + h > limiteY()) {
@@ -189,7 +196,7 @@ export function generarReporteCuadernoPdf({
     .font('Helvetica-Bold')
     .fontSize(9)
     .text(
-      `Total: ${filas.length}   |   Devueltos: ${filas.length - pendientes}   |   Pendientes: ${pendientes}`,
+      `Total: ${filas.length}   |   Devueltos: ${filas.length - pendientes}   |   Pendientes: ${pendientes} (vencidos: ${vencidos})`,
       izq,
       y + 10,
       { width: ancho, align: 'right' },

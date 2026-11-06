@@ -115,3 +115,13 @@ CREATE INDEX IF NOT EXISTS idx_c31_prev_numero_trgm
   ON c31_preventivos USING gin (numero_preventivo gin_trgm_ops);
 
 COMMIT;
+
+-- ───────────── Unión de comprobantes (PREV + PREV, PREV + DEV) ─────────────
+-- Cada comprobante conserva su registro; los unidos comparten grupo_union_id.
+ALTER TABLE comprobantes_c31 ADD COLUMN IF NOT EXISTS grupo_union_id varchar(36);
+CREATE INDEX IF NOT EXISTS idx_c31_grupo_union ON comprobantes_c31 (grupo_union_id);
+
+-- ───────────── Préstamos por cuaderno en lote ─────────────
+-- Los comprobantes que salen juntos comparten lote_id y se devuelven todos a la vez.
+ALTER TABLE prestamos_cuaderno ADD COLUMN IF NOT EXISTS lote_id varchar(36);
+CREATE INDEX IF NOT EXISTS idx_prestamos_cuaderno_lote ON prestamos_cuaderno (lote_id);

@@ -27,6 +27,7 @@ const errorBeneficiario = ref('')
 const etiquetaNumero = computed(() =>
   form.tipoC31 === 'CON_IMPUTACION' ? 'N° de Preventivo' : 'N° de Devengado',
 )
+const CODIGO = /^[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ .\/\-_]+$/
 
 function agregarBeneficiario() {
   const nombre = nuevoBeneficiario.value.trim().replace(/\s+/g, ' ')
@@ -43,8 +44,6 @@ function agregarBeneficiario() {
 function quitarBeneficiario(i: number) {
   beneficiarios.value.splice(i, 1)
 }
-
-const CODIGO = /^[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ .\/\-_]+$/
 
 // Solo el N° es obligatorio; lo demás, si se llena, debe ser válido.
 const errores = computed(() => {
@@ -151,8 +150,8 @@ const etiqueta = 'mb-1.5 block text-xs font-semibold text-ink-700 dark:text-ink-
       <div>
         <label for="tipo" :class="etiqueta">Tipo de C31 <span class="text-seal-500">*</span></label>
         <select id="tipo" v-model="form.tipoC31" :class="[campo, borde('')]">
-          <option value="CON_IMPUTACION">Con imputación</option>
-          <option value="SIN_IMPUTACION">Sin imputación</option>
+          <option value="CON_IMPUTACION">Con imputación (Preventivo)</option>
+          <option value="SIN_IMPUTACION">Sin imputación (Devengado)</option>
         </select>
       </div>
       <div>
@@ -163,7 +162,6 @@ const etiqueta = 'mb-1.5 block text-xs font-semibold text-ink-700 dark:text-ink-
           id="numero"
           v-model="form.numero"
           type="text"
-          inputmode="text"
           :class="[campo, borde(errores.numero)]"
           placeholder="Ej: 1"
         />

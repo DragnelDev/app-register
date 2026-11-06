@@ -32,8 +32,8 @@ const vacioAUndefined = ({ value }: { value: unknown }): unknown =>
 export class CreateComprobantesC31Dto {
   @ApiPropertyOptional({
     enum: TIPOS_C31,
-    default: 'CON_IMPUTACION',
-    description: 'Tipo de C31',
+    description:
+      'Se deriva de los identificadores: con al menos un preventivo es CON_IMPUTACION; solo con devengados, SIN_IMPUTACION. Si se envía, se ignora.',
   })
   @IsOptional()
   @IsIn([...TIPOS_C31], {
@@ -122,12 +122,46 @@ export class CreateComprobantesC31Dto {
   readonly observaciones?: string;
 
   @ApiPropertyOptional({
+    type: [String],
+    example: ['3', '7'],
+    description:
+      'N° de preventivo. El comprobante nace con un solo preventivo o devengado; ' +
+      'la unión con otros se hace después desde "Unir comprobantes".',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20, { message: 'No se admiten más de 20 preventivos' })
+  @IsString({ each: true })
+  @MaxLength(50, { each: true })
+  @Matches(CODIGO_REGEX, {
+    each: true,
+    message:
+      'El N° de preventivo solo admite letras, números, espacios y . / - _',
+  })
+  readonly preventivos?: string[];
+
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['45'],
+    description:
+      'N° de devengado. Pueden venir solos (sin imputación) o junto con preventivos en un mismo C31.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20, { message: 'No se admiten más de 20 devengados' })
+  @IsString({ each: true })
+  @MaxLength(50, { each: true })
+  @Matches(CODIGO_REGEX, {
+    each: true,
+    message:
+      'El N° de devengado solo admite letras, números, espacios y . / - _',
+  })
+  readonly devengados?: string[];
+
+  @ApiPropertyOptional({
     example: 'PREV-2026-0001',
     description:
-      'Identificador oficial cuando tipoC31 = CON_IMPUTACION. Obligatorio en ' +
-      'ese caso y no debe enviarse junto con numeroDevengado (relación 1 a 1 ' +
-      'estricta: un comprobante solo tiene preventivo o devengado, no ambos). ' +
-      'Soporta "2 en 1" como texto libre en un mismo campo (ej. "0012 / 0013").',
+      'Atajo para un solo preventivo (se suma a `preventivos`). Se mantiene por compatibilidad.',
   })
   @IsOptional()
   @Transform(vacioAUndefined)
@@ -142,10 +176,7 @@ export class CreateComprobantesC31Dto {
   @ApiPropertyOptional({
     example: 'DEV-2026-0001',
     description:
-      'Identificador oficial cuando tipoC31 = SIN_IMPUTACION. Obligatorio en ' +
-      'ese caso y no debe enviarse junto con numeroPreventivo (relación 1 a 1 ' +
-      'estricta: un comprobante solo tiene preventivo o devengado, no ambos). ' +
-      'Soporta "2 en 1" como texto libre en un mismo campo (ej. "0012 / 0013").',
+      'Atajo para un solo devengado (se suma a `devengados`). Se mantiene por compatibilidad.',
   })
   @IsOptional()
   @Transform(vacioAUndefined)
