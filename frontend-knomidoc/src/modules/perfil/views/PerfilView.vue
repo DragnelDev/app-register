@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { rolLabel } from '@/constants/roles'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
+import UserAvatar from '@/components/shared/UserAvatar.vue'
+import { reducirImagen } from '@/utils/imagen'
 import { authService } from '@/services/auth.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { extractApiErrorMessage } from '@/utils/http-error'
@@ -38,16 +40,6 @@ const clave = reactive({ actual: '', nueva: '', repetir: '' })
 const guardandoClave = ref(false)
 const msgClave = ref('')
 const errClave = ref('')
-
-const iniciales = computed(
-  () =>
-    (perfil.value?.nombreCompleto ?? '')
-      .split(' ')
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase())
-      .join('') || '?',
-)
 
 function rellenar(p: Perfil) {
   datos.nombreCompleto = p.nombreCompleto ?? ''
@@ -127,6 +119,47 @@ async function cambiarClave() {
   }
 }
 
+// --- Foto de perfil (subir imagen o pegar una URL) ---
+const fotoUrl = ref('')
+const guardandoFoto = ref(false)
+const msgFoto = ref('')
+const errFoto = ref('')
+const inputArchivo = ref<HTMLInputElement | null>(null)
+
+async function guardarFoto(valor: string, mensaje: string) {
+  msgFoto.value = errFoto.value = ''
+  guardandoFoto.value = true
+  try {
+    await auth.actualizarPerfil({ foto: valor })
+    if (perfil.value) perfil.value.foto = valor || null
+    msgFoto.value = mensaje
+    fotoUrl.value = ''
+  } catch (err) {
+    errFoto.value = extractApiErrorMessage(err, 'No se pudo guardar la foto.')
+  } finally {
+    guardandoFoto.value = false
+  }
+}
+async function alElegirArchivo(e: Event) {
+  const input = e.target as HTMLInputElement
+  const archivo = input.files?.[0]
+  input.value = ''
+  if (!archivo) return
+  try {
+    await guardarFoto(await reducirImagen(archivo), 'Foto actualizada.')
+  } catch (err) {
+    errFoto.value = (err as Error).message
+  }
+}
+function usarUrl() {
+  const u = fotoUrl.value.trim()
+  if (!/^https?:\/\/\S{4,480}$/i.test(u)) {
+    errFoto.value = 'Ingrese una URL válida que empiece con http:// o https://'
+    return
+  }
+  guardarFoto(u, 'Foto actualizada.')
+}
+
 onMounted(cargar)
 </script>
 
@@ -148,11 +181,7 @@ onMounted(cargar)
 
     <template v-if="perfil">
       <div class="card flex flex-wrap items-center gap-4 p-5">
-        <div
-          class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-seal-400 to-seal-600 text-lg font-bold text-white"
-        >
-          {{ iniciales }}
-        </div>
+        <UserAvatar :nombre="perfil.nombreCompleto" :foto="perfil.foto" :size="64" />
         <div class="min-w-0">
           <p class="text-lg font-semibold text-ink-900 dark:text-white">
             {{ perfil.nombreCompleto }}
@@ -173,6 +202,34 @@ onMounted(cargar)
             <p class="text-xs text-ink-500">cambios de estado</p>
           </div>
         </div>
+      </div>
+
+      <div class="card space-y-3 p-5">
+        <h2 class="text-base font-semibold">Foto de perfil</h2>
+        <p v-if="errFoto" class="text-sm text-red-600" role="alert">{{ errFoto }}</p>
+        <p v-if="msgFoto" class="text-sm text-emerald-600 dark:text-emerald-400" role="status">{{ msgFoto }}</p>
+        <div class="flex flex-wrap items-end gap-3">
+          <input ref="inputArchivo" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" @change="alElegirArchivo" />
+          <BaseButton type="button" variant="secondary" :loading="guardandoFoto" @click="inputArchivo?.click()">
+            <i class="fa-solid fa-upload mr-1" aria-hidden="true" /> Subir imagen
+          </BaseButton>
+          <div class="min-w-[240px] flex-1">
+            <label class="mb-1 block text-xs font-medium text-ink-500" for="foto-url">o pegar una URL</label>
+            <div class="flex gap-2">
+              <input
+                id="foto-url"
+                v-model="fotoUrl"
+                type="url"
+                placeholder="https://…/mi-foto.jpg"
+                class="w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
+                @keydown.enter.prevent="usarUrl"
+              />
+              <BaseButton type="button" variant="secondary" :disabled="!fotoUrl.trim()" @click="usarUrl">Usar</BaseButton>
+            </div>
+          </div>
+          <BaseButton v-if="perfil.foto" type="button" variant="ghost" @click="guardarFoto('', 'Foto eliminada.')">Quitar foto</BaseButton>
+        </div>
+        <p class="text-xs text-ink-400">La imagen subida se recorta en cuadrado y se reduce automáticamente.</p>
       </div>
 
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">

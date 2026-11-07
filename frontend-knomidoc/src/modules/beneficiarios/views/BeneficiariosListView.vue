@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -69,11 +69,6 @@ function aplicar() {
 function limpiar() {
   Object.keys(filtros).forEach((k) => ((filtros as Record<string, string>)[k] = ''))
   aplicar()
-}
-let t: ReturnType<typeof setTimeout> | undefined
-function alBuscar() {
-  clearTimeout(t)
-  t = setTimeout(aplicar, 300)
 }
 async function pdf() {
   try {
@@ -153,7 +148,6 @@ const idC31 = (c: BeneficiarioFicha['comprobantes'][number]) =>
 const campo =
   'rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 dark:border-white/10 dark:bg-ink-950 dark:text-ink-100'
 onMounted(cargar)
-onBeforeUnmount(() => clearTimeout(t))
 </script>
 
 <template>
@@ -174,14 +168,14 @@ onBeforeUnmount(() => clearTimeout(t))
       </div>
     </div>
 
-    <div class="card grid grid-cols-2 gap-3 p-4 md:grid-cols-6">
+    <form class="card grid grid-cols-2 gap-3 p-4 md:grid-cols-6" @submit.prevent="aplicar">
       <div class="col-span-2 md:col-span-2">
         <label class="mb-1 block text-xs font-medium text-ink-500" for="b-q">Buscar</label>
-        <input id="b-q" v-model="filtros.search" type="search" placeholder="Nombre, CI/NIT o teléfono…" :class="[campo, 'w-full']" @input="alBuscar" />
+        <input id="b-q" v-model="filtros.search" type="search" placeholder="Nombre, CI/NIT o teléfono…" :class="[campo, 'w-full']" />
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-ink-500" for="b-tp">Tipo</label>
-        <select id="b-tp" v-model="filtros.tipoPersona" :class="[campo, 'w-full']" @change="aplicar">
+        <select id="b-tp" v-model="filtros.tipoPersona" :class="[campo, 'w-full']">
           <option value="">Todos</option>
           <option value="NATURAL">Natural</option>
           <option value="JURIDICA">Jurídica</option>
@@ -189,7 +183,7 @@ onBeforeUnmount(() => clearTimeout(t))
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-ink-500" for="b-td">Documento</label>
-        <select id="b-td" v-model="filtros.tipoDocumento" :class="[campo, 'w-full']" @change="aplicar">
+        <select id="b-td" v-model="filtros.tipoDocumento" :class="[campo, 'w-full']">
           <option value="">Todos</option>
           <option value="CI">CI</option>
           <option value="NIT">NIT</option>
@@ -199,7 +193,7 @@ onBeforeUnmount(() => clearTimeout(t))
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-ink-500" for="b-e">Estado</label>
-        <select id="b-e" v-model="filtros.estado" :class="[campo, 'w-full']" @change="aplicar">
+        <select id="b-e" v-model="filtros.estado" :class="[campo, 'w-full']">
           <option value="">Todos</option>
           <option value="ACTIVO">Activos</option>
           <option value="INACTIVO">Inactivos</option>
@@ -207,7 +201,7 @@ onBeforeUnmount(() => clearTimeout(t))
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-ink-500" for="b-c">Comprobantes</label>
-        <select id="b-c" v-model="filtros.conComprobantes" :class="[campo, 'w-full']" @change="aplicar">
+        <select id="b-c" v-model="filtros.conComprobantes" :class="[campo, 'w-full']">
           <option value="">Todos</option>
           <option value="true">Con comprobantes</option>
           <option value="false">Sin comprobantes</option>
@@ -215,12 +209,13 @@ onBeforeUnmount(() => clearTimeout(t))
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-ink-500" for="b-g">Gestión</label>
-        <input id="b-g" v-model="filtros.gestion" type="number" min="2000" max="2100" placeholder="2026" :class="[campo, 'w-full']" @change="aplicar" />
+        <input id="b-g" v-model="filtros.gestion" type="number" min="2000" max="2100" placeholder="2026" :class="[campo, 'w-full']" />
       </div>
-      <div class="flex items-end">
-        <BaseButton variant="secondary" size="sm" @click="limpiar">Limpiar</BaseButton>
+      <div class="flex items-end gap-2">
+        <BaseButton type="submit" size="sm"><i class="fa-solid fa-filter mr-1" aria-hidden="true" /> Filtrar</BaseButton>
+        <BaseButton type="button" variant="secondary" size="sm" @click="limpiar">Limpiar</BaseButton>
       </div>
-    </div>
+    </form>
 
     <p v-if="error" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{{ error }}</p>
 

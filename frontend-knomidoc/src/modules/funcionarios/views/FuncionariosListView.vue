@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -7,6 +7,7 @@ import IconButton from '@/components/ui/IconButton.vue'
 import FuncionarioModal from '../components/FuncionarioModal.vue'
 import { useFuncionariosStore } from '@/stores/funcionarios.store'
 import { useAuthStore } from '@/stores/auth.store'
+import { funcionariosService } from '@/services/funcionarios.service'
 import { extractApiErrorMessage } from '@/utils/http-error'
 import type { Funcionario, FuncionarioPayload } from '@/types/funcionarios.types'
 
@@ -30,13 +31,17 @@ const columns: DataTableColumn<Funcionario>[] = [
   { key: 'estado', label: 'Estado' },
 ]
 
-let temporizador: ReturnType<typeof setTimeout> | undefined
-function alBuscar() {
-  clearTimeout(temporizador)
-  temporizador = setTimeout(() => {
-    store.setFilters({ search: store.search })
-    cargar()
-  }, 300)
+const unidades = ref<string[]>([])
+const campo =
+  'rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 dark:border-white/10 dark:bg-ink-950 dark:text-ink-100'
+
+function filtrar() {
+  store.page = 1
+  cargar()
+}
+function limpiarFiltros() {
+  store.setFilters({ search: '', estado: '', unidad: '', cargo: '', conHuella: '', conPrestamosActivos: '' })
+  cargar()
 }
 
 async function cargar() {
@@ -112,10 +117,10 @@ async function eliminar(f: Funcionario) {
 }
 
 onMounted(() => {
-  store.setFilters({ search: '', estado: '' })
+  store.setFilters({ search: '', estado: '', unidad: '', cargo: '', conHuella: '', conPrestamosActivos: '' })
   cargar()
+  funcionariosService.unidades().then((u) => (unidades.value = u)).catch(() => {})
 })
-onBeforeUnmount(() => clearTimeout(temporizador))
 </script>
 
 <template>
@@ -131,32 +136,48 @@ onBeforeUnmount(() => clearTimeout(temporizador))
       <BaseButton @click="nuevo">+ Registrar funcionario</BaseButton>
     </div>
 
-    <div class="card flex flex-wrap items-end gap-3 p-4">
+    <form class="card flex flex-wrap items-end gap-3 p-4" @submit.prevent="filtrar">
       <div class="min-w-[220px] flex-1">
         <label class="mb-1 block text-xs font-medium text-ink-500" for="f-buscar">Buscar</label>
-        <input
-          id="f-buscar"
-          v-model="store.search"
-          type="search"
-          placeholder="CI, nombre, apellido o unidad…"
-          class="w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
-          @input="alBuscar"
-        />
+        <input id="f-buscar" v-model="store.search" type="search" placeholder="CI, nombre, apellido o unidad…" :class="[campo, 'w-full']" />
+      </div>
+      <div class="w-56">
+        <label class="mb-1 block text-xs font-medium text-ink-500" for="f-unidad">Unidad / oficina</label>
+        <select id="f-unidad" v-model="store.unidad" :class="[campo, 'w-full']">
+          <option value="">Todas</option>
+          <option v-for="u in unidades" :key="u" :value="u">{{ u }}</option>
+        </select>
+      </div>
+      <div class="w-44">
+        <label class="mb-1 block text-xs font-medium text-ink-500" for="f-cargo">Cargo</label>
+        <input id="f-cargo" v-model="store.cargo" type="text" placeholder="Ej: Jefe…" :class="[campo, 'w-full']" />
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-ink-500" for="f-estado">Estado</label>
-        <select
-          id="f-estado"
-          v-model="store.estado"
-          class="rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
-          @change="() => { store.setFilters({ estado: store.estado }); cargar() }"
-        >
+        <select id="f-estado" v-model="store.estado" :class="campo">
           <option value="">Todos</option>
           <option value="ACTIVO">Activos</option>
           <option value="INACTIVO">Inactivos</option>
         </select>
       </div>
-    </div>
+      <div>
+        <label class="mb-1 block text-xs font-medium text-ink-500" for="f-huella">Huella</label>
+        <select id="f-huella" v-model="store.conHuella" :class="campo">
+          <option value="">Todas</option>
+          <option value="true">Con huella</option>
+          <option value="false">Sin huella</option>
+        </select>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-medium text-ink-500" for="f-prest">Préstamos</label>
+        <select id="f-prest" v-model="store.conPrestamosActivos" :class="campo">
+          <option value="">Todos</option>
+          <option value="true">Con documentos prestados</option>
+        </select>
+      </div>
+      <BaseButton type="submit" size="sm"><i class="fa-solid fa-filter mr-1" aria-hidden="true" /> Filtrar</BaseButton>
+      <BaseButton type="button" variant="secondary" size="sm" @click="limpiarFiltros">Limpiar</BaseButton>
+    </form>
 
     <p v-if="listError" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">
       {{ listError }}

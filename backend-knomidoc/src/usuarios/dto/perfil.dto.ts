@@ -1,6 +1,7 @@
 import { ApiPropertyOptional, ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
+  ValidateIf,
   IsEmail,
   IsNotEmpty,
   IsOptional,
@@ -13,6 +14,10 @@ import { MSG_PASSWORD, REGEX_PASSWORD } from '../../auth/dto/codigo.dto';
 
 const trim = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
+
+/** URL http(s) o imagen en data URL (la reduce el navegador; ≤ ~65 KB). */
+const REGEX_FOTO =
+  /^(https?:\/\/\S{4,480}|data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]{1,90000})$/;
 
 /** Datos que el propio usuario puede editar de su perfil. */
 export class UpdatePerfilDto {
@@ -27,6 +32,18 @@ export class UpdatePerfilDto {
   })
   @Transform(trim)
   readonly nombreCompleto?: string;
+
+  @ApiPropertyOptional({
+    description: 'URL o data URL de la foto; "" la quita',
+  })
+  @IsOptional()
+  @ValidateIf((_o, v) => v !== '' && v !== null)
+  @IsString()
+  @Matches(REGEX_FOTO, {
+    message:
+      'La foto debe ser una URL http(s) o una imagen PNG/JPG/WEBP pequeña',
+  })
+  readonly foto?: string | null;
 
   @ApiPropertyOptional({ example: 'jperez@correo.com' })
   @IsOptional()

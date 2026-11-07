@@ -41,6 +41,10 @@ export class Usuario extends BaseFechasEntity {
   @Column('varchar', { length: 30, nullable: true })
   telefono?: string | null;
 
+  /** Foto de perfil: URL http(s) o imagen reducida en data URL (base64). */
+  @Column('text', { nullable: true })
+  foto?: string | null;
+
   @Column({
     type: 'varchar',
     length: 30,

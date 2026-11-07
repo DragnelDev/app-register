@@ -9,6 +9,10 @@ interface FuncionariosState {
   pageSize: number
   search: string
   estado: '' | 'ACTIVO' | 'INACTIVO'
+  unidad: string
+  cargo: string
+  conHuella: '' | 'true' | 'false'
+  conPrestamosActivos: '' | 'true'
   loading: boolean
 }
 
@@ -20,6 +24,10 @@ export const useFuncionariosStore = defineStore('funcionarios', {
     pageSize: 15,
     search: '',
     estado: '',
+    unidad: '',
+    cargo: '',
+    conHuella: '',
+    conPrestamosActivos: '',
     loading: false,
   }),
 
@@ -36,6 +44,10 @@ export const useFuncionariosStore = defineStore('funcionarios', {
           pageSize: this.pageSize,
           search: this.search.trim() || undefined,
           estado: this.estado || undefined,
+          unidad: this.unidad || undefined,
+          cargo: this.cargo.trim() || undefined,
+          conHuella: this.conHuella || undefined,
+          conPrestamosActivos: this.conPrestamosActivos || undefined,
         })
         this.items = res.data
         this.total = res.total
@@ -44,9 +56,12 @@ export const useFuncionariosStore = defineStore('funcionarios', {
       }
     },
 
-    setFilters(filters: { search?: string; estado?: '' | 'ACTIVO' | 'INACTIVO' }) {
-      if (filters.search !== undefined) this.search = filters.search
-      if (filters.estado !== undefined) this.estado = filters.estado
+    setFilters(
+      filters: Partial<
+        Pick<FuncionariosState, 'search' | 'estado' | 'unidad' | 'cargo' | 'conHuella' | 'conPrestamosActivos'>
+      >,
+    ) {
+      Object.assign(this, filters)
       this.page = 1
     },
 

@@ -485,7 +485,9 @@ export class ComprobantesC31Service {
   async unir(ids: number[]) {
     const unicos = [...new Set(ids)];
     if (unicos.length < 2) {
-      throw new BadRequestException('Seleccione al menos 2 comprobantes para unir');
+      throw new BadRequestException(
+        'Seleccione al menos 2 comprobantes para unir',
+      );
     }
     return this.dataSource.transaction(async (manager) => {
       const items = await manager.find(ComprobantesC31, {
@@ -596,7 +598,9 @@ export class ComprobantesC31Service {
     const enviaDev =
       dto.devengados !== undefined || dto.numeroDevengado !== undefined;
     const numeros = this.numerosDelDto(dto);
-    const prevFinal = enviaPrev ? numeros.preventivos : preventivosDe(comprobante);
+    const prevFinal = enviaPrev
+      ? numeros.preventivos
+      : preventivosDe(comprobante);
     const devFinal = enviaDev ? numeros.devengados : devengadosDe(comprobante);
     // Los registros existentes se conservan: solo se re-deriva el tipo si cambian los identificadores.
     const tipoFinal =
@@ -791,7 +795,10 @@ export class ComprobantesC31Service {
     for (const b of actuales) {
       if (b.beneficiarioId) continue;
       const id = catalogo.get(claveNombre(b.nombreBeneficiario ?? ''));
-      if (id) await manager.update(C31Beneficiario, b.id as number, { beneficiarioId: id });
+      if (id)
+        await manager.update(C31Beneficiario, b.id as number, {
+          beneficiarioId: id,
+        });
     }
   }
 
@@ -1001,8 +1008,7 @@ export class ComprobantesC31Service {
     // Filas de datos
     comprobantes.forEach((c) => {
       const fila = hoja.addRow({
-        prev:
-identificadorC31(c),
+        prev: identificadorC31(c),
         cheque: (c.pagos ?? [])
           .filter(
             (p) =>
@@ -1162,7 +1168,9 @@ identificadorC31(c),
             beneficiarios: beneficiarios.map((nombreBeneficiario) =>
               manager.create(C31Beneficiario, {
                 nombreBeneficiario,
-                beneficiarioId: catalogoImport.get(claveNombre(nombreBeneficiario)),
+                beneficiarioId: catalogoImport.get(
+                  claveNombre(nombreBeneficiario),
+                ),
               }),
             ),
           });

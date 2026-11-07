@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import IconButton from '@/components/ui/IconButton.vue'
+import BarcodeModal from '@/components/shared/BarcodeModal.vue'
+import { imprimirEtiquetas, type EtiquetaArchivo } from '@/utils/etiquetas'
 import { onMounted, ref, watch } from 'vue'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -61,6 +63,23 @@ watch(search, () => {
   }, 350)
 })
 
+// ── Códigos de barras ──
+const barrasOpen = ref(false)
+const etiquetaSel = ref<EtiquetaArchivo | null>(null)
+const aEtiqueta = (row: (typeof rows.value)[number]): EtiquetaArchivo => ({
+  codigo: row.codigo,
+  titulo: `Depósito ${row.codigo}`,
+  subtitulo: row.nombre,
+})
+function verBarras(row: (typeof rows.value)[number]) {
+  etiquetaSel.value = aEtiqueta(row)
+  barrasOpen.value = true
+}
+function imprimirTodas() {
+  if (!rows.value.length) return
+  imprimirEtiquetas(rows.value.map(aEtiqueta), 'Etiquetas de depósitos')
+}
+
 function openCreate() {
   editing.value = null
   formError.value = ''
@@ -114,9 +133,14 @@ onMounted(loadRows)
           Ambientes físicos que contienen los estantes y carpetas del archivo.
         </p>
       </div>
+      <div class="flex flex-wrap gap-2">
+        <BaseButton variant="secondary" :disabled="!rows.length" @click="imprimirTodas">
+          <i class="fa-solid fa-barcode mr-1" aria-hidden="true" /> Imprimir etiquetas
+        </BaseButton>
       <BaseButton v-if="auth.puedeGestionarArchivo" @click="openCreate">
         <i class="fa-solid fa-plus" aria-hidden="true" /> Registrar depósito
       </BaseButton>
+      </div>
     </div>
 
     <BaseInput
@@ -163,9 +187,10 @@ onMounted(loadRows)
           {{ row.activo ? 'Activo' : 'Inactivo' }}
         </span>
       </template>
-      <template v-if="auth.puedeGestionarArchivo" #actions="{ row }">
+      <template #actions="{ row }">
         <div class="flex justify-end gap-2">
-          <IconButton icon="fa-pen-to-square" label="Editar" @click="openEdit(row)" />
+          <IconButton icon="fa-barcode" label="Ver código de barras" @click="verBarras(row)" />
+          <IconButton v-if="auth.puedeGestionarArchivo" icon="fa-pen-to-square" label="Editar" @click="openEdit(row)" />
           <IconButton
             v-if="auth.isAdmin"
             icon="fa-trash-can"
@@ -184,5 +209,6 @@ onMounted(loadRows)
       :error-message="formError"
       @save="handleSave"
     />
+    <BarcodeModal v-model="barrasOpen" :etiqueta="etiquetaSel" />
   </div>
 </template>

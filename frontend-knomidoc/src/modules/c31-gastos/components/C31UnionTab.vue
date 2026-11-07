@@ -140,9 +140,7 @@ const campo =
             <span class="flex items-center gap-3 text-xs text-ink-500">
               <span>
                 {{ ESTADO_C31_LABEL[m.estadoFisico as EstadoFisico] ?? m.estadoFisico }}
-                <template v-if="m.montoTotal != null">
-                  · Bs {{ bs(Number(m.montoTotal)) }}
-                </template>
+                <template v-if="m.montoTotal"> · Bs {{ bs(Number(m.montoTotal)) }}</template>
               </span>
               <button
                 v-if="puedeEditar && m.id !== idActual()"

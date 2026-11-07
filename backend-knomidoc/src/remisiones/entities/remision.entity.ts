@@ -10,7 +10,12 @@ import { BaseAuditoriaEntity } from '../../common/entities/base-auditoria.entity
 import { Usuario } from '../../usuarios/entities/usuario.entity';
 import { ComprobantesC31 } from '../../comprobantes_c31/entities/comprobantes_c31.entity';
 
-export const ESTADOS_REMISION = ['BORRADOR', 'ENVIADA', 'RECIBIDA', 'OBSERVADA'] as const;
+export const ESTADOS_REMISION = [
+  'BORRADOR',
+  'ENVIADA',
+  'RECIBIDA',
+  'OBSERVADA',
+] as const;
 export type EstadoRemision = (typeof ESTADOS_REMISION)[number];
 
 /** Remisión de comprobantes C31 de un área remitente hacia el Archivo. */
@@ -19,7 +24,12 @@ export class Remision extends BaseAuditoriaEntity {
   @PrimaryGeneratedColumn('identity')
   id: number | undefined;
 
-  @Column({ name: 'numero_remision', type: 'varchar', length: 20, unique: true })
+  @Column({
+    name: 'numero_remision',
+    type: 'varchar',
+    length: 20,
+    unique: true,
+  })
   numeroRemision: string | undefined;
 
   @Column({ type: 'int' })
@@ -28,7 +38,12 @@ export class Remision extends BaseAuditoriaEntity {
   @Column({ type: 'varchar', length: 12, default: 'BORRADOR' })
   estado: EstadoRemision | undefined;
 
-  @Column({ name: 'unidad_remitente', type: 'varchar', length: 150, nullable: true })
+  @Column({
+    name: 'unidad_remitente',
+    type: 'varchar',
+    length: 150,
+    nullable: true,
+  })
   unidadRemitente?: string | null;
 
   @Column({ type: 'text', nullable: true })
@@ -66,7 +81,10 @@ export class RemisionItem {
   @PrimaryGeneratedColumn('identity')
   id: number | undefined;
 
-  @ManyToOne(() => Remision, (r) => r.items, { onDelete: 'CASCADE', nullable: false })
+  @ManyToOne(() => Remision, (r) => r.items, {
+    onDelete: 'CASCADE',
+    nullable: false,
+  })
   @JoinColumn({ name: 'remision_id' })
   remision?: Remision;
 

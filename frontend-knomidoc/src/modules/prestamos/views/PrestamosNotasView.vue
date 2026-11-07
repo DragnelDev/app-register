@@ -7,7 +7,7 @@ import { c31Service } from '@/services/c31.service'
 import { extractApiErrorMessage } from '@/utils/http-error'
 import type { ComprobanteC31 } from '@/types/c31.types'
 import type { CondicionDevolucion } from '@/types/prestamos.types'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -150,7 +150,35 @@ async function verSeguimiento(row: PrestamoNota) {
   detalleOpen.value = true
 }
 
-onMounted(() => store.fetchNotas())
+const f = reactive({
+  search: '',
+  estadoPrestamo: '',
+  institucion: '',
+  gestion: '',
+  fechaDesde: '',
+  fechaHasta: '',
+  vencidas: '',
+})
+function filtrar() {
+  store.notasFiltros = { ...f }
+  store.fetchNotas()
+}
+function limpiarFiltros() {
+  Object.keys(f).forEach((k) => ((f as Record<string, string>)[k] = ''))
+  filtrar()
+}
+const gestiones = computed(() => {
+  const y = new Date().getFullYear()
+  return Array.from({ length: 6 }, (_, i) => y - i)
+})
+const campo =
+  'rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 dark:border-white/10 dark:bg-ink-950 dark:text-ink-100'
+const etiqueta = 'mb-1 block text-xs font-medium text-ink-500'
+
+onMounted(() => {
+  store.notasFiltros = {}
+  store.fetchNotas()
+})
 </script>
 
 <template>
@@ -163,7 +191,9 @@ onMounted(() => store.fetchNotas())
           Interna).
         </p>
       </div>
-      <BaseButton v-if="!auth.esSoloConsulta" @click="modalOpen = true">+ Registrar solicitud</BaseButton>
+      <BaseButton v-if="!auth.esSoloConsulta" @click="modalOpen = true"
+        >+ Registrar solicitud</BaseButton
+      >
     </div>
 
     <p
@@ -188,6 +218,63 @@ onMounted(() => store.fetchNotas())
       >
     </div>
 
+    <form class="card flex flex-wrap items-end gap-3 p-4" @submit.prevent="filtrar">
+      <div class="min-w-[200px] flex-1">
+        <label :class="etiqueta" for="n-q">Buscar</label>
+        <input
+          id="n-q"
+          v-model="f.search"
+          type="search"
+          placeholder="N° de nota, funcionario o CI…"
+          :class="[campo, 'w-full']"
+        />
+      </div>
+      <div class="w-52">
+        <label :class="etiqueta" for="n-inst">Unidad solicitante</label>
+        <input
+          id="n-inst"
+          v-model="f.institucion"
+          type="text"
+          placeholder="Ej: Auditoría"
+          :class="[campo, 'w-full']"
+        />
+      </div>
+      <div>
+        <label :class="etiqueta" for="n-est">Estado</label>
+        <select id="n-est" v-model="f.estadoPrestamo" :class="campo">
+          <option value="">Todos</option>
+          <option value="BORRADOR">Borrador</option>
+          <option value="ENTREGADO">Entregado (prestado)</option>
+          <option value="DEVUELTO">Devuelto</option>
+        </select>
+      </div>
+      <div>
+        <label :class="etiqueta" for="n-g">Gestión</label>
+        <select id="n-g" v-model="f.gestion" :class="campo">
+          <option value="">Todas</option>
+          <option v-for="g in gestiones" :key="g" :value="g">{{ g }}</option>
+        </select>
+      </div>
+      <div>
+        <label :class="etiqueta" for="n-d">Préstamo desde</label>
+        <input id="n-d" v-model="f.fechaDesde" type="date" :class="campo" />
+      </div>
+      <div>
+        <label :class="etiqueta" for="n-h">Hasta</label>
+        <input id="n-h" v-model="f.fechaHasta" type="date" :class="campo" />
+      </div>
+      <label class="flex items-center gap-2 pb-2 text-sm text-ink-700 dark:text-ink-200">
+        <input v-model="f.vencidas" type="checkbox" true-value="true" false-value="" />
+        Solo vencidas
+      </label>
+      <BaseButton type="submit" size="sm"
+        ><i class="fa-solid fa-filter mr-1" aria-hidden="true" /> Filtrar</BaseButton
+      >
+      <BaseButton type="button" variant="secondary" size="sm" @click="limpiarFiltros"
+        >Limpiar</BaseButton
+      >
+    </form>
+
     <BaseDataTable
       :columns="columns"
       :rows="store.notas"
@@ -196,34 +283,44 @@ onMounted(() => store.fetchNotas())
     >
       <template #cell-comprobanteId="{ row }">{{ nombreComprobante(row) }}</template>
       <template #cell-funcionarioResponsable="{ row }">
-        {{ row.funcionario ? `${row.funcionario.nombres} ${row.funcionario.apellidos}` : (row.funcionarioResponsable ?? '—') }}
+        {{
+          row.funcionario
+            ? `${row.funcionario.nombres} ${row.funcionario.apellidos}`
+            : (row.funcionarioResponsable ?? '—')
+        }}
       </template>
-      <template #cell-institucionSolicitante="{ row }">{{ row.institucionSolicitante ?? '—' }}</template>
+      <template #cell-institucionSolicitante="{ row }">{{
+        row.institucionSolicitante ?? '—'
+      }}</template>
       <template #cell-estadoPrestamo="{ row }"><BaseBadge :estado="row.estadoPrestamo" /></template>
       <template #actions="{ row }">
         <div class="flex justify-end gap-1">
           <template v-if="row.estadoPrestamo === 'BORRADOR'">
-            <IconButton v-if="!auth.esSoloConsulta"
+            <IconButton
+              v-if="!auth.esSoloConsulta"
               icon="fa-pen-to-square"
               label="Editar y previsualizar nota"
               variant="primary"
               @click="editarNota(row.numeroNotaSolicitud)"
             />
-            <IconButton v-if="!auth.esSoloConsulta"
+            <IconButton
+              v-if="!auth.esSoloConsulta"
               icon="fa-circle-check"
               label="Aprobar y entregar"
               variant="success"
               :loading="aprobando === row.numeroNotaSolicitud"
               @click="aprobar(row.numeroNotaSolicitud)"
             />
-            <IconButton v-if="!auth.esSoloConsulta"
+            <IconButton
+              v-if="!auth.esSoloConsulta"
               icon="fa-trash"
               label="Descartar borrador"
               variant="danger"
               @click="descartar(row.numeroNotaSolicitud)"
             />
           </template>
-          <IconButton v-else-if="auth.puedeExportar"
+          <IconButton
+            v-else-if="auth.puedeExportar"
             icon="fa-print"
             label="Imprimir nota (PDF)"
             variant="primary"
@@ -234,7 +331,8 @@ onMounted(() => store.fetchNotas())
             label="Ver seguimiento del comprobante"
             @click="verSeguimiento(row)"
           />
-          <IconButton v-if="(row.estadoPrestamo === 'ENTREGADO') && !auth.esSoloConsulta"
+          <IconButton
+            v-if="row.estadoPrestamo === 'ENTREGADO' && !auth.esSoloConsulta"
             icon="fa-rotate-left"
             label="Devolver nota completa"
             variant="success"

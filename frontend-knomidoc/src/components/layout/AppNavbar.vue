@@ -6,6 +6,7 @@ import { useResumenStore } from '@/stores/resumen.store'
 import { useTheme } from '@/composables/useTheme'
 import { useSidebar } from '@/composables/useSidebar'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import UserAvatar from '@/components/shared/UserAvatar.vue'
 import { rolLabel } from '@/constants/roles'
 
 const auth = useAuthStore()
@@ -28,18 +29,6 @@ async function alCambiarPerfil(e: Event) {
   // Se recarga para que menú, permisos y datos sean los del perfil elegido
   window.location.assign(auth.rutaInicial)
 }
-
-const iniciales = computed(() => {
-  const nombre = auth.usuario?.nombreCompleto ?? ''
-  return (
-    nombre
-      .split(' ')
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase())
-      .join('') || '?'
-  )
-})
 
 const pendientes = computed(() => resumen.pendientesRegularizar)
 </script>
@@ -108,11 +97,7 @@ const pendientes = computed(() => resumen.pendientesRegularizar)
         class="flex items-center gap-3 rounded-lg border-l border-ink-200 pl-3 dark:border-white/10"
         title="Mi perfil"
       >
-        <div
-          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-seal-400 to-seal-600 text-xs font-bold text-white"
-        >
-          {{ iniciales }}
-        </div>
+        <UserAvatar :nombre="auth.usuario.nombreCompleto" :foto="auth.usuario.foto" :size="36" />
         <div class="hidden text-right leading-tight sm:block">
           <p class="text-sm font-medium text-ink-900 dark:text-white">
             {{ auth.usuario.nombreCompleto }}

@@ -218,3 +218,6 @@ CREATE INDEX IF NOT EXISTS idx_remision_items_comprobante ON remision_items (com
 ALTER TABLE funcionarios ADD COLUMN IF NOT EXISTS huella_plantilla text;
 ALTER TABLE funcionarios ADD COLUMN IF NOT EXISTS huella_registrada_en timestamp;
 ALTER TABLE funcionarios ADD COLUMN IF NOT EXISTS huella_lector varchar(30);
+
+-- ───────────── Foto de perfil ─────────────
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS foto text;

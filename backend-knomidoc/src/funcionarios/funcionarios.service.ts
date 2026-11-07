@@ -5,10 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import {
-  EstadoFuncionario,
-  Funcionario,
-} from './entities/funcionario.entity';
+import { EstadoFuncionario, Funcionario } from './entities/funcionario.entity';
 import { CreateFuncionarioDto } from './dto/create-funcionario.dto';
 import { UpdateFuncionarioDto } from './dto/update-funcionario.dto';
 import { FilterFuncionariosDto } from './dto/filter-funcionarios.dto';
@@ -53,7 +50,23 @@ export class FuncionariosService {
     const pageSize = query.pageSize ?? 10;
 
     const qb = this.repo.createQueryBuilder('f');
-    if (query.estado) qb.andWhere('f.estado = :estado', { estado: query.estado });
+    if (query.estado)
+      qb.andWhere('f.estado = :estado', { estado: query.estado });
+    if (query.unidad?.trim())
+      qb.andWhere('f.unidad_oficina = :unidad', {
+        unidad: query.unidad.trim(),
+      });
+    if (query.cargo?.trim())
+      qb.andWhere('f.cargo ILIKE :cargo', { cargo: `%${query.cargo.trim()}%` });
+    if (query.conHuella === 'true')
+      qb.andWhere('f.huella_registrada_en IS NOT NULL');
+    if (query.conHuella === 'false')
+      qb.andWhere('f.huella_registrada_en IS NULL');
+    if (query.conPrestamosActivos === 'true')
+      qb.andWhere(
+        `(EXISTS (SELECT 1 FROM prestamos_cuaderno pc WHERE pc.funcionario_id = f.id AND pc.devuelto = false)
+          OR EXISTS (SELECT 1 FROM prestamos_nota pn WHERE pn.funcionario_id = f.id AND pn.estado_prestamo = 'ENTREGADO'))`,
+      );
     const texto = query.search?.trim();
     if (texto) {
       qb.andWhere(
@@ -72,6 +85,16 @@ export class FuncionariosService {
 
     const [data, total] = await qb.getManyAndCount();
     return new PaginatedResponseDto(data, total, page, pageSize);
+  }
+
+  /** Unidades registradas, para el filtro desplegable. */
+  async unidades(): Promise<string[]> {
+    const rows = await this.repo
+      .createQueryBuilder('f')
+      .select('DISTINCT f.unidad_oficina', 'u')
+      .orderBy('u')
+      .getRawMany<{ u: string }>();
+    return rows.map((r) => r.u);
   }
 
   async findOne(id: number): Promise<Funcionario> {

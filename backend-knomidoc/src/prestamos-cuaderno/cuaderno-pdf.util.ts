@@ -19,9 +19,7 @@ const fechaHora = (d?: Date | string | null): string =>
 
 const soloFecha = (d?: string | Date | null): string => {
   if (!d) return '—';
-  const [y, m, dia] = String(
-    d instanceof Date ? d.toISOString() : d,
-  )
+  const [y, m, dia] = String(d instanceof Date ? d.toISOString() : d)
     .slice(0, 10)
     .split('-');
   return `${dia}/${m}/${y}`;
@@ -105,7 +103,9 @@ export function generarReporteCuadernoPdf({
         doc
           .font('Helvetica')
           .fontSize(fs)
-          .heightOfString(txt, { width: (cols[i] as { w: number }).w - pad * 2 }),
+          .heightOfString(txt, {
+            width: (cols[i] as { w: number }).w - pad * 2,
+          }),
       ),
     ) +
     pad * 2;
@@ -137,8 +137,7 @@ export function generarReporteCuadernoPdf({
   const hoyIso = new Date().toISOString().slice(0, 10);
   filas.forEach((p, i) => {
     const c = p.comprobante;
-    const ident =
-identificadorC31(c, `#${p.comprobanteId}`);
+    const ident = identificadorC31(c, `#${p.comprobanteId}`);
     const tipo = c?.tipoC31 === 'SIN_IMPUTACION' ? 'Dev.' : 'Prev.';
     const f = p.funcionario;
     const nombre = f

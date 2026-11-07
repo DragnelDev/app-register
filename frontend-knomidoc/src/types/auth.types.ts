@@ -8,6 +8,8 @@ export interface Usuario {
   cargo?: string | null
   unidadOArea?: string | null
   telefono?: string | null
+  /** Foto de perfil: URL o data URL */
+  foto?: string | null
   /** Perfil con el que trabaja en esta sesión */
   rol: RolUsuario
   /** Perfiles que puede asumir (el activo es `rol`) */
@@ -94,6 +96,8 @@ export interface PerfilUpdatePayload {
   cargo?: string
   unidadOArea?: string
   telefono?: string
+  /** URL o data URL; "" la quita */
+  foto?: string
 }
 
 export interface CambiarPasswordPayload {

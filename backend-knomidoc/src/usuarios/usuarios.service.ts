@@ -48,7 +48,10 @@ export class UsuariosService {
    * Perfiles del usuario; el perfil por defecto (`rol`) va primero. Un usuario
    * anterior a los perfiles múltiples solo tiene su `rol`.
    */
-  async perfilesDe(usuarioId: number, rolPorDefecto?: string): Promise<string[]> {
+  async perfilesDe(
+    usuarioId: number,
+    rolPorDefecto?: string,
+  ): Promise<string[]> {
     const filas = await this.perfilesRepository.find({
       where: { usuarioId },
       order: { id: 'ASC' },
@@ -164,7 +167,9 @@ export class UsuariosService {
         ? [createUsuarioDto.rol]
         : [];
     if (perfiles.length === 0) {
-      throw new BadRequestException('Asigne al menos un perfil (rol) al usuario');
+      throw new BadRequestException(
+        'Asigne al menos un perfil (rol) al usuario',
+      );
     }
     (resto as { rol?: string }).rol = perfiles[0];
 
@@ -206,8 +211,13 @@ export class UsuariosService {
         order: { id: 'ASC' },
       });
       for (const u of data) {
-        const propios = filas.filter((f) => f.usuarioId === u.id).map((f) => f.rol as string);
-        u.rolesDisponibles = [u.rol as string, ...propios.filter((r) => r !== u.rol)];
+        const propios = filas
+          .filter((f) => f.usuarioId === u.id)
+          .map((f) => f.rol as string);
+        u.rolesDisponibles = [
+          u.rol as string,
+          ...propios.filter((r) => r !== u.rol),
+        ];
       }
     }
     return new PaginatedResponseDto(data, total, page, pageSize);
@@ -300,6 +310,7 @@ export class UsuariosService {
     const cambios: Record<string, unknown> = Object.fromEntries(
       Object.entries(dto).filter(([, v]) => v !== undefined),
     );
+    if (cambios.foto === '') cambios.foto = null;
     if (cambiaCorreo) {
       cambios.emailVerificado = false;
       cambios.emailVerificadoEn = null;

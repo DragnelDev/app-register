@@ -1,43 +1,33 @@
-function esFechaValida(anio: number, mes: number, dia: number): boolean {
-  if (mes < 1 || mes > 12 || dia < 1) return false
-  const bisiesto = anio % 4 === 0 && (anio % 100 !== 0 || anio % 400 === 0)
-  const diasPorMes = [31, bisiesto ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-  const maximoDia = diasPorMes[mes - 1]
-  return maximoDia !== undefined && dia <= maximoDia
+/**
+ * Fechas tal como se copian del SIGEP o de Excel: dd/mm/aaaa (también con - o .),
+ * con o sin hora ("05/11/2026 10:30:00"), o ya en ISO (aaaa-mm-dd).
+ * Devuelve aaaa-mm-dd, o null si no es una fecha válida.
+ */
+export function parseFechaBo(texto: string): string | null {
+  const t = texto.trim()
+  if (!t) return null
+  let d: number, m: number, y: number
+  let r = /^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4}|\d{2})(?:[\sT].*)?$/.exec(t)
+  if (r) {
+    d = Number(r[1])
+    m = Number(r[2])
+    y = Number(r[3])
+    if (r[3]!.length === 2) y += 2000
+  } else {
+    r = /^(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})(?:[\sT].*)?$/.exec(t)
+    if (!r) return null
+    y = Number(r[1])
+    m = Number(r[2])
+    d = Number(r[3])
+  }
+  const f = new Date(Date.UTC(y, m - 1, d))
+  if (f.getUTCFullYear() !== y || f.getUTCMonth() !== m - 1 || f.getUTCDate() !== d) return null
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
 }
 
-export function parseFechaBo(valor: string): string | null {
-  const texto = valor.trim()
-  const iso = /^(\d{4})-(\d{2})-(\d{2})(?:$|T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?$)/.exec(
-    texto,
-  )
-  const local = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?$/.exec(
-    texto,
-  )
-
-  if (iso) {
-    const [, anioTexto, mesTexto, diaTexto] = iso
-    const anio = Number(anioTexto)
-    const mes = Number(mesTexto)
-    const dia = Number(diaTexto)
-    return esFechaValida(anio, mes, dia) ? `${anioTexto}-${mesTexto}-${diaTexto}` : null
-  }
-
-  if (local) {
-    const [, diaTexto, mesTexto, anioTexto] = local
-    const dia = Number(diaTexto)
-    const mes = Number(mesTexto)
-    const anio = Number(anioTexto)
-    if (!esFechaValida(anio, mes, dia)) return null
-    return `${anioTexto}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`
-  }
-
-  return null
-}
-
-export function formatFechaBo(valor: string): string {
-  const iso = parseFechaBo(valor)
+/** 2026-11-05 → "05/11/2026" */
+export function formatFechaBo(iso: string | null | undefined): string {
   if (!iso) return ''
-  const [anio, mes, dia] = iso.split('-')
-  return `${dia}/${mes}/${anio}`
+  const [y, m, d] = iso.slice(0, 10).split('-')
+  return y && m && d ? `${d}/${m}/${y}` : ''
 }

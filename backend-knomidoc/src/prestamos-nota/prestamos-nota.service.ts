@@ -6,11 +6,15 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
+  Between,
   DataSource,
   EntityManager,
   FindOptionsWhere,
   ILike,
   In,
+  LessThan,
+  MoreThanOrEqual,
+  LessThanOrEqual,
   Repository,
 } from 'typeorm';
 import { CreatePrestamosNotaDto } from './dto/create-prestamos-nota.dto';
@@ -76,7 +80,9 @@ export class PrestamosNotaService {
     });
     if (!f) throw new NotFoundException('El funcionario no existe');
     if (f.estado === EstadoFuncionario.INACTIVO) {
-      throw new BadRequestException('El funcionario seleccionado está inactivo');
+      throw new BadRequestException(
+        'El funcionario seleccionado está inactivo',
+      );
     }
     return {
       funcionarioId: f.id as number,
@@ -325,6 +331,21 @@ export class PrestamosNotaService {
       base.estadoPrestamo = query.estadoPrestamo as EstadoPrestamoNota;
     if (query.comprobanteId) base.comprobanteId = query.comprobanteId;
     if (query.funcionarioId) base.funcionarioId = query.funcionarioId;
+    if (query.institucion?.trim())
+      base.institucionSolicitante = ILike(`%${query.institucion.trim()}%`);
+    if (query.gestion) base.comprobante = { gestion: query.gestion };
+    if (query.fechaDesde && query.fechaHasta)
+      base.fechaPrestamo = Between(query.fechaDesde, query.fechaHasta);
+    else if (query.fechaDesde)
+      base.fechaPrestamo = MoreThanOrEqual(query.fechaDesde);
+    else if (query.fechaHasta)
+      base.fechaPrestamo = LessThanOrEqual(query.fechaHasta);
+    if (query.vencidas === 'true') {
+      base.estadoPrestamo = EstadoPrestamoNota.ENTREGADO;
+      base.fechaDevolucionEstimada = LessThan(
+        new Date().toISOString().slice(0, 10),
+      );
+    }
 
     const where: FindOptionsWhere<PrestamosNota>[] = query.search
       ? [
@@ -503,7 +524,9 @@ export class PrestamosNotaService {
     return this.dataSource.transaction(async (manager) => {
       const filas = await this.filasDeNota(manager, numeroNota);
       if (filas.some((f) => f.estadoPrestamo !== EstadoPrestamoNota.BORRADOR)) {
-        throw new ConflictException('Solo se pueden descartar notas en borrador');
+        throw new ConflictException(
+          'Solo se pueden descartar notas en borrador',
+        );
       }
       await manager.remove(PrestamosNota, filas);
       return { eliminados: filas.length };

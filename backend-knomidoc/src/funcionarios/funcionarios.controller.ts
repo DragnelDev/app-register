@@ -36,6 +36,11 @@ export class FuncionariosController {
     return this.service.findAll(query);
   }
 
+  @Get('unidades')
+  unidades() {
+    return this.service.unidades();
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.service.findOne(id);
@@ -56,7 +61,11 @@ export class FuncionariosController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: HuellaDto,
   ) {
-    return this.service.registrarHuella(id, dto.plantilla as string, dto.lector);
+    return this.service.registrarHuella(
+      id,
+      dto.plantilla as string,
+      dto.lector,
+    );
   }
 
   @Roles('ADMIN', 'ENCARGADO_PRESTAMOS')

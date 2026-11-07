@@ -68,10 +68,7 @@ export class RemisionesService {
         { t: `%${t.replace(/[%_]/g, '\\$&')}%` },
       );
     }
-    const data = await qb
-      .orderBy('c.id', 'DESC')
-      .take(30)
-      .getMany();
+    const data = await qb.orderBy('c.id', 'DESC').take(30).getMany();
     return data.map((c) => ({
       id: c.id,
       identificador: rotuloC31(c, `#${c.id}`),
@@ -197,10 +194,19 @@ export class RemisionesService {
     else qb.andWhere(`r.estado <> 'BORRADOR'`);
     if (query.estado) qb.andWhere('r.estado = :e', { e: query.estado });
     if (query.search?.trim())
-      qb.andWhere('r.numero_remision ILIKE :s', { s: `%${query.search.trim()}%` });
-    qb.orderBy('r.id', 'DESC').skip((page - 1) * pageSize).take(pageSize);
+      qb.andWhere('r.numero_remision ILIKE :s', {
+        s: `%${query.search.trim()}%`,
+      });
+    qb.orderBy('r.id', 'DESC')
+      .skip((page - 1) * pageSize)
+      .take(pageSize);
     const [rows, total] = await qb.getManyAndCount();
-    return new PaginatedResponseDto(rows.map((r) => this.vista(r)), total, page, pageSize);
+    return new PaginatedResponseDto(
+      rows.map((r) => this.vista(r)),
+      total,
+      page,
+      pageSize,
+    );
   }
 
   async update(id: number, dto: UpdateRemisionDto, usuario: Usuario) {
@@ -256,7 +262,9 @@ export class RemisionesService {
     const r = await this.obtener(id, usuario);
     if (r.estado !== 'ENVIADA')
       throw new ConflictException('La remisión no está pendiente de recepción');
-    const revisados = new Map((dto.items ?? []).map((i) => [i.comprobanteId, i]));
+    const revisados = new Map(
+      (dto.items ?? []).map((i) => [i.comprobanteId, i]),
+    );
     if (
       revisados.size !== (r.items ?? []).length ||
       (r.items ?? []).some((i) => !revisados.has(i.comprobanteId as number))

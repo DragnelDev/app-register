@@ -28,7 +28,6 @@ const ORIGEN: Record<string, string> = {
   ACTA: 'Acta de entrega',
   PRESTAMO: 'Préstamo',
   SISTEMA: 'Ubicación / sistema',
-  REMISION: 'Remisión',
 }
 </script>
 
@@ -222,7 +221,7 @@ const ORIGEN: Record<string, string> = {
               <span v-if="h.usuario"> · {{ h.usuario }}</span>
             </p>
             <p
-              v-if="h.origen === 'SISTEMA' && h.estadoAnterior === h.estadoNuevo"
+              v-if="(h.origen as string) === 'SISTEMA' && h.estadoAnterior === h.estadoNuevo"
               class="text-ink-900 dark:text-white"
             >
               <strong>Movimiento de ubicación</strong>

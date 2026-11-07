@@ -8,11 +8,13 @@ import {
   Patch,
   Post,
   Query,
+  StreamableFile,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Usuario } from '../usuarios/entities/usuario.entity';
+import { remisionPdf, RemisionVista } from './remision-pdf.util';
 import { RemisionesService } from './remisiones.service';
 import {
   CreateRemisionDto,
@@ -37,6 +39,18 @@ export class RemisionesController {
   @Get()
   findAll(@Query() q: FilterRemisionesDto, @CurrentUser() u: Usuario) {
     return this.service.findAll(q, u);
+  }
+
+  /** Nota de remisión imprimible (firmas del remitente y de Archivo). */
+  @Roles('REMITENTE_C31', 'ADMIN', 'OPERADOR_ARCHIVOS')
+  @Get(':id/pdf')
+  async pdf(@Param('id', ParseIntPipe) id: number, @CurrentUser() u: Usuario) {
+    const r = await this.service.findOne(id, u);
+    const buffer = await remisionPdf(r as unknown as RemisionVista);
+    return new StreamableFile(buffer, {
+      type: 'application/pdf',
+      disposition: `inline; filename="${r.numeroRemision}.pdf"`,
+    });
   }
 
   @Roles('REMITENTE_C31', 'ADMIN', 'OPERADOR_ARCHIVOS')

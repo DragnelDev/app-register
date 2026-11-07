@@ -210,7 +210,7 @@ export interface C31HistorialItem {
   fecha: string
   estadoAnterior: string | null
   estadoNuevo: string
-  origen: 'REGISTRO' | 'MANUAL' | 'ACTA' | 'PRESTAMO' | 'SISTEMA' | 'REMISION'
+  origen: 'REGISTRO' | 'MANUAL' | 'ACTA' | 'PRESTAMO'
   referencia: string | null
   detalle: string | null
   usuario: string | null

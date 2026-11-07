@@ -40,6 +40,20 @@ export const remisionesService = {
   crear: (p: { comprobanteIds: number[]; unidadRemitente?: string; observacion?: string; enviar?: boolean }) =>
     apiClient.post<Remision>(R, p).then((r) => r.data),
   enviar: (id: number) => apiClient.post<Remision>(`${R}/${id}/enviar`).then((r) => r.data),
+  /** Nota de remisión imprimible, en una pestaña nueva. */
+  async abrirPdf(id: number) {
+    const ventana = window.open('', '_blank')
+    try {
+      const r = await apiClient.get(`${R}/${id}/pdf`, { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }))
+      if (ventana) ventana.location.href = url
+      else window.location.href = url
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch (err) {
+      ventana?.close()
+      throw err
+    }
+  },
   eliminar: (id: number) => apiClient.delete(`${R}/${id}`).then((r) => r.data),
   recibir: (
     id: number,

@@ -15,6 +15,7 @@ interface PrestamosState {
   cuadernoPageSize: number
   cuadernoFiltros: CuadernoFilterState
   notas: PrestamoNota[]
+  notasFiltros: Record<string, string | number | undefined>
   loadingCuaderno: boolean
   loadingNotas: boolean
 }
@@ -36,6 +37,7 @@ export const usePrestamosStore = defineStore('prestamos', {
     cuadernoPageSize: 15,
     cuadernoFiltros: filtrosCuadernoVacios(),
     notas: [],
+    notasFiltros: {},
     loadingCuaderno: false,
     loadingNotas: false,
   }),
@@ -70,7 +72,10 @@ export const usePrestamosStore = defineStore('prestamos', {
     async fetchNotas() {
       this.loadingNotas = true
       try {
-        const res = await prestamosService.listNotas({ pageSize: 100 })
+        const filtros = Object.fromEntries(
+          Object.entries(this.notasFiltros).filter(([, v]) => v !== '' && v !== undefined),
+        )
+        const res = await prestamosService.listNotas({ pageSize: 100, ...filtros })
         this.notas = res.data
       } finally {
         this.loadingNotas = false

@@ -20,7 +20,12 @@ export class Beneficiario extends BaseAuditoriaEntity {
   @PrimaryGeneratedColumn('identity')
   id: number | undefined;
 
-  @Column({ name: 'tipo_persona', type: 'varchar', length: 10, default: 'NATURAL' })
+  @Column({
+    name: 'tipo_persona',
+    type: 'varchar',
+    length: 10,
+    default: 'NATURAL',
+  })
   tipoPersona: TipoPersona | undefined;
 
   /** Nombre completo o razón social, en mayúsculas como figura en el SIGEP. */
@@ -36,7 +41,12 @@ export class Beneficiario extends BaseAuditoriaEntity {
   tipoDocumento: TipoDocumento | undefined;
 
   /** CI o NIT. Único por tipo cuando se informa. */
-  @Column({ name: 'numero_documento', type: 'varchar', length: 30, nullable: true })
+  @Column({
+    name: 'numero_documento',
+    type: 'varchar',
+    length: 30,
+    nullable: true,
+  })
   numeroDocumento?: string | null;
 
   @Column({ type: 'varchar', length: 30, nullable: true })

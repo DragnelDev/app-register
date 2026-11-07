@@ -202,8 +202,7 @@ export function generarNotaPrestamoPdf({
   let total = 0;
   filas.forEach((f, i) => {
     const c = f.comprobante;
-    const ident =
-rotuloC31(c, '—');
+    const ident = rotuloC31(c, '—');
     const benef = (c?.beneficiarios ?? [])
       .map((b) => b.nombreBeneficiario)
       .join(', ');
