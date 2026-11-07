@@ -8,7 +8,7 @@ comprobantes C31 y control de préstamos. Backend de referencia: NestJS + Postgr
 
 - Vue 3 (`<script setup>`) + TypeScript
 - Vite
-- Vue Router 4 (rutas protegidas por rol: `ADMIN`, `REGISTRADOR`, `CONSULTA`)
+- Vue Router 4 (rutas protegidas por perfil; ver README de la raíz)
 - Pinia (stores de sesión, C31 y préstamos)
 - Axios (interceptores JWT)
 - Tailwind CSS + SCSS
