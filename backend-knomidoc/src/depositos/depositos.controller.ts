@@ -26,7 +26,7 @@ import { Usuario } from '../usuarios/entities/usuario.entity';
 export class DepositosController {
   constructor(private readonly service: DepositosService) {}
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
   @Post()
   create(@Body() dto: CreateDepositoDto, @CurrentUser() usuario: Usuario) {
     return this.service.create(dto, usuario);
@@ -48,7 +48,7 @@ export class DepositosController {
     return this.service.findOne(id);
   }
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,

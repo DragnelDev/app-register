@@ -36,8 +36,12 @@ export class CreatePrestamosNotaDto {
   @IsInt({ each: true })
   readonly comprobanteIds: number[] = [];
 
-  @ApiProperty({ example: 'NOTA-AUD-045/2026' })
-  @IsNotEmpty({ message: 'El número de nota de solicitud es obligatorio' })
+  @ApiPropertyOptional({
+    example: 'NP-0012/2026',
+    description: 'N° de nota / CITE. Si se omite, el sistema lo genera (NP-0001/año)',
+  })
+  @IsOptional()
+  @Transform(vacioAUndefined)
   @IsString()
   @MaxLength(100)
   @Matches(/^[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ .\/\-_]+$/, {

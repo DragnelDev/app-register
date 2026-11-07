@@ -1,7 +1,7 @@
 import type { RouteRecordRaw } from 'vue-router'
 import type { RolUsuario } from '@/types/common.types'
 
-const ARCHIVO: RolUsuario[] = ['ADMIN', 'OPERADOR_ARCHIVOS']
+const ARCHIVO: RolUsuario[] = ['ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS']
 const PRESTAMOS: RolUsuario[] = ['ADMIN', 'ENCARGADO_PRESTAMOS']
 // Los perfiles de consulta ven las listas (sin botones de registro) de actas y préstamos
 const CONSULTA: RolUsuario[] = ['CONSULTA_AVANZADA', 'SOLO_LECTURA', 'CONSULTA_EXTERNA']
@@ -49,7 +49,7 @@ export const routes: RouteRecordRaw[] = [
     path: '/actas-entrega',
     name: 'actas-entrega',
     component: () => import('@/modules/actas-entrega/views/ActasEntregaListView.vue'),
-    meta: { roles: ARCHIVO_Y_CONSULTA },
+    meta: { roles: [...ARCHIVO_Y_CONSULTA, 'REMITENTE_C31'] as RolUsuario[] },
   },
 
   // ── Gestión SIGEP (gastos) ──
@@ -89,12 +89,6 @@ export const routes: RouteRecordRaw[] = [
     meta: { roles: ['ADMIN'] as RolUsuario[] },
   },
 
-  {
-    path: '/remisiones',
-    name: 'remisiones',
-    component: () => import('@/modules/remisiones/views/RemisionesView.vue'),
-    meta: { roles: ['ADMIN', 'OPERADOR_ARCHIVOS', 'REMITENTE_C31'] as RolUsuario[] },
-  },
   {
     path: '/beneficiarios',
     name: 'beneficiarios',

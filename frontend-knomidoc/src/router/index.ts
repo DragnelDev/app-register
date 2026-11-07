@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { routes } from './routes'
 import { useAuthStore } from '@/stores/auth.store'
+import { useGestionStore } from '@/stores/gestion.store'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -33,6 +34,9 @@ router.beforeEach(async (to) => {
     }
   }
 
+  // La gestión activa se conoce antes de abrir cualquier vista (filtro por defecto)
+  await useGestionStore().iniciar()
+
   // Con varios perfiles, primero se elige con cuál trabajar (como en el SIGEP)
   if (auth.perfilPendiente && to.name !== 'seleccionar-perfil' && !auth.emailPendiente) {
     return { name: 'seleccionar-perfil' }
@@ -55,7 +59,7 @@ router.beforeEach(async (to) => {
     !to.meta.abiertoATodos &&
     !(to.meta.roles as string[] | undefined)?.includes('REMITENTE_C31')
   ) {
-    return { path: '/remisiones' }
+    return { path: '/actas-entrega' }
   }
 
   const requiredRoles = to.meta.roles as string[] | undefined

@@ -11,6 +11,9 @@ import { useC31Store } from '@/stores/c31.store'
 import { useAuthStore } from '@/stores/auth.store'
 import type { ComprobanteC31, C31FilterState } from '@/types/c31.types'
 import { esDigitalizado, rotuloC31 } from '@/types/c31.types'
+import { useGestionStore } from '@/stores/gestion.store'
+
+const gestionStore = useGestionStore()
 
 const route = useRoute()
 const store = useC31Store()
@@ -117,7 +120,7 @@ onMounted(() => {
     tipoC31: tipoFijo.value,
     fechaDesde: '',
     fechaHasta: '',
-    gestion: '',
+    gestion: gestionStore.seleccionada,
     sinActa: undefined,
     sinCarpeta: undefined,
     detalle: '',

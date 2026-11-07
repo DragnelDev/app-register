@@ -18,6 +18,7 @@ import { usePrestamosStore } from '@/stores/prestamos.store'
 import { prestamosService } from '@/services/prestamos.service'
 import type { PrestamoNota, PrestamoNotaCreatePayload } from '@/types/prestamos.types'
 import { rotuloC31 } from '@/types/c31.types'
+import { useGestionStore } from '@/stores/gestion.store'
 
 const auth = useAuthStore()
 const store = usePrestamosStore()
@@ -39,13 +40,15 @@ async function handleSubmit(payload: PrestamoNotaCreatePayload) {
   saving.value = true
   try {
     errorNota.value = ''
-    await prestamosService.createNota(payload)
+    const creados = await prestamosService.createNota(payload)
+    const numeroNota = creados[0]?.numeroNotaSolicitud ?? payload.numeroNotaSolicitud
+    if (!numeroNota) throw new Error('El servidor no devolvió el número de la nota creada.')
     modalOpen.value = false
-    avisoNota.value = payload.numeroNotaSolicitud
+    avisoNota.value = numeroNota
     avisoAprobada.value = Boolean(payload.aprobar)
     await store.fetchNotas()
     // Un borrador recién creado se abre directo para revisarlo y previsualizarlo
-    if (!payload.aprobar) editarNota(payload.numeroNotaSolicitud)
+    if (!payload.aprobar) editarNota(numeroNota)
   } catch (err) {
     errorNota.value = extractApiErrorMessage(err, 'No se pudo registrar el préstamo.')
     modalOpen.value = false
@@ -152,9 +155,10 @@ async function verSeguimiento(row: PrestamoNota) {
 
 const f = reactive({
   search: '',
+  numeroNota: '',
   estadoPrestamo: '',
   institucion: '',
-  gestion: '',
+  gestion: useGestionStore().seleccionada,
   fechaDesde: '',
   fechaHasta: '',
   vencidas: '',
@@ -225,7 +229,17 @@ onMounted(() => {
           id="n-q"
           v-model="f.search"
           type="search"
-          placeholder="N° de nota, funcionario o CI…"
+          placeholder="N° de nota, CITE, referencia, funcionario o CI…"
+          :class="[campo, 'w-full']"
+        />
+      </div>
+      <div class="w-44">
+        <label :class="etiqueta" for="n-num">N° de nota / CITE</label>
+        <input
+          id="n-num"
+          v-model="f.numeroNota"
+          type="text"
+          placeholder="NP-0012/2026"
           :class="[campo, 'w-full']"
         />
       </div>

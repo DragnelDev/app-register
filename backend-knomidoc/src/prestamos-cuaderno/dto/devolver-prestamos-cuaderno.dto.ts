@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsDateString, IsIn, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsDateString, IsIn, IsInt, IsOptional, IsString } from 'class-validator';
 
 const vacioAUndefined = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' && value.trim() === '' ? undefined : value;
@@ -32,4 +33,18 @@ export class DevolverPrestamosCuadernoDto {
   @IsOptional()
   @IsIn(['CONFORME', 'CON_NOVEDAD'])
   readonly condicion?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Funcionario que trae el comprobante (por defecto, el solicitante del préstamo)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  readonly devueltoPorFuncionarioId?: number;
+
+  @ApiPropertyOptional({ enum: ['FIRMA_MANUAL', 'HUELLA_DIGITAL'] })
+  @IsOptional()
+  @IsIn(['FIRMA_MANUAL', 'HUELLA_DIGITAL'])
+  readonly metodoVerificacion?: string;
 }

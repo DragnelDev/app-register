@@ -34,7 +34,11 @@ export function anchosCode128(texto: string): number[] {
   const valores = [START_B, ...Array.from(t, (c) => c.charCodeAt(0) - 32)]
   const control = valores.reduce((s, v, i) => s + (i === 0 ? v : v * i), 0) % 103
   valores.push(control, STOP)
-  return valores.flatMap((v) => Array.from(PATRONES[v]!, Number))
+  return valores.flatMap((v) => {
+    const patron = PATRONES[v]
+    if (patron === undefined) throw new RangeError(`Patrón Code 128 inexistente para el valor ${v}.`)
+    return Array.from(patron, Number)
+  })
 }
 
 /** SVG listo para incrustar (`v-html`) o imprimir. */

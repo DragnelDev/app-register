@@ -29,31 +29,19 @@ export function beneficiariosPdf(
   const ancho = doc.page.width - izq - doc.page.margins.right;
   const limite = doc.page.height - doc.page.margins.bottom;
 
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(11)
-    .text(entidad, izq, 50, { width: ancho, align: 'center' });
-  doc
-    .fontSize(13)
-    .text('DIRECTORIO DE BENEFICIARIOS', { width: ancho, align: 'center' });
+  doc.font('Helvetica-Bold').fontSize(11).text(entidad, izq, 50, { width: ancho, align: 'center' });
+  doc.fontSize(13).text('DIRECTORIO DE BENEFICIARIOS', { width: ancho, align: 'center' });
   const filtros = [
     query.search && `Búsqueda: ${query.search}`,
-    query.tipoPersona &&
-      `Persona: ${query.tipoPersona === 'JURIDICA' ? 'Jurídica' : 'Natural'}`,
+    query.tipoPersona && `Persona: ${query.tipoPersona === 'JURIDICA' ? 'Jurídica' : 'Natural'}`,
     query.tipoDocumento && `Documento: ${TIPO_DOC[query.tipoDocumento]}`,
-    query.estado &&
-      `Estado: ${query.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'}`,
+    query.estado && `Estado: ${query.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'}`,
     query.gestion && `Con comprobantes en la gestión ${query.gestion}`,
   ].filter(Boolean) as string[];
-  doc
-    .font('Helvetica')
-    .fontSize(9)
-    .text(
-      filtros.length
-        ? `Filtros: ${filtros.join(' · ')}`
-        : 'Sin filtros (todos los beneficiarios)',
-      { width: ancho, align: 'center' },
-    );
+  doc.font('Helvetica').fontSize(9).text(
+    filtros.length ? `Filtros: ${filtros.join(' · ')}` : 'Sin filtros (todos los beneficiarios)',
+    { width: ancho, align: 'center' },
+  );
   doc.moveDown(0.8);
 
   const cols = [
@@ -69,9 +57,7 @@ export function beneficiariosPdf(
   const encabezado = () => {
     const y = doc.y;
     doc.font('Helvetica-Bold').fontSize(8.5);
-    cols.forEach((c, i) =>
-      doc.text(c.t, x(i) + 2, y + 3, { width: c.w * ancho - 4 }),
-    );
+    cols.forEach((c, i) => doc.text(c.t, x(i) + 2, y + 3, { width: c.w * ancho - 4 }));
     doc.rect(izq, y, ancho, 16).stroke('#94a3b8');
     doc.y = y + 18;
   };
@@ -88,12 +74,9 @@ export function beneficiariosPdf(
       f.telefono ?? '—',
       f.estado === 'ACTIVO' ? 'Activo' : 'Inactivo',
     ];
-    const alto =
-      Math.max(
-        ...celdas.map((t, i) =>
-          doc.heightOfString(t, { width: cols[i].w * ancho - 4 }),
-        ),
-      ) + 6;
+    const alto = Math.max(
+      ...celdas.map((t, i) => doc.heightOfString(t, { width: cols[i].w * ancho - 4 })),
+    ) + 6;
     if (doc.y + alto > limite) {
       doc.addPage();
       doc.y = doc.page.margins.top;
@@ -104,17 +87,12 @@ export function beneficiariosPdf(
     celdas.forEach((t, i) =>
       doc.text(t, x(i) + 2, y + 3, { width: cols[i].w * ancho - 4 }),
     );
-    doc
-      .moveTo(izq, y + alto)
-      .lineTo(izq + ancho, y + alto)
-      .stroke('#e2e8f0');
+    doc.moveTo(izq, y + alto).lineTo(izq + ancho, y + alto).stroke('#e2e8f0');
     doc.y = y + alto;
   }
   doc.moveDown(0.6);
   if (doc.y + 14 <= limite) {
-    doc
-      .font('Helvetica-Bold')
-      .text(`Total: ${filas.length} beneficiario(s)`, izq, doc.y);
+    doc.font('Helvetica-Bold').text(`Total: ${filas.length} beneficiario(s)`, izq, doc.y);
   }
 
   // Numeración de páginas: se anula el margen inferior para que escribir en él
@@ -124,15 +102,12 @@ export function beneficiariosPdf(
     doc.switchToPage(rango.start + i);
     const inferior = doc.page.margins.bottom;
     doc.page.margins.bottom = 0;
-    doc
-      .font('Helvetica')
-      .fontSize(8)
-      .fillColor('#64748b')
-      .text(`Página ${i + 1} de ${rango.count}`, izq, doc.page.height - 30, {
-        width: ancho,
-        align: 'center',
-        lineBreak: false,
-      });
+    doc.font('Helvetica').fontSize(8).fillColor('#64748b').text(
+      `Página ${i + 1} de ${rango.count}`,
+      izq,
+      doc.page.height - 30,
+      { width: ancho, align: 'center', lineBreak: false },
+    );
     doc.page.margins.bottom = inferior;
   }
 

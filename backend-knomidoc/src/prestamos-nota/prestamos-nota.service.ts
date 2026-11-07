@@ -80,9 +80,7 @@ export class PrestamosNotaService {
     });
     if (!f) throw new NotFoundException('El funcionario no existe');
     if (f.estado === EstadoFuncionario.INACTIVO) {
-      throw new BadRequestException(
-        'El funcionario seleccionado está inactivo',
-      );
+      throw new BadRequestException('El funcionario seleccionado está inactivo');
     }
     return {
       funcionarioId: f.id as number,
@@ -123,6 +121,16 @@ export class PrestamosNotaService {
    * y con vista previa del PDF) hasta aprobarla; con `aprobar: true` se
    * entrega de inmediato.
    */
+  /** NP-0001/2026: siguiente correlativo de la gestión en curso. */
+  private async siguienteNumeroNota(manager: EntityManager) {
+    const anio = new Date().getFullYear();
+    const [{ max }] = await manager.query<{ max: number | null }[]>(
+      `SELECT MAX(split_part(substring(numero_nota_solicitud from '^NP-([0-9]+)/${anio}$'), '/', 1)::int) AS max
+       FROM prestamos_nota WHERE numero_nota_solicitud ~ '^NP-[0-9]+/${anio}$'`,
+    );
+    return `NP-${String((max ?? 0) + 1).padStart(4, '0')}/${anio}`;
+  }
+
   async create(
     dto: CreatePrestamosNotaDto,
     usuario?: Usuario,
@@ -138,14 +146,10 @@ export class PrestamosNotaService {
     this.validarFechas(fechaPrestamo, dto.fechaDevolucionEstimada);
 
     return this.dataSource.transaction(async (manager) => {
-      if (
-        await manager.existsBy(PrestamosNota, {
-          numeroNotaSolicitud: dto.numeroNotaSolicitud,
-        })
-      ) {
-        throw new ConflictException(
-          `Ya existe una nota con el N° ${dto.numeroNotaSolicitud}`,
-        );
+      const numeroNota =
+        dto.numeroNotaSolicitud || (await this.siguienteNumeroNota(manager));
+      if (await manager.existsBy(PrestamosNota, { numeroNotaSolicitud: numeroNota })) {
+        throw new ConflictException(`Ya existe una nota con el N° ${numeroNota}`);
       }
       await this.validarComprobantes(manager, comprobanteIds);
       const datosFunc = await this.datosFuncionario(
@@ -157,7 +161,7 @@ export class PrestamosNotaService {
       const prestamos = comprobanteIds.map((comprobanteId) =>
         manager.create(PrestamosNota, {
           comprobanteId,
-          numeroNotaSolicitud: dto.numeroNotaSolicitud,
+          numeroNotaSolicitud: numeroNota,
           ...datosFunc,
           referencia: dto.referencia,
           destinatario: dto.destinatario ?? datosFunc.funcionarioResponsable,
@@ -331,6 +335,8 @@ export class PrestamosNotaService {
       base.estadoPrestamo = query.estadoPrestamo as EstadoPrestamoNota;
     if (query.comprobanteId) base.comprobanteId = query.comprobanteId;
     if (query.funcionarioId) base.funcionarioId = query.funcionarioId;
+    if (query.numeroNota?.trim())
+      base.numeroNotaSolicitud = ILike(`%${query.numeroNota.trim()}%`);
     if (query.institucion?.trim())
       base.institucionSolicitante = ILike(`%${query.institucion.trim()}%`);
     if (query.gestion) base.comprobante = { gestion: query.gestion };
@@ -350,6 +356,7 @@ export class PrestamosNotaService {
     const where: FindOptionsWhere<PrestamosNota>[] = query.search
       ? [
           { ...base, numeroNotaSolicitud: ILike(`%${query.search}%`) },
+          { ...base, referencia: ILike(`%${query.search}%`) },
           { ...base, institucionSolicitante: ILike(`%${query.search}%`) },
           { ...base, funcionarioResponsable: ILike(`%${query.search}%`) },
           {
@@ -524,9 +531,7 @@ export class PrestamosNotaService {
     return this.dataSource.transaction(async (manager) => {
       const filas = await this.filasDeNota(manager, numeroNota);
       if (filas.some((f) => f.estadoPrestamo !== EstadoPrestamoNota.BORRADOR)) {
-        throw new ConflictException(
-          'Solo se pueden descartar notas en borrador',
-        );
+        throw new ConflictException('Solo se pueden descartar notas en borrador');
       }
       await manager.remove(PrestamosNota, filas);
       return { eliminados: filas.length };

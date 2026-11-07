@@ -13,6 +13,9 @@ import { extractApiErrorMessage } from '@/utils/http-error'
 import { bs, fechaCorta, TIPO_PAGO_LABEL } from '@/utils/estados'
 import { rotuloC31, type ComprobanteC31 } from '@/types/c31.types'
 import type { Pago, PagoFiltros, PagoPorBeneficiario, PagosResumen } from '@/types/pagos.types'
+import { useGestionStore } from '@/stores/gestion.store'
+
+const gestionStore = useGestionStore()
 
 const auth = useAuthStore()
 const pestana = ref<'pagos' | 'beneficiarios'>('pagos')
@@ -21,7 +24,7 @@ const filtros = reactive<PagoFiltros>({
   search: '',
   tipoPago: '',
   estadoPago: '',
-  gestion: '',
+  gestion: gestionStore.seleccionada,
   fechaDesde: '',
   fechaHasta: '',
   beneficiario: '',
@@ -99,7 +102,7 @@ function limpiar() {
     search: '',
     tipoPago: '',
     estadoPago: '',
-    gestion: '',
+    gestion: gestionStore.seleccionada,
     fechaDesde: '',
     fechaHasta: '',
     beneficiario: '',

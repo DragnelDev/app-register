@@ -69,6 +69,14 @@ export class ActasEntrega {
   @Column('timestamp', { name: 'fecha_aprobacion', nullable: true })
   fechaAprobacion?: Date | null;
 
+  /** Quién armó el acta (p. ej. el remitente de C31). */
+  @ManyToOne(() => Usuario, { nullable: true })
+  @JoinColumn({ name: 'creado_por_id' })
+  creadoPor?: Usuario;
+
+  @Column({ name: 'creado_por_id', type: 'integer', nullable: true })
+  creadoPorId?: number | null;
+
   @ManyToOne(() => Usuario, { nullable: true })
   @JoinColumn({ name: 'aprobado_por_id' })
   aprobadoPor?: Usuario;

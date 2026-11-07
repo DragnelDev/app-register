@@ -25,7 +25,10 @@ import { IsIn, IsOptional } from 'class-validator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Usuario } from '../usuarios/entities/usuario.entity';
-import { C31AdjuntosService, MAX_ADJUNTO_BYTES } from './c31-adjuntos.service';
+import {
+  C31AdjuntosService,
+  MAX_ADJUNTO_BYTES,
+} from './c31-adjuntos.service';
 import {
   TIPOS_ADJUNTO_C31,
   TipoAdjuntoC31,
@@ -53,7 +56,7 @@ export class C31AdjuntosController {
     return this.service.listar(comprobanteId);
   }
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
   @Post()
   @ApiOperation({ summary: 'Subir el PDF/imagen escaneado de un C31' })
   @ApiConsumes('multipart/form-data')
@@ -106,7 +109,7 @@ export class C31AdjuntosController {
     });
   }
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
   @Delete(':adjuntoId')
   async eliminar(
     @Param('comprobanteId', ParseIntPipe) comprobanteId: number,

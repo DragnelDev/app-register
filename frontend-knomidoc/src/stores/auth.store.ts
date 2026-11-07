@@ -49,17 +49,19 @@ export const useAuthStore = defineStore('auth', {
       ['ADMIN', 'OPERADOR_ARCHIVOS', 'ENCARGADO_PRESTAMOS', 'CONSULTA_AVANZADA'].includes(
         state.usuario?.rol ?? '',
       ),
-    /** Puede recibir y confirmar las remisiones de C31 */
-    puedeRecibirRemisiones: (state) =>
+    /** Archivista: recibe (aprueba) actas de entrega y las anula */
+    puedeRecibirActas: (state) =>
       state.usuario?.rol === 'ADMIN' || state.usuario?.rol === 'OPERADOR_ARCHIVOS',
+    puedeAnularActas: (state) =>
+      ['ADMIN', 'OPERADOR_ARCHIVOS', 'REMITENTE_C31'].includes(state.usuario?.rol ?? ''),
     /** Ruta inicial según el perfil activo */
-    rutaInicial: (state) => (state.usuario?.rol === 'REMITENTE_C31' ? '/remisiones' : '/'),
-    /** Puede registrar actas de entrega y comprobantes C31 */
+    rutaInicial: (state) => (state.usuario?.rol === 'REMITENTE_C31' ? '/actas-entrega' : '/'),
+    /** Puede registrar comprobantes C31 y armar actas de entrega */
     puedeRegistrarC31: (state) =>
-      state.usuario?.rol === 'ADMIN' || state.usuario?.rol === 'OPERADOR_ARCHIVOS',
+      ['ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS'].includes(state.usuario?.rol ?? ''),
     /** Puede crear y editar depósitos, estantes y carpetas del archivo físico */
     puedeGestionarArchivo: (state) =>
-      state.usuario?.rol === 'ADMIN' || state.usuario?.rol === 'OPERADOR_ARCHIVOS',
+      ['ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS'].includes(state.usuario?.rol ?? ''),
     /** Puede registrar y devolver préstamos (cuaderno y nota) */
     puedePrestar: (state) =>
       state.usuario?.rol === 'ADMIN' || state.usuario?.rol === 'ENCARGADO_PRESTAMOS',

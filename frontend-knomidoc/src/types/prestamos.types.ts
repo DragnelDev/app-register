@@ -16,6 +16,9 @@ export interface PrestamoCuaderno {
   fechaHoraDevolucion?: string | null
   devuelto: boolean
   condicionDevolucion?: CondicionDevolucion | null
+  devueltoPorFuncionarioId?: number | null
+  devueltoPorFuncionario?: Funcionario | null
+  metodoVerificacionDevolucion?: MetodoVerificacion | null
   metodoVerificacion: MetodoVerificacion
   evidenciaVerificacionUrl?: string | null
   observaciones?: string | null
@@ -55,6 +58,9 @@ export interface DevolverPrestamoCuadernoPayload {
   fechaHoraDevolucion?: string
   observaciones?: string
   condicion?: CondicionDevolucion
+  /** Quien trae el comprobante (por defecto, el solicitante) */
+  devueltoPorFuncionarioId?: number
+  metodoVerificacion?: MetodoVerificacion
 }
 
 /** Préstamo formal por nota de solicitud (ej. Auditoría Interna); una fila por comprobante prestado. */
@@ -79,7 +85,7 @@ export interface PrestamoNota {
 
 export interface PrestamoNotaCreatePayload {
   comprobanteIds: string[]
-  numeroNotaSolicitud: string
+  numeroNotaSolicitud?: string
   funcionarioId: number
   institucionSolicitante?: string
   referencia?: string

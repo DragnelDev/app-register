@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { useGestionStore } from '@/stores/gestion.store'
 import { c31Service } from '@/services/c31.service'
 import type {
   ComprobanteC31,
@@ -30,7 +31,7 @@ export const useC31Store = defineStore('c31', {
       tipoC31: '',
       fechaDesde: '',
       fechaHasta: '',
-      gestion: '',
+      gestion: useGestionStore().seleccionada,
     },
     loading: false,
     selected: null,

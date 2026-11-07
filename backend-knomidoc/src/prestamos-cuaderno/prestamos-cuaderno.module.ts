@@ -9,12 +9,7 @@ import { Usuario } from '../usuarios/entities/usuario.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      PrestamosCuaderno,
-      ComprobantesC31,
-      Usuario,
-      Funcionario,
-    ]),
+    TypeOrmModule.forFeature([PrestamosCuaderno, ComprobantesC31, Usuario, Funcionario]),
   ],
   controllers: [PrestamosCuadernoController],
   providers: [PrestamosCuadernoService],

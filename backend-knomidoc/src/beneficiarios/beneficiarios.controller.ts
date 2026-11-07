@@ -27,7 +27,7 @@ import { beneficiariosPdf } from './beneficiarios-pdf.util';
 export class BeneficiariosController {
   constructor(private readonly service: BeneficiariosService) {}
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
   @Post()
   create(@Body() dto: CreateBeneficiarioDto, @CurrentUser() u: Usuario) {
     return this.service.create(dto, u.id);
@@ -65,7 +65,7 @@ export class BeneficiariosController {
     return this.service.findOne(id);
   }
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,

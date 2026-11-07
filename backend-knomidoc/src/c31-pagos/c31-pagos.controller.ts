@@ -24,7 +24,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 export class C31PagosController {
   constructor(private readonly service: C31PagosService) {}
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
   @Post()
   create(@Body() dto: CreateC31PagoDto) {
     return this.service.create(dto);
@@ -66,13 +66,13 @@ export class C31PagosController {
     return this.service.findOne(id);
   }
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
   @Patch(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateC31PagoDto) {
     return this.service.update(id, dto);
   }
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.service.remove(id);

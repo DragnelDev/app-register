@@ -114,6 +114,26 @@ export class PrestamosCuaderno {
   @Column({ name: 'recibido_por_id', type: 'integer', nullable: true })
   recibidoPorId?: number | null;
 
+  /**
+   * Quién trajo el comprobante de vuelta. Puede ser distinto del solicitante
+   * (p. ej. el jefe pide a su auxiliar que lo devuelva).
+   */
+  @ManyToOne(() => Funcionario, { nullable: true })
+  @JoinColumn({ name: 'devuelto_por_funcionario_id' })
+  devueltoPorFuncionario?: Funcionario;
+
+  @Column({ name: 'devuelto_por_funcionario_id', type: 'integer', nullable: true })
+  devueltoPorFuncionarioId?: number | null;
+
+  /** Cómo se verificó a quien devuelve (firma o huella). */
+  @Column({
+    name: 'metodo_verificacion_devolucion',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
+  metodoVerificacionDevolucion?: MetodoVerificacion | null;
+
   /** Estado en que volvió el comprobante: CONFORME o CON_NOVEDAD (daños, faltantes). */
   @Column({
     name: 'condicion_devolucion',

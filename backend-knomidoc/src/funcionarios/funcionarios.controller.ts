@@ -61,11 +61,7 @@ export class FuncionariosController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: HuellaDto,
   ) {
-    return this.service.registrarHuella(
-      id,
-      dto.plantilla as string,
-      dto.lector,
-    );
+    return this.service.registrarHuella(id, dto.plantilla as string, dto.lector);
   }
 
   @Roles('ADMIN', 'ENCARGADO_PRESTAMOS')

@@ -21,7 +21,7 @@ export class C31BeneficiariosController {
     private readonly c31BeneficiariosService: C31BeneficiariosService,
   ) {}
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
   @Post()
   create(@Body() createC31BeneficiarioDto: CreateC31BeneficiarioDto) {
     return this.c31BeneficiariosService.create(createC31BeneficiarioDto);
@@ -37,7 +37,7 @@ export class C31BeneficiariosController {
     return this.c31BeneficiariosService.findOne(+id);
   }
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -46,7 +46,7 @@ export class C31BeneficiariosController {
     return this.c31BeneficiariosService.update(+id, updateC31BeneficiarioDto);
   }
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.c31BeneficiariosService.remove(+id);

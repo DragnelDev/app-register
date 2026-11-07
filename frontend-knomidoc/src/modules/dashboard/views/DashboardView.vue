@@ -6,6 +6,9 @@ import { useResumenStore } from '@/stores/resumen.store'
 import { useAuthStore } from '@/stores/auth.store'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import { rotuloC31 } from '@/types/c31.types'
+import { useGestionStore } from '@/stores/gestion.store'
+
+const gestionStore = useGestionStore()
 
 const c31Store = useC31Store()
 const resumen = useResumenStore()
@@ -19,7 +22,7 @@ onMounted(() => {
     tipoC31: '',
     fechaDesde: '',
     fechaHasta: '',
-    gestion: '',
+    gestion: gestionStore.seleccionada,
     sinActa: undefined,
     sinCarpeta: undefined,
   })

@@ -8,6 +8,7 @@ export type MetodoVerificacion = 'FIRMA_MANUAL' | 'HUELLA_DIGITAL'
 export type RolUsuario =
   | 'ADMIN'
   | 'OPERADOR_ARCHIVOS'
+  | 'AUXILIAR_ARCHIVOS'
   | 'ENCARGADO_PRESTAMOS'
   | 'REMITENTE_C31'
   | 'CONSULTA_AVANZADA'

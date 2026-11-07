@@ -4,6 +4,8 @@ import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { c31Service } from '@/services/c31.service'
+import { actasEntregaService } from '@/services/actas-entrega.service'
+import { useAuthStore } from '@/stores/auth.store'
 import { extractApiErrorMessage } from '@/utils/http-error'
 import {
   required,
@@ -29,6 +31,7 @@ const emit = defineEmits<{
   save: [payload: ActaEntregaCreatePayload]
 }>()
 
+const auth = useAuthStore()
 const form = reactive({
   numeroActa: '',
   unidadEmisora: 'Tesorería',
@@ -51,12 +54,15 @@ async function cargarCandidatos() {
   errorCarga.value = ''
   try {
     // Firmados (En revisión) que todavía no van en ninguna acta
-    const libres = await c31Service.list({
-      estadoFisico: 'EN_REVISION',
-      sinActa: true,
-      search: busqueda.value || undefined,
-      pageSize: 100,
-    })
+    // El remitente no tiene acceso al listado general: usa el endpoint de candidatos
+    const libres = auth.esRemitente
+      ? { data: await actasEntregaService.candidatos(busqueda.value || undefined) }
+      : await c31Service.list({
+          estadoFisico: 'EN_REVISION',
+          sinActa: true,
+          search: busqueda.value || undefined,
+          pageSize: 100,
+        })
     const propios = props.acta?.comprobantesC31 ?? []
     const porId = new Map<string, ComprobanteC31>()
     ;[...propios, ...libres.data].forEach((c) => porId.set(String(c.id), c))
@@ -75,7 +81,7 @@ watch(
     const a = props.acta
     form.numeroActa = a?.numeroActa ?? ''
     form.unidadEmisora = a?.unidadEmisora ?? 'Tesorería'
-    form.responsableEntrega = a?.responsableEntrega ?? ''
+    form.responsableEntrega = a?.responsableEntrega ?? (auth.esRemitente ? (auth.usuario?.nombreCompleto ?? '') : '')
     form.responsableRecepcion = a?.responsableRecepcion ?? ''
     form.fechaRecepcion = a?.fechaRecepcion?.slice(0, 10) ?? new Date().toISOString().slice(0, 10)
     form.observaciones = a?.observaciones ?? ''
@@ -120,7 +126,6 @@ const totalSeleccionado = computed(() =>
 const errores = computed(() => ({
   numeroActa:
     runValidators(form.numeroActa, [
-      required('El N° de acta es obligatorio'),
       maxLength(50),
       codigoDocumento(),
     ]) ?? '',
@@ -131,11 +136,9 @@ const errores = computed(() => ({
       maxLength(150),
     ]) ?? '',
   responsableRecepcion:
-    runValidators(form.responsableRecepcion, [
-      required('Indique quién recibe'),
-      nombrePersona(),
-      maxLength(150),
-    ]) ?? '',
+    (form.responsableRecepcion.trim()
+      ? runValidators(form.responsableRecepcion, [nombrePersona(), maxLength(150)])
+      : '') ?? '',
   fechaRecepcion:
     runValidators(form.fechaRecepcion, [
       required('La fecha es obligatoria'),
@@ -148,7 +151,12 @@ const errores = computed(() => ({
 function handleSubmit() {
   intentado.value = true
   if (Object.values(errores.value).some(Boolean)) return
-  emit('save', { ...form, comprobanteIds: [...seleccion.value] })
+  emit('save', {
+    ...form,
+    numeroActa: form.numeroActa.trim() || undefined,
+    responsableRecepcion: form.responsableRecepcion.trim() || undefined,
+    comprobanteIds: [...seleccion.value],
+  })
 }
 const ver = (e: string) => (intentado.value ? e : '')
 </script>
@@ -184,9 +192,8 @@ const ver = (e: string) => (intentado.value ? e : '')
       <section class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <BaseInput
           v-model="form.numeroActa"
-          label="N° de acta"
-          placeholder="AE-2026-001"
-          required
+          label="N° de acta (automático si se deja vacío)"
+          placeholder="Se asigna al guardar (AE-2026-001)"
           :disabled="soloLectura"
           :error="ver(errores.numeroActa)"
         />
@@ -200,8 +207,7 @@ const ver = (e: string) => (intentado.value ? e : '')
         />
         <BaseInput
           v-model="form.responsableRecepcion"
-          label="Responsable de recepción (Archivo)"
-          required
+          label="Responsable de recepción (Archivo) — opcional"
           :disabled="soloLectura"
           :error="ver(errores.responsableRecepcion)"
         />

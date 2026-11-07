@@ -26,7 +26,7 @@ import { Usuario } from '../usuarios/entities/usuario.entity';
 export class EstantesController {
   constructor(private readonly service: EstantesService) {}
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
   @Post()
   create(@Body() dto: CreateEstanteDto, @CurrentUser() usuario: Usuario) {
     return this.service.create(dto, usuario);
@@ -49,7 +49,7 @@ export class EstantesController {
     return this.service.findOne(id);
   }
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
   @Patch(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateEstanteDto) {
     return this.service.update(id, dto);

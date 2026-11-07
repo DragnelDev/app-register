@@ -6,7 +6,7 @@ import C31DetailModal from '@/modules/c31-gastos/components/C31DetailModal.vue'
 import { c31Service } from '@/services/c31.service'
 import { extractApiErrorMessage } from '@/utils/http-error'
 import type { ComprobanteC31 } from '@/types/c31.types'
-import type { CondicionDevolucion } from '@/types/prestamos.types'
+import type { DevolverPrestamoCuadernoPayload } from '@/types/prestamos.types'
 import { onMounted, ref } from 'vue'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
@@ -68,10 +68,7 @@ function handleDevolver(row: PrestamoCuaderno) {
   devolucionOpen.value = true
 }
 
-async function confirmarDevolucion(payload: {
-  condicion: CondicionDevolucion
-  observaciones?: string
-}) {
+async function confirmarDevolucion(payload: DevolverPrestamoCuadernoPayload) {
   if (!devolviendo.value) return
   returningId.value = devolviendo.value.id
   try {
@@ -270,6 +267,8 @@ onMounted(async () => {
     <C31DetailModal v-model="detalleOpen" :comprobante="detalleSel" tab="seguimiento" />
     <DevolucionModal
       v-model="devolucionOpen"
+      con-quien-devuelve
+      :solicitante="devolviendo?.funcionario ?? null"
       :saving="returningId !== null"
       @confirm="confirmarDevolucion"
     />

@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { useGestionStore } from '@/stores/gestion.store'
 import type {
   CuadernoFilterState,
   DevolverPrestamoCuadernoPayload,
@@ -21,7 +22,7 @@ interface PrestamosState {
 }
 
 export const filtrosCuadernoVacios = (): CuadernoFilterState => ({
-  gestion: '',
+  gestion: useGestionStore().seleccionada,
   fechaDesde: '',
   fechaHasta: '',
   funcionarioId: null,

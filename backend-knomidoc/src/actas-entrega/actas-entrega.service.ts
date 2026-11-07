@@ -2,6 +2,7 @@ import { rotuloC31 } from '../common/utils/identificador-c31.util';
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -106,7 +107,8 @@ export class ActasEntregaService {
     for (const id of ids) {
       const c = porId.get(id);
       if (!c) throw new NotFoundException(`El comprobante ${id} no existe`);
-      const nombre = rotuloC31(c, `#${id}`);
+      const nombre =
+rotuloC31(c, `#${id}`);
       if (c.estadoFisico !== EstadoFisicoC31.EN_REVISION) {
         throw new ConflictException(
           `El comprobante ${nombre} está "${ESTADO_FISICO_LABELS[c.estadoFisico as EstadoFisicoC31]}": solo se entregan comprobantes "En revisión / firmado"`,
@@ -125,7 +127,57 @@ export class ActasEntregaService {
     );
   }
 
-  async create(dto: CreateActasEntregaDto): Promise<ActasEntrega> {
+  private esRemitente(u?: Usuario) {
+    return (u?.rolActivo ?? u?.rol) === 'REMITENTE_C31';
+  }
+
+  /** El remitente solo toca sus propias actas. */
+  private async verificarPropietario(id: number, usuario?: Usuario) {
+    if (!this.esRemitente(usuario)) return;
+    const acta = await this.repo.findOne({
+      where: { id },
+      select: { id: true, creadoPorId: true },
+    });
+    if (!acta) throw new NotFoundException('El acta de entrega no existe');
+    if (acta.creadoPorId !== usuario?.id)
+      throw new ForbiddenException('Esta acta pertenece a otro remitente');
+  }
+
+  /** AE-<año>-<correlativo> */
+  private async siguienteNumeroActa(manager: EntityManager) {
+    const anio = new Date().getFullYear();
+    const prefijo = `AE-${anio}-`;
+    const [{ max }] = await manager.query<{ max: number | null }[]>(
+      `SELECT MAX(NULLIF(regexp_replace(numero_acta, '^AE-${anio}-', ''), '')::int) AS max
+       FROM actas_entrega WHERE numero_acta ~ '^AE-${anio}-[0-9]+$'`,
+    );
+    return `${prefijo}${String((max ?? 0) + 1).padStart(3, '0')}`;
+  }
+
+  /** Comprobantes que un remitente puede incluir: firmados (En revisión) y sin acta. */
+  async candidatos(search?: string) {
+    const qb = this.dataSource
+      .getRepository(ComprobantesC31)
+      .createQueryBuilder('c')
+      .leftJoinAndSelect('c.preventivos', 'pv')
+      .leftJoinAndSelect('c.devengados', 'dv')
+      .leftJoinAndSelect('c.beneficiarios', 'bn')
+      .where('c.estado_fisico = :e', { e: EstadoFisicoC31.EN_REVISION })
+      .andWhere('c.acta_entrega_id IS NULL');
+    const t = search?.trim();
+    if (t) {
+      qb.andWhere(
+        `(pv.numero_preventivo ILIKE :t OR dv.numero_devengado ILIKE :t OR c.descripcion ILIKE :t OR bn.nombre_beneficiario ILIKE :t)`,
+        { t: `%${t.replace(/[%_]/g, '\\$&')}%` },
+      );
+    }
+    return qb.orderBy('c.id', 'DESC').take(30).getMany();
+  }
+
+  async create(
+    dto: CreateActasEntregaDto,
+    usuario?: Usuario,
+  ): Promise<ActasEntrega> {
     validarRangoFecha('La fecha de entrega', dto.fechaRecepcion);
     await this.validarNumeroActa(dto.numeroActa);
     const { comprobanteIds, ...cabecera } = dto;
@@ -134,6 +186,10 @@ export class ActasEntregaService {
         ActasEntrega,
         manager.create(ActasEntrega, {
           ...cabecera,
+          numeroActa:
+            dto.numeroActa || (await this.siguienteNumeroActa(manager)),
+          responsableRecepcion: dto.responsableRecepcion || 'Archivo Central',
+          creadoPorId: usuario?.id ?? null,
           unidadEmisora: dto.unidadEmisora || 'Tesorería',
           estado: EstadoActa.BORRADOR,
           cantidadComprobantes: 0,
@@ -148,6 +204,7 @@ export class ActasEntregaService {
 
   async findAll(
     query: FilterActasEntregaDto,
+    usuario?: Usuario,
   ): Promise<PaginatedResponseDto<ActasEntrega>> {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 10;
@@ -157,6 +214,7 @@ export class ActasEntregaService {
       where.fechaRecepcion = Between(query.fechaDesde, query.fechaHasta);
     }
     if (query.estado) where.estado = query.estado;
+    if (this.esRemitente(usuario)) where.creadoPorId = usuario?.id;
 
     const [data, total] = await this.repo.findAndCount({
       where: query.search
@@ -166,7 +224,7 @@ export class ActasEntregaService {
             { ...where, responsableRecepcion: Like(`%${query.search}%`) },
           ]
         : where,
-      relations: { aprobadoPor: true },
+      relations: { aprobadoPor: true, creadoPor: true },
       order: { fechaRecepcion: query.order ?? 'DESC', id: 'DESC' },
       skip: paginationSkip(page, pageSize),
       take: pageSize,
@@ -175,14 +233,20 @@ export class ActasEntregaService {
     return new PaginatedResponseDto(data, total, page, pageSize);
   }
 
-  async findOne(id: number): Promise<ActasEntrega> {
+  async findOne(id: number, usuario?: Usuario): Promise<ActasEntrega> {
+    await this.verificarPropietario(id, usuario);
     const acta = await this.repo.findOne({ where: { id }, relations: DETALLE });
     if (!acta) throw new NotFoundException('El acta de entrega no existe');
     return acta;
   }
 
   /** Edita el encabezado y, si viene `comprobanteIds`, reemplaza la selección (solo en borrador). */
-  async update(id: number, dto: UpdateActasEntregaDto): Promise<ActasEntrega> {
+  async update(
+    id: number,
+    dto: UpdateActasEntregaDto,
+    usuario?: Usuario,
+  ): Promise<ActasEntrega> {
+    await this.verificarPropietario(id, usuario);
     const { comprobanteIds, ...cabecera } = dto;
     validarRangoFecha('La fecha de entrega', dto.fechaRecepcion);
     await this.dataSource.transaction(async (manager) => {
@@ -216,7 +280,12 @@ export class ActasEntregaService {
     return this.findOne(id);
   }
 
-  async agregarComprobantes(id: number, comprobanteIds: number[]) {
+  async agregarComprobantes(
+    id: number,
+    comprobanteIds: number[],
+    usuario?: Usuario,
+  ) {
+    await this.verificarPropietario(id, usuario);
     await this.dataSource.transaction(async (manager) => {
       await this.cargarBorrador(manager, id);
       await this.vincular(manager, id, comprobanteIds);
@@ -225,7 +294,12 @@ export class ActasEntregaService {
     return this.findOne(id);
   }
 
-  async quitarComprobante(id: number, comprobanteId: number) {
+  async quitarComprobante(
+    id: number,
+    comprobanteId: number,
+    usuario?: Usuario,
+  ) {
+    await this.verificarPropietario(id, usuario);
     await this.dataSource.transaction(async (manager) => {
       await this.cargarBorrador(manager, id);
       const c = await manager.findOne(ComprobantesC31, {
@@ -344,7 +418,8 @@ export class ActasEntregaService {
   }
 
   /** Deja sin efecto un acta no recibida; sus comprobantes quedan libres (En revisión). */
-  async anular(id: number): Promise<ActasEntrega> {
+  async anular(id: number, usuario?: Usuario): Promise<ActasEntrega> {
+    await this.verificarPropietario(id, usuario);
     await this.dataSource.transaction(async (manager) => {
       await this.cargarBorrador(manager, id);
       await manager.update(

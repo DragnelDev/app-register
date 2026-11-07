@@ -14,6 +14,7 @@ import {
   CreateParametroGestionDto,
   UpdateParametroGestionDto,
 } from './dto/parametro-gestion.dto';
+import { AbiertoATodosLosPerfiles } from '../auth/decorators/abierto-a-todos.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Usuario } from '../usuarios/entities/usuario.entity';
@@ -33,11 +34,13 @@ export class ParametrosGestionController {
     return this.service.create(dto, usuario);
   }
 
+  @AbiertoATodosLosPerfiles()
   @Get()
   findAll() {
     return this.service.findAll();
   }
 
+  @AbiertoATodosLosPerfiles()
   @Get('activa')
   findActiva() {
     return this.service.findActiva();

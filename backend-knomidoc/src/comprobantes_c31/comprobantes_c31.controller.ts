@@ -37,7 +37,7 @@ export class ComprobantesC31Controller {
     private readonly seguimientoService: C31SeguimientoService,
   ) {}
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
   @Post()
   create(
     @Body() dto: CreateComprobantesC31Dto,
@@ -47,7 +47,7 @@ export class ComprobantesC31Controller {
   }
 
   /** Une comprobantes que vienen como uno solo (PREV + PREV, PREV + DEV). */
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
   @Post('unir')
   unir(@Body() dto: UnirComprobantesC31Dto) {
     return this.comprobantesC31Service.unir(dto.comprobanteIds);
@@ -76,7 +76,7 @@ export class ComprobantesC31Controller {
     });
   }
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
   @Post('import')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
@@ -103,7 +103,7 @@ export class ComprobantesC31Controller {
     return this.comprobantesC31Service.grupoDe(id);
   }
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
   @Delete(':id/grupo')
   separar(@Param('id', ParseIntPipe) id: number) {
     return this.comprobantesC31Service.separar(id);
@@ -115,7 +115,7 @@ export class ComprobantesC31Controller {
     return this.seguimientoService.obtener(id);
   }
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
   @Patch(':id/estado')
   cambiarEstado(
     @Param('id', ParseIntPipe) id: number,
@@ -125,7 +125,7 @@ export class ComprobantesC31Controller {
     return this.comprobantesC31Service.cambiarEstado(id, dto, usuario);
   }
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -139,7 +139,7 @@ export class ComprobantesC31Controller {
     );
   }
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.comprobantesC31Service.remove(id);

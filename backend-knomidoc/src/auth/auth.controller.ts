@@ -84,10 +84,7 @@ export class AuthController {
   @AbiertoATodosLosPerfiles()
   @Post('perfil')
   @HttpCode(HttpStatus.OK)
-  cambiarPerfil(
-    @CurrentUser() usuario: Usuario,
-    @Body() dto: CambiarPerfilDto,
-  ) {
+  cambiarPerfil(@CurrentUser() usuario: Usuario, @Body() dto: CambiarPerfilDto) {
     return this.authService.cambiarPerfil(usuario, dto.rol);
   }
 }

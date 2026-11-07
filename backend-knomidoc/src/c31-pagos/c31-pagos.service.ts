@@ -509,7 +509,8 @@ export class C31PagosService {
     pagos.forEach((p) =>
       hoja.addRow({
         gestion: p.comprobante?.gestion,
-        ident: rotuloC31(p.comprobante),
+        ident:
+rotuloC31(p.comprobante),
         beneficiario: p.beneficiario?.nombreBeneficiario ?? '',
         tipo: p.tipoPago === TipoPago.CHEQUE ? 'Cheque' : 'Pago electrónico',
         doc: p.numeroDocumento ?? '',

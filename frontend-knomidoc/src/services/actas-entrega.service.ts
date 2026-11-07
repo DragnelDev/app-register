@@ -1,4 +1,5 @@
 import apiClient from './api.client'
+import type { ComprobanteC31 } from '@/types/c31.types'
 import type { PaginatedResponse, QueryParams } from '@/types/common.types'
 import type {
   ActaAprobarPayload,
@@ -12,6 +13,28 @@ const RESOURCE = '/actas-entrega'
 export const actasEntregaService = {
   list(params: QueryParams = {}) {
     return apiClient.get<PaginatedResponse<ActaEntrega>>(RESOURCE, { params }).then((r) => r.data)
+  },
+
+  /** Comprobantes firmados y sin acta (también para el remitente). */
+  candidatos(search?: string) {
+    return apiClient
+      .get<ComprobanteC31[]>(`${RESOURCE}/candidatos`, { params: { search } })
+      .then((r) => r.data)
+  },
+
+  /** Acta imprimible (firmas de quien entrega y de Archivo), en pestaña nueva. */
+  async abrirPdf(id: string) {
+    const ventana = window.open('', '_blank')
+    try {
+      const r = await apiClient.get(`${RESOURCE}/${id}/pdf`, { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }))
+      if (ventana) ventana.location.href = url
+      else window.location.href = url
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch (err) {
+      ventana?.close()
+      throw err
+    }
   },
 
   getById(id: string) {

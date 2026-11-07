@@ -17,8 +17,11 @@ const trim = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
 
 export class CreateActasEntregaDto {
-  @ApiProperty({ example: 'AE-2026-001' })
-  @IsNotEmpty({ message: 'El número de acta es obligatorio' })
+  @ApiPropertyOptional({
+    example: 'AE-2026-001',
+    description: 'Si se omite, el sistema asigna el siguiente N° de la gestión',
+  })
+  @IsOptional()
   @IsString()
   @MaxLength(50)
   @Matches(/^[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ .\/\-_]+$/, {
@@ -42,8 +45,12 @@ export class CreateActasEntregaDto {
   @Transform(trim)
   readonly responsableEntrega?: string;
 
-  @ApiProperty({ example: 'Ana Rodríguez (Archivo Central)' })
-  @IsNotEmpty({ message: 'El responsable de recepción es obligatorio' })
+  @ApiPropertyOptional({
+    example: 'Ana Rodríguez (Archivo Central)',
+    description: 'Si se omite queda "Archivo Central" hasta que Archivo reciba el acta',
+  })
+  @IsOptional()
+  @IsNotEmpty({ message: 'Indique el responsable de recepción' })
   @IsString()
   @MinLength(3, { message: 'Indique el nombre completo' })
   @MaxLength(150)

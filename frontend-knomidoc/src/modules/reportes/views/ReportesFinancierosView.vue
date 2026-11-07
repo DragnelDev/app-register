@@ -10,10 +10,11 @@ import type { ReporteFinanciero, ReporteFiltros } from '@/types/gestion.types'
 
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 import { ESTADO_C31_LABEL } from '@/utils/estados'
+import { useGestionStore } from '@/stores/gestion.store'
 const ESTADOS: Record<string, string> = ESTADO_C31_LABEL
 
 const filtros = reactive<ReporteFiltros>({
-  gestion: '',
+  gestion: useGestionStore().seleccionada,
   tipoC31: '',
   fechaDesde: '',
   fechaHasta: '',
@@ -51,7 +52,7 @@ async function exportar() {
 }
 
 function limpiar() {
-  filtros.gestion = ''
+  filtros.gestion = useGestionStore().seleccionada
   filtros.tipoC31 = ''
   filtros.fechaDesde = ''
   filtros.fechaHasta = ''

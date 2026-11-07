@@ -42,7 +42,9 @@ const ORIGEN: Record<string, string> = {
 
     <template v-if="datos">
       <section>
-        <h4 class="mb-2 font-semibold text-ink-800 dark:text-ink-100">Ubicación del archivo físico</h4>
+        <h4 class="mb-2 font-semibold text-ink-800 dark:text-ink-100">
+          Ubicación del archivo físico
+        </h4>
         <div
           v-if="datos.ubicacion.enPoderDe"
           class="mb-3 rounded-md px-3 py-2 text-xs"
@@ -52,9 +54,11 @@ const ORIGEN: Record<string, string> = {
               : 'bg-amber-50 text-amber-800 dark:bg-amber-400/10 dark:text-amber-200'
           "
         >
-          <strong>Fuera del archivo:</strong> lo tiene {{ datos.ubicacion.enPoderDe.solicitante }}
-          ({{ datos.ubicacion.enPoderDe.institucionOArea }}) desde
-          {{ fechaCorta(datos.ubicacion.enPoderDe.desde) }} · {{ datos.ubicacion.enPoderDe.referencia }}
+          <strong>Fuera del archivo:</strong> lo tiene
+          {{ datos.ubicacion.enPoderDe.solicitante }} ({{
+            datos.ubicacion.enPoderDe.institucionOArea
+          }}) desde {{ fechaCorta(datos.ubicacion.enPoderDe.desde) }} ·
+          {{ datos.ubicacion.enPoderDe.referencia }}
           <template v-if="datos.ubicacion.enPoderDe.devolucionEstimada">
             · devolución estimada {{ fechaCorta(datos.ubicacion.enPoderDe.devolucionEstimada) }}
           </template>

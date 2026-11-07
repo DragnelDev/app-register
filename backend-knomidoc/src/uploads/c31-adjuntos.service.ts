@@ -10,7 +10,10 @@ import { createReadStream, existsSync } from 'fs';
 import { mkdir, unlink, writeFile } from 'fs/promises';
 import { join, resolve } from 'path';
 import type { Express } from 'express';
-import { C31Adjunto, TipoAdjuntoC31 } from './entities/c31-adjunto.entity';
+import {
+  C31Adjunto,
+  TipoAdjuntoC31,
+} from './entities/c31-adjunto.entity';
 import { ComprobantesC31 } from '../comprobantes_c31/entities/comprobantes_c31.entity';
 import { Usuario } from '../usuarios/entities/usuario.entity';
 
@@ -160,8 +163,8 @@ export class C31AdjuntosService {
         });
       }
     });
-    await unlink(join(C31_STORAGE_DIR, adjunto.nombreArchivo as string)).catch(
-      () => undefined,
-    );
+    await unlink(
+      join(C31_STORAGE_DIR, adjunto.nombreArchivo as string),
+    ).catch(() => undefined);
   }
 }

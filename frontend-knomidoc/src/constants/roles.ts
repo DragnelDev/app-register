@@ -8,7 +8,12 @@ export const ROLES_INFO: Record<RolUsuario, { label: string; descripcion: string
   },
   OPERADOR_ARCHIVOS: {
     label: 'Operador de archivos',
-    descripcion: 'Registra comprobantes C31, actas, ubicación física y recibe las remisiones.',
+    descripcion: 'Registra comprobantes C31, actas, ubicación física y recibe y aprueba las actas de entrega.',
+  },
+  AUXILIAR_ARCHIVOS: {
+    label: 'Auxiliar de archivos',
+    descripcion:
+      'Apoya al archivista: registra comprobantes, arma actas, ubica y rotula el archivo físico. No recibe ni anula actas.',
   },
   ENCARGADO_PRESTAMOS: {
     label: 'Encargado de préstamos',
@@ -16,7 +21,7 @@ export const ROLES_INFO: Record<RolUsuario, { label: string; descripcion: string
   },
   REMITENTE_C31: {
     label: 'Remitente de C31',
-    descripcion: 'Remite C31 al archivo mediante una remisión y consulta el estado de sus envíos.',
+    descripcion: 'Arma el acta de entrega de C31 hacia Archivo, la imprime y consulta su estado. El archivista la recibe.',
   },
   CONSULTA_AVANZADA: {
     label: 'Consulta avanzada',
@@ -36,6 +41,7 @@ export const ROLES_INFO: Record<RolUsuario, { label: string; descripcion: string
 export const ROLES_ASIGNABLES: RolUsuario[] = [
   'ADMIN',
   'OPERADOR_ARCHIVOS',
+  'AUXILIAR_ARCHIVOS',
   'ENCARGADO_PRESTAMOS',
   'REMITENTE_C31',
   'CONSULTA_AVANZADA',

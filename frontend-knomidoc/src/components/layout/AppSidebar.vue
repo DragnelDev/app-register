@@ -25,7 +25,7 @@ interface NavGroup {
   divider?: boolean
 }
 
-const ARCHIVO = ['ADMIN', 'OPERADOR_ARCHIVOS']
+const ARCHIVO = ['ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS']
 const PRESTAMOS = ['ADMIN', 'ENCARGADO_PRESTAMOS']
 const CONSULTA = ['CONSULTA_AVANZADA', 'SOLO_LECTURA', 'CONSULTA_EXTERNA']
 const ARCHIVO_Y_CONSULTA = [...ARCHIVO, ...CONSULTA]
@@ -36,8 +36,7 @@ const navGroups = computed<NavGroup[]>(() => [
     title: 'Principal',
     items: [
       { to: '/', label: 'Panel principal', icon: 'fa-chart-pie' },
-      { to: '/remisiones', label: 'Remisiones de C31', icon: 'fa-paper-plane', roles: ['ADMIN', 'OPERADOR_ARCHIVOS', 'REMITENTE_C31'] },
-      { to: '/actas-entrega', label: 'Actas de entrega', icon: 'fa-file-invoice', roles: ARCHIVO_Y_CONSULTA },
+      { to: '/actas-entrega', label: 'Actas de entrega', icon: 'fa-file-invoice', roles: [...ARCHIVO_Y_CONSULTA, 'REMITENTE_C31'] },
     ],
   },
   {

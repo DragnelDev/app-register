@@ -18,7 +18,7 @@ import {
 } from '@/types/beneficiarios.types'
 
 const auth = useAuthStore()
-const puedeEscribir = computed(() => auth.rol === 'ADMIN' || auth.rol === 'OPERADOR_ARCHIVOS')
+const puedeEscribir = computed(() => auth.rol === 'ADMIN' || auth.rol === 'OPERADOR_ARCHIVOS' || auth.rol === 'AUXILIAR_ARCHIVOS')
 const puedeReporte = computed(() => auth.rol !== 'SOLO_LECTURA' && auth.rol !== 'CONSULTA_EXTERNA')
 
 const items = ref<Beneficiario[]>([])

@@ -43,6 +43,7 @@ const RELATIONS = {
   solicitante: true,
   registradoPor: true,
   recibidoPor: true,
+  devueltoPorFuncionario: true,
 };
 
 @Injectable()
@@ -57,8 +58,28 @@ export class PrestamosCuadernoService {
     dto: CreatePrestamosCuadernoDto,
     usuario?: Usuario,
   ): Promise<PrestamosCuaderno[]> {
-    const ids = [...new Set(dto.comprobanteIds)];
     return this.dataSource.transaction(async (manager) => {
+      // Los comprobantes unidos (PREV/DEV del mismo trámite) salen y vuelven juntos:
+      // al prestar uno se incluyen todos los de su grupo.
+      const pedidos = await manager.find(ComprobantesC31, {
+        where: { id: In([...new Set(dto.comprobanteIds)]) },
+        select: { id: true, grupoUnionId: true },
+      });
+      const grupos = pedidos
+        .map((c) => c.grupoUnionId)
+        .filter((g): g is string => Boolean(g));
+      const delGrupo = grupos.length
+        ? await manager.find(ComprobantesC31, {
+            where: { grupoUnionId: In(grupos) },
+            select: { id: true },
+          })
+        : [];
+      const ids = [
+        ...new Set([
+          ...dto.comprobanteIds,
+          ...delGrupo.map((c) => c.id as number),
+        ]),
+      ];
       const funcionario = await manager.findOne(Funcionario, {
         where: { id: dto.funcionarioId },
       });
@@ -78,8 +99,7 @@ export class PrestamosCuadernoService {
           'El funcionario no tiene huella registrada: enrólela en el módulo Funcionarios',
         );
       }
-      const areaUnidad =
-        dto.areaUnidad ?? (funcionario.unidadOficina as string);
+      const areaUnidad = dto.areaUnidad ?? (funcionario.unidadOficina as string);
       const salida = dto.fechaHoraSalida
         ? new Date(dto.fechaHoraSalida)
         : new Date();
@@ -104,7 +124,8 @@ export class PrestamosCuadernoService {
         if (!comprobante) {
           throw new NotFoundException(`El comprobante ${id} no existe`);
         }
-        const nombre = identificadorC31(comprobante, `#${id}`);
+        const nombre =
+identificadorC31(comprobante, `#${id}`);
         if (comprobante.estadoFisico === EstadoFisicoC31.PRESTADO) {
           throw new ConflictException(
             `El comprobante ${nombre} ya se encuentra prestado`,
@@ -351,6 +372,38 @@ export class PrestamosCuadernoService {
     prestamo.condicionDevolucion = dto.condicion ?? 'CONFORME';
     if (dto.observaciones) prestamo.observacionesDevolucion = dto.observaciones;
     prestamo.recibidoPorId = usuario?.id ?? null;
+    let quien = '';
+    if (dto.devueltoPorFuncionarioId) {
+      const f = await manager.findOne(Funcionario, {
+        where: { id: dto.devueltoPorFuncionarioId },
+      });
+      if (!f)
+        throw new NotFoundException('El funcionario que devuelve no existe');
+      if (
+        dto.metodoVerificacion === 'HUELLA_DIGITAL' &&
+        !f.huellaRegistradaEn
+      )
+        throw new BadRequestException(
+          'Quien devuelve no tiene huella registrada: enrólela en Funcionarios',
+        );
+      quien = `${f.nombres} ${f.apellidos}`;
+    } else if (
+      dto.metodoVerificacion === 'HUELLA_DIGITAL' &&
+      prestamo.funcionarioId
+    ) {
+      const f = await manager.findOne(Funcionario, {
+        where: { id: prestamo.funcionarioId },
+      });
+      if (!f?.huellaRegistradaEn)
+        throw new BadRequestException(
+          'El funcionario no tiene huella registrada',
+        );
+    }
+    prestamo.devueltoPorFuncionarioId =
+      dto.devueltoPorFuncionarioId ?? prestamo.funcionarioId ?? null;
+    prestamo.metodoVerificacionDevolucion =
+      (dto.metodoVerificacion as MetodoVerificacion) ??
+      MetodoVerificacion.FIRMA_MANUAL;
     await manager.save(PrestamosCuaderno, prestamo);
 
     await manager.update(ComprobantesC31, prestamo.comprobanteId, {
@@ -365,6 +418,10 @@ export class PrestamosCuadernoService {
       referencia: 'Cuaderno de salida',
       detalle:
         `Devuelto ${prestamo.condicionDevolucion === 'CON_NOVEDAD' ? 'con novedad' : 'conforme'}` +
+        (quien ? ` por ${quien}` : '') +
+        (prestamo.metodoVerificacionDevolucion === 'HUELLA_DIGITAL'
+          ? ' (huella verificada)'
+          : '') +
         (dto.observaciones ? `: ${dto.observaciones}` : ''),
     });
   }

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -7,7 +8,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateC31CarpetasUbicacionDto } from './dto/create-c31-carpetas-ubicacion.dto';
 import { UpdateC31CarpetasUbicacionDto } from './dto/update-c31-carpetas-ubicacion.dto';
+import { Carpeta } from '../carpetas/entities/carpeta.entity';
 import { C31CarpetasUbicacion } from './entities/c31-carpetas-ubicacion.entity';
+import { ComprobantesC31 } from '../comprobantes_c31/entities/comprobantes_c31.entity';
+import { registrarCambioEstado } from '../c31-historial/c31-historial.helper';
 
 @Injectable()
 export class C31CarpetasUbicacionService {
@@ -17,8 +21,16 @@ export class C31CarpetasUbicacionService {
   ) {}
 
   async create(dto: CreateC31CarpetasUbicacionDto) {
+    const comprobanteId = dto.comprobanteId;
+    if (comprobanteId === undefined) {
+      throw new BadRequestException('El comprobante es obligatorio');
+    }
+    const carpetaId = dto.carpetaId;
+    if (carpetaId === undefined) {
+      throw new BadRequestException('La carpeta es obligatoria');
+    }
     const totalActual = await this.repo.count({
-      where: { comprobante: { id: dto.comprobanteId } },
+      where: { comprobante: { id: comprobanteId } },
     });
     if (totalActual >= 5) {
       throw new ConflictException(
@@ -28,10 +40,48 @@ export class C31CarpetasUbicacionService {
 
     const entidad = this.repo.create({
       numeroParte: dto.numeroParte,
-      comprobante: { id: dto.comprobanteId } as any,
-      carpeta: { id: dto.carpetaId } as any,
+      comprobante: { id: comprobanteId } as any,
+      carpeta: { id: carpetaId } as any,
     });
-    return this.repo.save(entidad);
+    const guardado = await this.repo.save(entidad);
+    await this.registrarMovimiento(
+      comprobanteId,
+      carpetaId,
+      `Ubicado en la carpeta {C} (parte ${dto.numeroParte})`,
+    );
+    return guardado;
+  }
+
+  /** Deja constancia en el seguimiento del comprobante de cada cambio de carpeta. */
+  private async registrarMovimiento(
+    comprobanteId: number,
+    carpetaId: number,
+    texto: string,
+  ) {
+    const m = this.repo.manager;
+    const [c, carpeta] = await Promise.all([
+      m.findOne(ComprobantesC31, { where: { id: comprobanteId } }),
+      m.findOne(Carpeta, {
+        where: { id: carpetaId },
+        relations: { estante: { deposito: true } },
+      }),
+    ]);
+    if (!c) return;
+    const ruta = [
+      carpeta?.estante?.deposito?.nombre,
+      carpeta?.estante?.codigo,
+      carpeta?.codigoCarpeta,
+    ]
+      .filter(Boolean)
+      .join(' › ');
+    await registrarCambioEstado(m, {
+      comprobanteId,
+      estadoAnterior: c.estadoFisico,
+      estadoNuevo: c.estadoFisico as string,
+      origen: 'SISTEMA',
+      referencia: 'Ubicación física',
+      detalle: texto.replace('{C}', ruta || `#${carpetaId}`),
+    });
   }
 
   findAll(comprobanteId?: number) {
@@ -61,6 +111,15 @@ export class C31CarpetasUbicacionService {
 
   async remove(id: number) {
     const item = await this.findOne(id);
-    return this.repo.remove(item);
+    const comprobanteId = item.comprobante?.id as number;
+    const carpetaId = item.carpeta?.id as number;
+    const quitado = await this.repo.remove(item);
+    if (comprobanteId && carpetaId)
+      await this.registrarMovimiento(
+        comprobanteId,
+        carpetaId,
+        'Retirado de la carpeta {C}',
+      );
+    return quitado;
   }
 }

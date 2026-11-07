@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import { useResumenStore } from '@/stores/resumen.store'
+import { useGestionStore } from '@/stores/gestion.store'
 import { useTheme } from '@/composables/useTheme'
 import { useSidebar } from '@/composables/useSidebar'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -11,11 +12,20 @@ import { rolLabel } from '@/constants/roles'
 
 const auth = useAuthStore()
 const resumen = useResumenStore()
+const gestion = useGestionStore()
 const router = useRouter()
 const { theme, toggleTheme } = useTheme()
 const { alternar, colapsado, alternarColapso } = useSidebar()
 
+function alCambiarGestion(e: Event) {
+  const v = (e.target as HTMLSelectElement).value
+  gestion.seleccionar(v === '' ? '' : Number(v))
+  // Se recarga para que todas las consultas usen la gestión elegida (como en el SIGEP)
+  window.location.reload()
+}
+
 function handleLogout() {
+  gestion.reset()
   auth.logout()
   resumen.reset()
   router.push({ name: 'login' })
@@ -68,6 +78,21 @@ const pendientes = computed(() => resumen.pendientesRegularizar)
         <i class="fa-solid" :class="theme === 'dark' ? 'fa-moon' : 'fa-sun'" aria-hidden="true" />
         <span class="hidden sm:inline">{{ theme === 'dark' ? 'Modo oscuro' : 'Modo claro' }}</span>
       </button>
+
+      <label v-if="gestion.anios.length" class="flex items-center gap-2 text-xs">
+        <span class="hidden text-ink-500 dark:text-ink-400 md:inline">Gestión</span>
+        <select
+          :value="gestion.seleccionada"
+          aria-label="Gestión de consulta"
+          class="rounded-full border border-ink-200 bg-ink-50 px-3 py-1.5 text-xs font-medium text-ink-700 dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
+          @change="alCambiarGestion"
+        >
+          <option value="">Todas</option>
+          <option v-for="g in gestion.anios" :key="g" :value="g">
+            {{ g }}{{ g === gestion.activa ? ' (activa)' : '' }}
+          </option>
+        </select>
+      </label>
 
       <label v-if="auth.perfiles.length > 1" class="flex items-center gap-2 text-xs">
         <span class="hidden text-ink-500 dark:text-ink-400 md:inline">Perfil</span>

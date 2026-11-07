@@ -37,9 +37,7 @@ export class FilterBeneficiariosDto extends PaginationQueryDto {
   @IsString()
   gestion?: string;
 
-  @ApiPropertyOptional({
-    description: 'true = solo los que tienen comprobantes',
-  })
+  @ApiPropertyOptional({ description: 'true = solo los que tienen comprobantes' })
   @IsOptional()
   @Transform(vacio, { toClassOnly: true })
   @IsIn(['true', 'false'])

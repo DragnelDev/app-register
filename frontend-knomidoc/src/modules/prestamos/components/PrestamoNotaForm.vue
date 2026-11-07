@@ -37,11 +37,8 @@ function alElegirFuncionario(f: Funcionario | null) {
 const errors = reactive({ numeroNotaSolicitud: '', funcionarioId: '', items: '' })
 const touched = reactive({ numeroNotaSolicitud: false, funcionarioId: false })
 
-const reglaNota = [
-  required('El N° de nota de solicitud es obligatorio'),
-  maxLength(100),
-  codigoDocumento(),
-]
+// Vacío = el sistema genera el N° de nota / CITE (NP-0001/año)
+const reglaNota = [maxLength(100), codigoDocumento()]
 
 function validateItems() {
   errors.items =
@@ -50,7 +47,9 @@ function validateItems() {
 
 function validateAll(): boolean {
   touched.numeroNotaSolicitud = touched.funcionarioId = true
-  errors.numeroNotaSolicitud = runValidators(form.numeroNotaSolicitud, reglaNota) ?? ''
+  errors.numeroNotaSolicitud = form.numeroNotaSolicitud.trim()
+    ? (runValidators(form.numeroNotaSolicitud, reglaNota) ?? '')
+    : ''
   errors.funcionarioId = form.funcionarioId ? '' : 'Seleccione al funcionario solicitante'
   validateItems()
   if (!errors.items && form.fechaDevolucionEstimada && form.fechaDevolucionEstimada < form.fechaPrestamo) {
@@ -74,7 +73,7 @@ function removeComprobante(id: string) {
 function enviar(aprobar: boolean) {
   if (!validateAll()) return
   emit('submit', {
-    numeroNotaSolicitud: form.numeroNotaSolicitud,
+    numeroNotaSolicitud: form.numeroNotaSolicitud.trim() || undefined,
     funcionarioId: form.funcionarioId as number,
     institucionSolicitante: form.institucionSolicitante || undefined,
     destinatario: form.destinatario || undefined,
@@ -93,9 +92,8 @@ function enviar(aprobar: boolean) {
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <BaseInput
         v-model="form.numeroNotaSolicitud"
-        label="N° de nota de solicitud"
-        placeholder="Ej: NOTA-AUD-045/2026"
-        required
+        label="N° de nota / CITE"
+        placeholder="Automático (NP-0001/2026); escriba uno solo si ya tiene"
         :error="touched.numeroNotaSolicitud ? errors.numeroNotaSolicitud : ''"
       />
       <FuncionarioSelect

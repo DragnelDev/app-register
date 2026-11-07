@@ -75,8 +75,7 @@ export class BeneficiariosService {
       qb.andWhere('b.tipo_persona = :tp', { tp: query.tipoPersona });
     if (query.tipoDocumento)
       qb.andWhere('b.tipo_documento = :td', { td: query.tipoDocumento });
-    if (query.estado)
-      qb.andWhere('b.estado = :estado', { estado: query.estado });
+    if (query.estado) qb.andWhere('b.estado = :estado', { estado: query.estado });
 
     const texto = query.search?.trim();
     if (texto) {
@@ -115,9 +114,7 @@ export class BeneficiariosService {
     const b = await this.findOne(id);
     const tipo = dto.tipoDocumento ?? b.tipoDocumento;
     const numero =
-      dto.numeroDocumento !== undefined
-        ? dto.numeroDocumento
-        : b.numeroDocumento;
+      dto.numeroDocumento !== undefined ? dto.numeroDocumento : b.numeroDocumento;
     await this.validarDocumentoUnico(tipo, numero, id);
     Object.assign(b, dto);
     if (dto.nombre) b.nombre = claveNombre(dto.nombre);
@@ -152,10 +149,7 @@ export class BeneficiariosService {
     for (const cb of comprobantes) {
       const c = cb.comprobante;
       if (!c) continue;
-      const g = porGestion.get(c.gestion as number) ?? {
-        cantidad: 0,
-        monto: 0,
-      };
+      const g = porGestion.get(c.gestion as number) ?? { cantidad: 0, monto: 0 };
       g.cantidad += 1;
       g.monto += Number(c.montoTotal ?? 0);
       porGestion.set(c.gestion as number, g);
@@ -207,9 +201,7 @@ export class BeneficiariosService {
       .createQueryBuilder(Beneficiario, 'b')
       .where('b.id IN (:...ids)', { ids })
       .getMany();
-    const porId = new Map(
-      filas.map((f) => [f.id as number, f.nombre as string]),
-    );
+    const porId = new Map(filas.map((f) => [f.id as number, f.nombre as string]));
     const faltan = ids.filter((i) => !porId.has(i));
     if (faltan.length > 0) {
       throw new NotFoundException(
@@ -234,10 +226,7 @@ export class BeneficiariosService {
       if (resultado.has(clave)) continue;
       const existente = await manager
         .createQueryBuilder(Beneficiario, 'b')
-        .where(
-          "UPPER(REGEXP_REPLACE(TRIM(b.nombre), '\\s+', ' ', 'g')) = :clave",
-          { clave },
-        )
+        .where("UPPER(REGEXP_REPLACE(TRIM(b.nombre), '\\s+', ' ', 'g')) = :clave", { clave })
         .orderBy('b.id', 'ASC')
         .getOne();
       if (existente) {

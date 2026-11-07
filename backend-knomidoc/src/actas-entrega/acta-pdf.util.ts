@@ -1,33 +1,14 @@
 import PDFDocument from 'pdfkit';
-
-export interface RemisionVista {
-  numeroRemision: string;
-  gestion: number;
-  estado: string;
-  unidadRemitente?: string | null;
-  observacion?: string | null;
-  remitente: string | null;
-  receptor: string | null;
-  fechaEnvio?: Date | null;
-  fechaRecepcion?: Date | null;
-  observacionRecepcion?: string | null;
-  items: {
-    identificador: string;
-    montoTotal?: number | string | null;
-    descripcion?: string | null;
-    recibido: boolean | null;
-    observacion: string | null;
-  }[];
-}
+import { rotuloC31 } from '../common/utils/identificador-c31.util';
+import { ActasEntrega } from './entities/actas-entrega.entity';
 
 const ESTADO: Record<string, string> = {
-  BORRADOR: 'Borrador',
-  ENVIADA: 'Enviada — pendiente de recepción',
+  BORRADOR: 'Pendiente de recepción por Archivo',
   RECIBIDA: 'Recibida por Archivo',
-  OBSERVADA: 'Recibida con observaciones',
+  ANULADA: 'Anulada',
 };
 
-const fmtFecha = (d?: Date | null) =>
+const fmtFecha = (d?: Date | string | null) =>
   d
     ? new Date(d).toLocaleString('es-BO', {
         timeZone: 'America/La_Paz',
@@ -35,42 +16,45 @@ const fmtFecha = (d?: Date | null) =>
         timeStyle: 'short',
       })
     : '—';
+const fmtDia = (d?: string | null) =>
+  d ? d.split('-').reverse().join('/') : '—';
 const bs = (n?: number | string | null) =>
-  n == null
+  n == null || n === ''
     ? '—'
     : Number(n).toLocaleString('es-BO', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       });
 
-/** Nota de remisión de comprobantes C31 hacia Archivo, con firmas del remitente y del receptor. */
-export function remisionPdf(r: RemisionVista): Promise<Buffer> {
+/** Acta de entrega de comprobantes C31 a Archivo, con firmas de quien entrega y de quien recibe. */
+export function actaPdf(acta: ActasEntrega): Promise<Buffer> {
   const entidad =
     process.env.ENTIDAD_NOMBRE ?? 'GOBIERNO AUTÓNOMO MUNICIPAL DE SAN LUCAS';
   const doc = new PDFDocument({
     size: 'LETTER',
     margins: { top: 42, bottom: 42, left: 50, right: 50 },
     bufferPages: true,
-    info: { Title: `Remisión ${r.numeroRemision}`, Author: entidad },
+    info: { Title: `Acta de entrega ${acta.numeroActa}`, Author: entidad },
   });
   const partes: Buffer[] = [];
   doc.on('data', (c: Buffer) => partes.push(c));
 
   const izq = doc.page.margins.left;
   const ancho = doc.page.width - izq - doc.page.margins.right;
-  const margenInf = doc.page.margins.bottom;
-  const limite = () => doc.page.height - margenInf;
+  const limite = () => doc.page.height - doc.page.margins.bottom;
 
   doc
     .font('Helvetica-Bold')
     .fontSize(11)
     .text(entidad, izq, 42, { width: ancho, align: 'center' });
-  doc
-    .fontSize(14)
-    .text('REMISIÓN DE COMPROBANTES C31', { width: ancho, align: 'center' });
-  doc
-    .fontSize(10)
-    .text(`N° ${r.numeroRemision}`, { width: ancho, align: 'center' });
+  doc.fontSize(14).text('ACTA DE ENTREGA DE COMPROBANTES C31', {
+    width: ancho,
+    align: 'center',
+  });
+  doc.fontSize(10).text(`N° ${acta.numeroActa}`, {
+    width: ancho,
+    align: 'center',
+  });
   doc.moveDown(0.8);
 
   const dato = (t: string, v: string) => {
@@ -80,23 +64,25 @@ export function remisionPdf(r: RemisionVista): Promise<Buffer> {
       .text(`${t}: `, izq, doc.y, { continued: true, width: ancho });
     doc.font('Helvetica').text(v);
   };
-  dato(
-    'Remitente',
-    `${r.remitente ?? '—'}${r.unidadRemitente ? ' — ' + r.unidadRemitente : ''}`,
-  );
-  dato('Destino', 'Archivo (custodia de comprobantes C31)');
-  dato('Fecha de envío', fmtFecha(r.fechaEnvio));
-  dato('Estado', ESTADO[r.estado] ?? r.estado);
-  if (r.observacion) dato('Observación', r.observacion);
+  dato('Unidad emisora', acta.unidadEmisora ?? '—');
+  dato('Entrega', acta.responsableEntrega ?? '—');
+  dato('Recibe', acta.responsableRecepcion ?? '—');
+  dato('Fecha de entrega', fmtDia(acta.fechaRecepcion));
+  dato('Estado', ESTADO[acta.estado ?? ''] ?? acta.estado ?? '—');
+  if (acta.fechaAprobacion)
+    dato(
+      'Recepción en Archivo',
+      `${fmtFecha(acta.fechaAprobacion)}${acta.aprobadoPor ? ' — ' + acta.aprobadoPor.nombreCompleto : ''}`,
+    );
+  if (acta.observaciones) dato('Observaciones', acta.observaciones);
   doc.moveDown(0.6);
 
-  // ── tabla ──
   const cols = [
     { t: 'N°', w: 0.06 },
-    { t: 'Comprobante', w: 0.18 },
-    { t: 'Glosa', w: 0.46 },
+    { t: 'Comprobante', w: 0.2 },
+    { t: 'Beneficiario / Glosa', w: 0.5 },
     { t: 'Monto (Bs)', w: 0.14 },
-    { t: 'Recepción', w: 0.16 },
+    { t: 'Gestión', w: 0.1 },
   ];
   const x = (i: number) =>
     izq + cols.slice(0, i).reduce((a, c) => a + c.w * ancho, 0);
@@ -114,18 +100,21 @@ export function remisionPdf(r: RemisionVista): Promise<Buffer> {
   };
   cabecera();
   doc.font('Helvetica').fontSize(8.5);
-  r.items.forEach((it, idx) => {
-    const glosa = (it.descripcion ?? '').slice(0, 220);
-    const recep =
-      it.recibido === true
-        ? 'Recibido'
-        : it.recibido === false
-          ? `Observado: ${it.observacion ?? ''}`
-          : 'Pendiente';
+  const items = acta.comprobantesC31 ?? [];
+  let total = 0;
+  items.forEach((c, idx) => {
+    const benef = (c.beneficiarios ?? [])
+      .map((b) => b.nombreBeneficiario)
+      .filter(Boolean)
+      .join(', ');
+    const texto = `${benef ? benef + ' — ' : ''}${c.descripcion ?? ''}`.slice(
+      0,
+      260,
+    );
+    total += Number(c.montoTotal ?? 0);
     const alto = Math.max(
       14,
-      doc.heightOfString(glosa, { width: cols[2].w * ancho - 6 }) + 4,
-      doc.heightOfString(recep, { width: cols[4].w * ancho - 6 }) + 4,
+      doc.heightOfString(texto, { width: cols[2].w * ancho - 6 }) + 4,
     );
     if (doc.y + alto > limite() - 4) {
       doc.addPage();
@@ -136,15 +125,17 @@ export function remisionPdf(r: RemisionVista): Promise<Buffer> {
     doc.text(String(idx + 1), x(0) + 3, y + 2, {
       width: cols[0].w * ancho - 6,
     });
-    doc.text(it.identificador, x(1) + 3, y + 2, {
+    doc.text(rotuloC31(c, `#${c.id}`), x(1) + 3, y + 2, {
       width: cols[1].w * ancho - 6,
     });
-    doc.text(glosa, x(2) + 3, y + 2, { width: cols[2].w * ancho - 6 });
-    doc.text(bs(it.montoTotal), x(3) + 3, y + 2, {
+    doc.text(texto, x(2) + 3, y + 2, { width: cols[2].w * ancho - 6 });
+    doc.text(bs(c.montoTotal), x(3) + 3, y + 2, {
       width: cols[3].w * ancho - 6,
       align: 'right',
     });
-    doc.text(recep, x(4) + 3, y + 2, { width: cols[4].w * ancho - 6 });
+    doc.text(String(c.gestion ?? ''), x(4) + 3, y + 2, {
+      width: cols[4].w * ancho - 6,
+    });
     doc
       .moveTo(izq, y + alto)
       .lineTo(izq + ancho, y + alto)
@@ -156,22 +147,18 @@ export function remisionPdf(r: RemisionVista): Promise<Buffer> {
   doc
     .font('Helvetica-Bold')
     .fontSize(9)
-    .text(`Total de comprobantes: ${r.items.length}`, izq, doc.y + 6, {
-      width: ancho,
-    });
-  if (r.observacionRecepcion) {
-    doc
-      .font('Helvetica')
-      .text(`Observación de Archivo: ${r.observacionRecepcion}`, {
-        width: ancho,
-      });
-  }
+    .text(
+      `Total: ${items.length} comprobante(s) — Bs ${bs(total)}`,
+      izq,
+      doc.y + 6,
+      { width: ancho },
+    );
 
-  // ── firmas (se escriben dentro del margen inferior: se anula para no crear una hoja extra) ──
+  // Las firmas se escriben dentro del margen inferior: se anula para no crear una hoja extra
   const ALTO_FIRMAS = 90;
   if (doc.y + ALTO_FIRMAS > doc.page.height - 30) doc.addPage();
   doc.page.margins.bottom = 0;
-  const yf = Math.max(doc.y + 50, 0);
+  const yf = doc.y + 50;
   const mitad = ancho / 2;
   const firma = (cx: number, titulo: string, nombre: string, extra: string) => {
     doc
@@ -202,13 +189,8 @@ export function remisionPdf(r: RemisionVista): Promise<Buffer> {
       lineBreak: false,
     });
   };
-  firma(izq, 'ENTREGUÉ CONFORME', r.remitente ?? '', 'Remitente');
-  firma(
-    izq + mitad,
-    'RECIBÍ CONFORME',
-    r.receptor ?? '',
-    'Archivo' + (r.fechaRecepcion ? ` · ${fmtFecha(r.fechaRecepcion)}` : ''),
-  );
+  firma(izq, 'ENTREGUÉ CONFORME', acta.responsableEntrega ?? '', acta.unidadEmisora ?? '');
+  firma(izq + mitad, 'RECIBÍ CONFORME', acta.responsableRecepcion ?? '', 'Archivo');
 
   const rango = doc.bufferedPageRange();
   for (let i = 0; i < rango.count; i++) {
@@ -219,7 +201,7 @@ export function remisionPdf(r: RemisionVista): Promise<Buffer> {
       .fontSize(7.5)
       .fillColor('#6b7280')
       .text(
-        `${r.numeroRemision} · Página ${i + 1} de ${rango.count}`,
+        `${acta.numeroActa} · Página ${i + 1} de ${rango.count}`,
         izq,
         doc.page.height - 28,
         { width: ancho, align: 'right', lineBreak: false },

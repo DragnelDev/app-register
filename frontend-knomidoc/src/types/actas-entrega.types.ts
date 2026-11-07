@@ -6,6 +6,7 @@ export type EstadoActa = 'BORRADOR' | 'RECIBIDA' | 'ANULADA'
 export interface ActaEntrega {
   id: string
   numeroActa: string
+  creadoPor?: { nombreCompleto?: string } | null
   unidadEmisora: string
   responsableEntrega: string
   responsableRecepcion: string
@@ -20,10 +21,11 @@ export interface ActaEntrega {
 }
 
 export interface ActaEntregaCreatePayload {
-  numeroActa: string
+  /** Vacío = el sistema asigna el siguiente N° */
+  numeroActa?: string
   unidadEmisora?: string
   responsableEntrega: string
-  responsableRecepcion: string
+  responsableRecepcion?: string
   fechaRecepcion: string
   observaciones?: string
   /** Comprobantes ya registrados (En revisión) que se entregan en el acta */

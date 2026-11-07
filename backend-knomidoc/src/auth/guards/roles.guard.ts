@@ -34,10 +34,7 @@ export class RolesGuard implements CanActivate {
         usuario &&
         rol &&
         PERFILES_RESTRINGIDOS.includes(rol) &&
-        !this.reflector.getAllAndOverride<boolean>(
-          ABIERTO_A_TODOS_KEY,
-          objetivos,
-        )
+        !this.reflector.getAllAndOverride<boolean>(ABIERTO_A_TODOS_KEY, objetivos)
       ) {
         throw new ForbiddenException(
           'Su perfil no tiene acceso a este recurso',

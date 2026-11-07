@@ -36,10 +36,19 @@ const listError = ref('')
 const columns: DataTableColumn<ActaEntrega>[] = [
   { key: 'numeroActa', label: 'N° de acta', sortable: true },
   { key: 'unidadEmisora', label: 'Unidad emisora' },
+  { key: 'creadoPor', label: 'Registrada por' },
   { key: 'cantidadComprobantes', label: 'Comprobantes' },
   { key: 'fechaRecepcion', label: 'Fecha', sortable: true },
   { key: 'estado', label: 'Estado' },
 ]
+
+async function imprimir(row: ActaEntrega) {
+  try {
+    await actasEntregaService.abrirPdf(row.id)
+  } catch (err) {
+    listError.value = extractApiErrorMessage(err, 'No se pudo generar el PDF del acta.')
+  }
+}
 
 async function loadRows() {
   loading.value = true
@@ -178,22 +187,29 @@ onMounted(loadRows)
       "
       @row-click="openDetail"
     >
+      <template #cell-creadoPor="{ row }">{{ row.creadoPor?.nombreCompleto || '—' }}</template>
       <template #cell-fechaRecepcion="{ row }">{{ fechaCorta(row.fechaRecepcion) }}</template>
       <template #cell-estado="{ row }"><BaseBadge :estado="row.estado" /></template>
       <template #actions="{ row }">
         <div class="flex justify-end gap-2">
-          <IconButton v-if="(row.estado === 'BORRADOR' && row.cantidadComprobantes > 0) && !auth.esSoloConsulta"
+          <IconButton v-if="(row.estado === 'BORRADOR' && row.cantidadComprobantes > 0) && auth.puedeRecibirActas"
             icon="fa-clipboard-check"
             label="Recibir acta (aprobar)"
             variant="success"
             @click.stop="openRecepcion(row)"
           />
           <IconButton
+            v-if="auth.puedeExportar || auth.esRemitente || auth.puedeRegistrarC31"
+            icon="fa-print"
+            label="Imprimir acta (PDF)"
+            @click.stop="imprimir(row)"
+          />
+          <IconButton
             :icon="row.estado === 'BORRADOR' ? 'fa-pen-to-square' : 'fa-eye'"
             :label="row.estado === 'BORRADOR' ? 'Editar acta' : 'Ver acta'"
             @click.stop="openDetail(row)"
           />
-          <IconButton v-if="(row.estado === 'BORRADOR') && !auth.esSoloConsulta"
+          <IconButton v-if="(row.estado === 'BORRADOR') && auth.puedeAnularActas"
             icon="fa-ban"
             label="Anular acta"
             variant="danger"

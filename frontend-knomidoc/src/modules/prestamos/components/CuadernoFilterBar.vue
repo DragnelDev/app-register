@@ -4,6 +4,9 @@ import { reactive, watch } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FuncionarioSelect from '@/components/shared/FuncionarioSelect.vue'
 import type { CuadernoFilterState } from '@/types/prestamos.types'
+import { useGestionStore } from '@/stores/gestion.store'
+
+const gestionStore = useGestionStore()
 
 const auth = useAuthStore()
 const props = defineProps<{
@@ -28,7 +31,7 @@ const aplicar = () => emit('update:modelValue', { ...local })
 
 function limpiar() {
   Object.assign(local, {
-    gestion: '',
+    gestion: gestionStore.seleccionada,
     fechaDesde: '',
     fechaHasta: '',
     funcionarioId: null,
