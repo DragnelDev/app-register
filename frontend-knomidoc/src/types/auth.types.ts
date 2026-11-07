@@ -8,7 +8,12 @@ export interface Usuario {
   cargo?: string | null
   unidadOArea?: string | null
   telefono?: string | null
+  /** Perfil con el que trabaja en esta sesión */
   rol: RolUsuario
+  /** Perfiles que puede asumir (el activo es `rol`) */
+  roles?: RolUsuario[]
+  /** Perfiles asignados (listado de usuarios) */
+  rolesDisponibles?: RolUsuario[]
   activo: boolean
   /** El correo se confirmó con el código enviado */
   emailVerificado?: boolean
@@ -30,6 +35,8 @@ export interface LoginPayload {
 export interface LoginResponse {
   accessToken: string
   usuario: Usuario
+  /** Tiene más de un perfil: debe elegir con cuál trabajar */
+  requierePerfil?: boolean
 }
 
 export interface ForgotPasswordPayload {
@@ -53,7 +60,10 @@ export interface UsuarioCreatePayload {
   cargo?: string
   unidadOArea?: string
   password?: string
-  rol: RolUsuario
+  /** Perfil por defecto (el primero de `roles`) */
+  rol?: RolUsuario
+  /** Perfiles del usuario; puede tener varios */
+  roles?: RolUsuario[]
 }
 
 export type UsuarioUpdatePayload = Partial<Omit<UsuarioCreatePayload, 'password'>> & {

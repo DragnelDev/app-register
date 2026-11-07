@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   UnauthorizedException,
@@ -30,9 +31,14 @@ export class AuthService {
       throw new UnauthorizedException('Usuario inválido');
     }
 
+    const perfiles = await this.usuarioService.perfilesDe(
+      usuarioOk.id,
+      usuarioOk.rol,
+    );
+    const rolInicial = perfiles[0] ?? (usuarioOk.rol as string);
     const payload: JwtPayload = {
       sub: usuarioOk.id,
-      rol: usuarioOk.rol,
+      rol: rolInicial,
       username: usuarioOk.username,
       email: usuarioOk.email,
     };
@@ -47,14 +53,35 @@ export class AuthService {
       unidadOArea: usuarioOk.unidadOArea,
       telefono: usuarioOk.telefono,
       emailVerificado: usuarioOk.emailVerificado,
-      rol: usuarioOk.rol,
+      rol: rolInicial,
+      roles: perfiles,
       activo: usuarioOk.activo,
     };
 
     return {
       accessToken,
       usuario: usuarioSafe,
+      // Con más de un perfil, la app pide elegir con cuál trabajar (como el SIGEP)
+      requierePerfil: perfiles.length > 1,
     };
+  }
+
+  /** Cambia el perfil activo: emite un token nuevo con ese rol. */
+  async cambiarPerfil(usuario: Usuario, rol: string) {
+    const perfiles = await this.usuarioService.perfilesDe(
+      usuario.id as number,
+      usuario.rol,
+    );
+    if (!perfiles.includes(rol)) {
+      throw new ForbiddenException('No tiene asignado ese perfil');
+    }
+    const accessToken = await this.getAccessToken({
+      sub: usuario.id as number,
+      rol,
+      username: usuario.username,
+      email: usuario.email,
+    });
+    return { accessToken, rol, roles: perfiles };
   }
 
   async getAccessToken(payload: JwtPayload) {
@@ -78,6 +105,16 @@ export class AuthService {
     if (usuario.activo === false) {
       throw new UnauthorizedException('El usuario se encuentra inactivo');
     }
+
+    // El token indica con qué perfil trabaja; si ya no lo tiene, vuelve al principal
+    const perfiles =
+      usuario.rolesDisponibles ??
+      (await this.usuarioService.perfilesDe(usuario.id as number, usuario.rol));
+    usuario.rolesDisponibles = perfiles;
+    usuario.rolActivo =
+      payload.rol && perfiles.includes(payload.rol)
+        ? payload.rol
+        : (perfiles[0] ?? usuario.rol);
 
     return usuario;
   }

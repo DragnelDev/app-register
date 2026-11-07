@@ -11,7 +11,8 @@ import { CambiarPasswordDto, UpdatePerfilDto } from './dto/perfil.dto';
 import { dominioDeCorreoExiste } from '../auth/email-domain.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Usuario } from './entities/usuario.entity';
-import { ILike, Like, Not, Repository } from 'typeorm';
+import { UsuarioPerfil } from './entities/usuario-perfil.entity';
+import { ILike, In, Like, Not, Repository } from 'typeorm';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { paginationSkip } from '../common/utils/pagination.util';
@@ -39,7 +40,46 @@ export class UsuariosService {
   constructor(
     @InjectRepository(Usuario)
     private readonly usuariosRepository: Repository<Usuario>,
+    @InjectRepository(UsuarioPerfil)
+    private readonly perfilesRepository: Repository<UsuarioPerfil>,
   ) {}
+
+  /**
+   * Perfiles del usuario; el perfil por defecto (`rol`) va primero. Un usuario
+   * anterior a los perfiles múltiples solo tiene su `rol`.
+   */
+  async perfilesDe(usuarioId: number, rolPorDefecto?: string): Promise<string[]> {
+    const filas = await this.perfilesRepository.find({
+      where: { usuarioId },
+      order: { id: 'ASC' },
+    });
+    const roles = filas.map((f) => f.rol as string);
+    if (rolPorDefecto) {
+      const resto = roles.filter((r) => r !== rolPorDefecto);
+      return [rolPorDefecto, ...resto];
+    }
+    return roles;
+  }
+
+  /** Reemplaza el conjunto de perfiles del usuario y deja `rol` = el primero. */
+  private async guardarPerfiles(usuarioId: number, roles: string[]) {
+    const unicos = [...new Set(roles)];
+    await this.perfilesRepository.delete({ usuarioId });
+    if (unicos.length > 0) {
+      await this.perfilesRepository.save(
+        unicos.map((rol) => this.perfilesRepository.create({ usuarioId, rol })),
+      );
+    }
+    await this.usuariosRepository.update(usuarioId, { rol: unicos[0] });
+  }
+
+  private async conPerfiles(usuario: Usuario): Promise<Usuario> {
+    usuario.rolesDisponibles = await this.perfilesDe(
+      usuario.id as number,
+      usuario.rol,
+    );
+    return usuario;
+  }
 
   /**
    * Siembra un usuario ADMIN por defecto si la tabla está vacía.
@@ -116,8 +156,17 @@ export class UsuariosService {
     const passwordPlano =
       createUsuarioDto.password ?? process.env.DEFAULT_PASSWORD ?? 'Knomi2026*';
 
-    const { password: _omitido, ...resto } = createUsuarioDto;
+    const { password: _omitido, roles: _roles, ...resto } = createUsuarioDto;
     void _omitido;
+    const perfiles = createUsuarioDto.roles?.length
+      ? createUsuarioDto.roles
+      : createUsuarioDto.rol
+        ? [createUsuarioDto.rol]
+        : [];
+    if (perfiles.length === 0) {
+      throw new BadRequestException('Asigne al menos un perfil (rol) al usuario');
+    }
+    (resto as { rol?: string }).rol = perfiles[0];
 
     const usuario = new Usuario();
     Object.assign(usuario, resto);
@@ -128,6 +177,7 @@ export class UsuariosService {
     usuario.password = bcrypt.hashSync(passwordPlano, SALT_ROUNDS);
 
     const guardado = await this.usuariosRepository.save(usuario);
+    await this.guardarPerfiles(guardado.id as number, perfiles);
     return this.findOne(guardado.id as number);
   }
 
@@ -150,6 +200,16 @@ export class UsuariosService {
       skip: paginationSkip(page, pageSize),
       take: pageSize,
     });
+    if (data.length > 0) {
+      const filas = await this.perfilesRepository.find({
+        where: { usuarioId: In(data.map((u) => u.id as number)) },
+        order: { id: 'ASC' },
+      });
+      for (const u of data) {
+        const propios = filas.filter((f) => f.usuarioId === u.id).map((f) => f.rol as string);
+        u.rolesDisponibles = [u.rol as string, ...propios.filter((r) => r !== u.rol)];
+      }
+    }
     return new PaginatedResponseDto(data, total, page, pageSize);
   }
 
@@ -183,7 +243,7 @@ export class UsuariosService {
       select: SELECT_SAFE,
     });
     if (!usuario) throw new NotFoundException('El usuario no existe');
-    return usuario;
+    return this.conPerfiles(usuario);
   }
 
   async update(
@@ -193,7 +253,16 @@ export class UsuariosService {
     const usuario = await this.usuariosRepository.findOneBy({ id });
     if (!usuario) throw new NotFoundException('El usuario no existe');
 
-    const { password, ...resto } = updateUsuarioDto;
+    const { password, roles, ...resto } = updateUsuarioDto;
+    if (roles && roles.length === 0) {
+      throw new BadRequestException('El usuario debe tener al menos un perfil');
+    }
+    if (roles?.length) (resto as { rol?: string }).rol = roles[0];
+    else if (resto.rol) {
+      // Cambio de `rol` sin lista: se conserva la lista y el rol pasa a ser el principal
+      const actuales = await this.perfilesDe(id, usuario.rol);
+      await this.guardarPerfiles(id, [resto.rol, ...actuales]);
+    }
 
     await this.validarUnicidad(
       resto.username && resto.username !== usuario.username
@@ -215,6 +284,7 @@ export class UsuariosService {
     if (password) usuario.password = bcrypt.hashSync(password, SALT_ROUNDS);
 
     await this.usuariosRepository.save(usuario);
+    if (roles?.length) await this.guardarPerfiles(id, roles);
     return this.findOne(id);
   }
 

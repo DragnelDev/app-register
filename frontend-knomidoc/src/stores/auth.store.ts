@@ -4,6 +4,7 @@ import type { LoginPayload, PerfilUpdatePayload, Usuario } from '@/types/auth.ty
 
 const TOKEN_STORAGE_KEY = 'knomidoc_access_token'
 const USER_STORAGE_KEY = 'knomidoc_user'
+const PERFIL_PENDIENTE_KEY = 'knomidoc_perfil_pendiente'
 
 const readStoredUser = (): Usuario | null => {
   try {
@@ -18,6 +19,8 @@ interface AuthState {
   usuario: Usuario | null
   accessToken: string | null
   loading: boolean
+  /** Inició sesión con varios perfiles y aún no eligió con cuál trabajar */
+  perfilPendiente: boolean
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -26,6 +29,7 @@ export const useAuthStore = defineStore('auth', {
     accessToken:
       localStorage.getItem(TOKEN_STORAGE_KEY) ?? sessionStorage.getItem(TOKEN_STORAGE_KEY),
     loading: false,
+    perfilPendiente: sessionStorage.getItem(PERFIL_PENDIENTE_KEY) === '1',
   }),
 
   getters: {
@@ -34,6 +38,22 @@ export const useAuthStore = defineStore('auth', {
     emailPendiente: (state) => state.usuario?.emailVerificado === false,
     rol: (state) => state.usuario?.rol ?? null,
     isAdmin: (state) => state.usuario?.rol === 'ADMIN',
+    /** Perfiles con los que puede trabajar (el activo es `rol`) */
+    perfiles: (state) => state.usuario?.roles ?? (state.usuario ? [state.usuario.rol] : []),
+    esRemitente: (state) => state.usuario?.rol === 'REMITENTE_C31',
+    /** Perfil de solo consulta (no modifica nada) */
+    esSoloConsulta: (state) =>
+      ['SOLO_LECTURA', 'CONSULTA_AVANZADA', 'CONSULTA_EXTERNA'].includes(state.usuario?.rol ?? ''),
+    /** Puede exportar (PDF/Excel) y ver reportes */
+    puedeExportar: (state) =>
+      ['ADMIN', 'OPERADOR_ARCHIVOS', 'ENCARGADO_PRESTAMOS', 'CONSULTA_AVANZADA'].includes(
+        state.usuario?.rol ?? '',
+      ),
+    /** Puede recibir y confirmar las remisiones de C31 */
+    puedeRecibirRemisiones: (state) =>
+      state.usuario?.rol === 'ADMIN' || state.usuario?.rol === 'OPERADOR_ARCHIVOS',
+    /** Ruta inicial según el perfil activo */
+    rutaInicial: (state) => (state.usuario?.rol === 'REMITENTE_C31' ? '/remisiones' : '/'),
     /** Puede registrar actas de entrega y comprobantes C31 */
     puedeRegistrarC31: (state) =>
       state.usuario?.rol === 'ADMIN' || state.usuario?.rol === 'OPERADOR_ARCHIVOS',
@@ -50,7 +70,7 @@ export const useAuthStore = defineStore('auth', {
       this.loading = true
       try {
         const response = await authService.login(payload)
-        const { accessToken, usuario } = response
+        const { accessToken, usuario, requierePerfil } = response
 
         if (!accessToken || !usuario) {
           throw new Error('Respuesta de login inválida')
@@ -61,9 +81,26 @@ export const useAuthStore = defineStore('auth', {
         localStorage.setItem(TOKEN_STORAGE_KEY, accessToken)
         localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(usuario))
         sessionStorage.removeItem(TOKEN_STORAGE_KEY)
+        this.perfilPendiente = Boolean(requierePerfil)
+        if (requierePerfil) sessionStorage.setItem(PERFIL_PENDIENTE_KEY, '1')
+        else sessionStorage.removeItem(PERFIL_PENDIENTE_KEY)
       } finally {
         this.loading = false
       }
+    },
+
+    /** Cambia de perfil sin cerrar sesión: el servidor emite un token con ese rol. */
+    async cambiarPerfil(rol: string) {
+      const r = await authService.cambiarPerfil(rol)
+      this.accessToken = r.accessToken
+      localStorage.setItem(TOKEN_STORAGE_KEY, r.accessToken)
+      sessionStorage.removeItem(TOKEN_STORAGE_KEY)
+      if (this.usuario) {
+        this.usuario = { ...this.usuario, rol: r.rol as Usuario['rol'], roles: r.roles as Usuario['roles'] }
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(this.usuario))
+      }
+      this.perfilPendiente = false
+      sessionStorage.removeItem(PERFIL_PENDIENTE_KEY)
     },
 
     async fetchProfile() {
@@ -122,6 +159,8 @@ export const useAuthStore = defineStore('auth', {
       localStorage.removeItem(TOKEN_STORAGE_KEY)
       localStorage.removeItem(USER_STORAGE_KEY)
       sessionStorage.removeItem(TOKEN_STORAGE_KEY)
+      this.perfilPendiente = false
+      sessionStorage.removeItem(PERFIL_PENDIENTE_KEY)
     },
   },
 })

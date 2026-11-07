@@ -15,9 +15,12 @@ import { SinVerificacionEmail } from './decorators/sin-verificacion-email.decora
 import { Usuario } from '../usuarios/entities/usuario.entity';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/auth-public.decorator';
+import { AbiertoATodosLosPerfiles } from './decorators/abierto-a-todos.decorator';
+import { CambiarPerfilDto } from './dto/cambiar-perfil.dto';
 
 @ApiTags('auth')
 @ApiBearerAuth()
+@AbiertoATodosLosPerfiles()
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -65,8 +68,26 @@ export class AuthController {
   }
 
   @SinVerificacionEmail()
+  @AbiertoATodosLosPerfiles()
   @Get('me')
   me(@CurrentUser() usuario: Usuario) {
-    return usuario;
+    // El rol que se muestra es el perfil activo de esta sesión
+    return {
+      ...usuario,
+      rol: usuario.rolActivo ?? usuario.rol,
+      roles: usuario.rolesDisponibles ?? [usuario.rol],
+    };
+  }
+
+  /** Cambia el perfil activo sin cerrar sesión. */
+  @SinVerificacionEmail()
+  @AbiertoATodosLosPerfiles()
+  @Post('perfil')
+  @HttpCode(HttpStatus.OK)
+  cambiarPerfil(
+    @CurrentUser() usuario: Usuario,
+    @Body() dto: CambiarPerfilDto,
+  ) {
+    return this.authService.cambiarPerfil(usuario, dto.rol);
   }
 }

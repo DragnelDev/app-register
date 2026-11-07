@@ -5,7 +5,10 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { EstadoFuncionario, Funcionario } from './entities/funcionario.entity';
+import {
+  EstadoFuncionario,
+  Funcionario,
+} from './entities/funcionario.entity';
 import { CreateFuncionarioDto } from './dto/create-funcionario.dto';
 import { UpdateFuncionarioDto } from './dto/update-funcionario.dto';
 import { FilterFuncionariosDto } from './dto/filter-funcionarios.dto';
@@ -50,8 +53,7 @@ export class FuncionariosService {
     const pageSize = query.pageSize ?? 10;
 
     const qb = this.repo.createQueryBuilder('f');
-    if (query.estado)
-      qb.andWhere('f.estado = :estado', { estado: query.estado });
+    if (query.estado) qb.andWhere('f.estado = :estado', { estado: query.estado });
     const texto = query.search?.trim();
     if (texto) {
       qb.andWhere(
@@ -91,6 +93,42 @@ export class FuncionariosService {
    * Elimina (borrado lógico) solo si nunca recibió préstamos; si ya tiene
    * historial se debe desactivar para conservar la trazabilidad.
    */
+  /** Enrola (o reemplaza) la huella del funcionario. */
+  async registrarHuella(id: number, plantilla: string, lector = 'DEMO') {
+    await this.findOne(id);
+    await this.repo.update(id, {
+      huellaPlantilla: plantilla,
+      huellaRegistradaEn: new Date(),
+      huellaLector: lector,
+    });
+    return this.findOne(id);
+  }
+
+  async quitarHuella(id: number) {
+    await this.findOne(id);
+    await this.repo.update(id, {
+      huellaPlantilla: null,
+      huellaRegistradaEn: null,
+      huellaLector: null,
+    });
+    return this.findOne(id);
+  }
+
+  /**
+   * Compara la plantilla capturada con la enrolada. En DEMO es una igualdad; con un
+   * lector real aquí se invoca la comparación 1:1 del SDK del fabricante.
+   */
+  async verificarHuella(id: number, plantilla: string) {
+    const f = await this.repo.findOne({
+      where: { id },
+      select: { id: true, huellaPlantilla: true },
+    });
+    if (!f) throw new NotFoundException('El funcionario no existe');
+    if (!f.huellaPlantilla)
+      throw new ConflictException('El funcionario no tiene huella registrada');
+    return { coincide: f.huellaPlantilla === plantilla };
+  }
+
   async remove(id: number): Promise<Funcionario> {
     const funcionario = await this.findOne(id);
     const [notas, cuaderno] = await Promise.all([

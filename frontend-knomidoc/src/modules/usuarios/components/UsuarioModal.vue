@@ -14,6 +14,7 @@ import {
 } from '@/utils/validators'
 import type { Usuario, UsuarioCreatePayload, UsuarioUpdatePayload } from '@/types/auth.types'
 import type { RolUsuario } from '@/types/common.types'
+import { ROLES_ASIGNABLES, ROLES_INFO } from '@/constants/roles'
 
 const props = defineProps<{
   modelValue: boolean
@@ -28,12 +29,7 @@ const emit = defineEmits<{
   update: [id: string, payload: UsuarioUpdatePayload]
 }>()
 
-const roles: RolUsuario[] = [
-  'ADMIN',
-  'OPERADOR_ARCHIVOS',
-  'ENCARGADO_PRESTAMOS',
-  'CONSULTA_EXTERNA',
-]
+const roles = ROLES_ASIGNABLES
 
 const form = reactive({
   username: '',
@@ -42,8 +38,15 @@ const form = reactive({
   cargo: '',
   unidadOArea: '',
   password: '',
-  rol: 'OPERADOR_ARCHIVOS' as RolUsuario,
+  /** Perfiles del usuario; el primero es el perfil por defecto */
+  roles: ['OPERADOR_ARCHIVOS'] as RolUsuario[],
 })
+
+function alternarRol(rol: RolUsuario) {
+  const i = form.roles.indexOf(rol)
+  if (i >= 0) form.roles.splice(i, 1)
+  else form.roles.push(rol)
+}
 
 watch(
   () => props.usuario,
@@ -54,7 +57,9 @@ watch(
     form.cargo = usuario?.cargo ?? ''
     form.unidadOArea = usuario?.unidadOArea ?? ''
     form.password = ''
-    form.rol = usuario?.rol ?? 'OPERADOR_ARCHIVOS'
+    form.roles = usuario?.rolesDisponibles?.length
+      ? [...usuario.rolesDisponibles]
+      : [usuario?.rol ?? 'OPERADOR_ARCHIVOS']
   },
   { immediate: true },
 )
@@ -97,6 +102,7 @@ watch(
 function handleSubmit() {
   intentado.value = true
   if (Object.values(errores.value).some(Boolean)) return
+  if (form.roles.length === 0) return
   if (props.usuario) {
     // No se envía la contraseña si se dejó en blanco (no se quiere resetear)
     const payload: UsuarioUpdatePayload = {
@@ -104,7 +110,8 @@ function handleSubmit() {
       email: form.email,
       cargo: form.cargo || undefined,
       unidadOArea: form.unidadOArea || undefined,
-      rol: form.rol,
+      rol: form.roles[0],
+      roles: [...form.roles],
       ...(form.password ? { password: form.password } : {}),
     }
     emit('update', props.usuario.id, payload)
@@ -116,7 +123,8 @@ function handleSubmit() {
       cargo: form.cargo || undefined,
       unidadOArea: form.unidadOArea || undefined,
       password: form.password,
-      rol: form.rol,
+      rol: form.roles[0],
+      roles: [...form.roles],
     })
   }
 }
@@ -175,19 +183,42 @@ function handleSubmit() {
         :error="ver(errores.password)"
       />
 
-      <div class="flex flex-col gap-1.5">
-        <label class="text-sm font-medium text-ink-700 dark:text-ink-200">Rol</label>
-        <select
-          v-model="form.rol"
-          class="rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5 dark:text-white"
+      <fieldset class="flex flex-col gap-2">
+        <legend class="mb-1 text-sm font-medium text-ink-700 dark:text-ink-200">
+          Perfiles (puede tener varios)
+        </legend>
+        <label
+          v-for="rol in roles"
+          :key="rol"
+          class="flex cursor-pointer items-start gap-3 rounded-md border border-ink-200 p-3 text-sm dark:border-white/10"
+          :class="form.roles.includes(rol) ? 'border-seal-500 bg-seal-50 dark:bg-seal-500/10' : ''"
         >
-          <option v-for="rol in roles" :key="rol" :value="rol">{{ rol }}</option>
-        </select>
-        <p class="text-xs text-ink-400">
-          ADMIN gestiona todo el sistema · OPERADOR_ARCHIVOS registra actas y comprobantes C31 ·
-          ENCARGADO_PRESTAMOS gestiona préstamos · CONSULTA_EXTERNA solo lectura.
+          <input
+            type="checkbox"
+            class="mt-1"
+            :checked="form.roles.includes(rol)"
+            @change="alternarRol(rol)"
+          />
+          <span>
+            <span class="block font-medium text-ink-900 dark:text-white">
+              {{ ROLES_INFO[rol].label }}
+              <span
+                v-if="form.roles[0] === rol && form.roles.length > 1"
+                class="ml-1 rounded-full bg-ink-100 px-2 py-0.5 text-xs font-normal text-ink-600 dark:bg-white/10 dark:text-ink-200"
+                >por defecto</span
+              >
+            </span>
+            <span class="block text-xs text-ink-500 dark:text-ink-300">{{ ROLES_INFO[rol].descripcion }}</span>
+          </span>
+        </label>
+        <p v-if="intentado && form.roles.length === 0" class="text-xs text-red-600">
+          Seleccione al menos un perfil.
         </p>
-      </div>
+        <p class="text-xs text-ink-400">
+          Con varios perfiles, al ingresar elegirá con cuál trabajar y podrá cambiar desde la barra
+          superior. El primero que marque es el perfil por defecto.
+        </p>
+      </fieldset>
     </form>
 
     <template #footer>

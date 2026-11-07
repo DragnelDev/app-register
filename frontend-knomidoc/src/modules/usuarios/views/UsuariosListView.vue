@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { rolLabel } from '@/constants/roles'
 import IconButton from '@/components/ui/IconButton.vue'
 import { onMounted, ref } from 'vue'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
@@ -125,6 +126,17 @@ onMounted(loadRows)
       "
       @row-click="openEdit"
     >
+      <template #cell-rol="{ row }">
+        <div class="flex flex-wrap gap-1">
+          <span
+            v-for="r in row.rolesDisponibles?.length ? row.rolesDisponibles : [row.rol]"
+            :key="r"
+            class="rounded-full bg-ink-100 px-2 py-0.5 text-xs text-ink-700 dark:bg-white/10 dark:text-ink-200"
+          >
+            {{ rolLabel(r) }}
+          </span>
+        </div>
+      </template>
       <template #cell-email="{ row }">
         <span>{{ row.email }}</span>
         <span

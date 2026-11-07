@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BeneficiarioSelect from '@/components/shared/BeneficiarioSelect.vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import type { C31FilterState } from '@/types/c31.types'
 import type { Carpeta } from '@/types/c31.types'
@@ -28,13 +29,7 @@ const auth = useAuthStore()
 const ubicacionRapida = ref<InstanceType<typeof UbicacionRapida>>()
 
 /** Tras crear un depósito/estante/carpeta se recargan las opciones y se selecciona el nuevo. */
-async function alCrearUbicacion({
-  tipo,
-  id,
-}: {
-  tipo: 'deposito' | 'estante' | 'carpeta'
-  id: number
-}) {
+async function alCrearUbicacion({ tipo, id }: { tipo: 'deposito' | 'estante' | 'carpeta'; id: number }) {
   if (tipo === 'deposito') {
     depositos.value = await depositosService.opciones()
     local.depositoId = id as never
@@ -91,13 +86,22 @@ onMounted(async () => {
 })
 
 // Los N° de preventivo se repiten entre gestiones: se avisa si se busca sin fijar una
-const avisoGestion = computed(() => Boolean(local.numeroPreventivo?.trim()) && !local.gestion)
+const avisoGestion = computed(
+  () => Boolean(local.numeroPreventivo?.trim()) && !local.gestion,
+)
 
 const hayFiltrosAvanzados = computed(
   () =>
     Boolean(local.search || local.estadoFisico || local.fechaDesde || local.fechaHasta) ||
     (local.digitalizado ?? '') !== '',
 )
+
+// Beneficiario: se elige del directorio; si se borra el texto se quita el filtro
+const benefTexto = ref('')
+function alEscribirBeneficiario(v: string) {
+  benefTexto.value = v
+  if (!v.trim()) local.beneficiarioId = ''
+}
 
 function apply() {
   emit('update:modelValue', { ...local })
@@ -107,6 +111,7 @@ function reset() {
   Object.assign(local, {
     search: '',
     detalle: '',
+    beneficiarioId: '',
     numeroPreventivo: '',
     estadoFisico: '',
     fechaDesde: '',
@@ -120,6 +125,7 @@ function reset() {
   if (!props.lockTipo) local.tipoC31 = ''
   estantes.value = []
   carpetas.value = []
+  benefTexto.value = ''
   apply()
 }
 
@@ -134,7 +140,11 @@ const etiqueta = 'mb-1 block text-xs font-medium text-ink-500'
       <!-- 1. Gestión: filtro principal, aísla los resultados por año fiscal -->
       <div class="w-32">
         <label :class="etiqueta" for="c31-gestion">Gestión</label>
-        <select id="c31-gestion" v-model="local.gestion" :class="[campo, 'font-semibold']">
+        <select
+          id="c31-gestion"
+          v-model="local.gestion"
+          :class="[campo, 'font-semibold']"
+        >
           <option value="">Todas</option>
           <option v-for="g in gestiones" :key="g" :value="g">{{ g }}</option>
         </select>
@@ -149,6 +159,19 @@ const etiqueta = 'mb-1 block text-xs font-medium text-ink-500'
           type="text"
           placeholder="Ej: combustible, pasajes…"
           :class="campo"
+        />
+      </div>
+
+      <!-- Beneficiario -->
+      <div class="w-64">
+        <label :class="etiqueta" for="c31-benef">Beneficiario</label>
+        <BeneficiarioSelect
+          id="c31-benef"
+          :model-value="benefTexto"
+          :input-class="campo"
+          placeholder="Nombre, CI o NIT…"
+          @update:model-value="alEscribirBeneficiario"
+          @elegir="(b) => (local.beneficiarioId = b.id)"
         />
       </div>
 
@@ -229,7 +252,12 @@ const etiqueta = 'mb-1 block text-xs font-medium text-ink-500'
       </div>
       <div class="w-44">
         <label :class="etiqueta" for="c31-carp">Carpeta</label>
-        <select id="c31-carp" v-model="local.carpetaId" :disabled="!carpetas.length" :class="campo">
+        <select
+          id="c31-carp"
+          v-model="local.carpetaId"
+          :disabled="!carpetas.length"
+          :class="campo"
+        >
           <option value="">Todas</option>
           <option v-for="c in carpetas" :key="c.id" :value="c.id">{{ c.codigoCarpeta }}</option>
         </select>
@@ -258,6 +286,7 @@ const etiqueta = 'mb-1 block text-xs font-medium text-ink-500'
           Limpiar
         </button>
         <button
+          v-if="auth.puedeExportar"
           type="button"
           class="rounded-md border border-ink-200 px-4 py-2 text-sm font-medium text-ink-600 hover:bg-ink-50 dark:border-white/10 dark:text-ink-300 dark:hover:bg-white/5"
           @click="emit('export')"
@@ -270,9 +299,7 @@ const etiqueta = 'mb-1 block text-xs font-medium text-ink-500'
 
     <!-- Filtros adicionales (los que ya existían) -->
     <details :open="hayFiltrosAvanzados">
-      <summary
-        class="cursor-pointer text-xs font-medium text-ink-500 hover:text-ink-800 dark:hover:text-ink-200"
-      >
+      <summary class="cursor-pointer text-xs font-medium text-ink-500 hover:text-ink-800 dark:hover:text-ink-200">
         Más filtros (búsqueda libre, estado físico, fechas, digitalización)
       </summary>
       <div class="mt-3 flex flex-wrap items-end gap-3">

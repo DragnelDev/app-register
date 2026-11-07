@@ -6,12 +6,13 @@ import { useResumenStore } from '@/stores/resumen.store'
 import { useTheme } from '@/composables/useTheme'
 import { useSidebar } from '@/composables/useSidebar'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import { rolLabel } from '@/constants/roles'
 
 const auth = useAuthStore()
 const resumen = useResumenStore()
 const router = useRouter()
 const { theme, toggleTheme } = useTheme()
-const { alternar } = useSidebar()
+const { alternar, colapsado, alternarColapso } = useSidebar()
 
 function handleLogout() {
   auth.logout()
@@ -19,11 +20,13 @@ function handleLogout() {
   router.push({ name: 'login' })
 }
 
-const rolLabel: Record<string, string> = {
-  ADMIN: 'Administrador',
-  OPERADOR_ARCHIVOS: 'Operador de archivos',
-  ENCARGADO_PRESTAMOS: 'Encargado de préstamos',
-  CONSULTA_EXTERNA: 'Consulta externa',
+async function alCambiarPerfil(e: Event) {
+  const rol = (e.target as HTMLSelectElement).value
+  if (!rol || rol === auth.usuario?.rol) return
+  await auth.cambiarPerfil(rol)
+  resumen.reset()
+  // Se recarga para que menú, permisos y datos sean los del perfil elegido
+  window.location.assign(auth.rutaInicial)
 }
 
 const iniciales = computed(() => {
@@ -54,6 +57,15 @@ const pendientes = computed(() => resumen.pendientesRegularizar)
       >
         <i class="fa-solid fa-bars" aria-hidden="true" />
       </button>
+      <button
+        type="button"
+        class="hidden rounded-lg p-2 text-ink-600 hover:bg-ink-100 dark:text-ink-300 dark:hover:bg-ink-800 lg:inline-flex"
+        :aria-label="colapsado ? 'Expandir barra lateral' : 'Contraer barra lateral'"
+        :title="colapsado ? 'Expandir barra lateral' : 'Contraer barra lateral'"
+        @click="alternarColapso"
+      >
+        <i class="fa-solid fa-bars" aria-hidden="true" />
+      </button>
       <span class="font-display text-lg font-semibold lg:hidden">KnomiDoc</span>
     </div>
 
@@ -67,6 +79,18 @@ const pendientes = computed(() => resumen.pendientesRegularizar)
         <i class="fa-solid" :class="theme === 'dark' ? 'fa-moon' : 'fa-sun'" aria-hidden="true" />
         <span class="hidden sm:inline">{{ theme === 'dark' ? 'Modo oscuro' : 'Modo claro' }}</span>
       </button>
+
+      <label v-if="auth.perfiles.length > 1" class="flex items-center gap-2 text-xs">
+        <span class="hidden text-ink-500 dark:text-ink-400 md:inline">Perfil</span>
+        <select
+          :value="auth.usuario?.rol"
+          aria-label="Perfil activo"
+          class="rounded-full border border-ink-200 bg-ink-50 px-3 py-1.5 text-xs font-medium text-ink-700 dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
+          @change="alCambiarPerfil"
+        >
+          <option v-for="r in auth.perfiles" :key="r" :value="r">{{ rolLabel(r) }}</option>
+        </select>
+      </label>
 
       <RouterLink
         v-if="pendientes > 0 && auth.puedeRegistrarC31"
@@ -94,7 +118,7 @@ const pendientes = computed(() => resumen.pendientesRegularizar)
             {{ auth.usuario.nombreCompleto }}
           </p>
           <p class="text-xs text-ink-500 dark:text-ink-400">
-            {{ rolLabel[auth.usuario.rol] ?? auth.usuario.rol }}
+            {{ rolLabel(auth.usuario.rol) }}
           </p>
         </div>
       </RouterLink>

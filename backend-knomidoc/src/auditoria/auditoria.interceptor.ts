@@ -89,7 +89,7 @@ export class AuditoriaInterceptor implements NestInterceptor {
         void this.auditoria.registrar({
           usuarioId: usuario.id ?? null,
           usuarioNombre: usuario.nombreCompleto ?? usuario.username ?? null,
-          rol: usuario.rol ?? null,
+          rol: usuario.rolActivo ?? usuario.rol ?? null,
           accion,
           entidad,
           registroId:

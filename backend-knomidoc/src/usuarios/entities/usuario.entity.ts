@@ -1,5 +1,6 @@
 import * as bcrypt from 'bcrypt';
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { UsuarioPerfil } from './usuario-perfil.entity';
 import { BaseFechasEntity } from '../../common/entities/base-fechas.entity';
 import { ROLES_USUARIO } from '../../common/constants/roles.constant';
 import { ComprobantesC31 } from '../../comprobantes_c31/entities/comprobantes_c31.entity';
@@ -49,6 +50,19 @@ export class Usuario extends BaseFechasEntity {
 
   @Column('boolean', { default: true })
   activo: boolean | undefined;
+
+  /** Perfiles que el usuario puede asumir (`rol` es el perfil por defecto). */
+  @OneToMany(() => UsuarioPerfil, (p) => p.usuario)
+  perfiles?: UsuarioPerfil[];
+
+  /**
+   * Perfil con el que trabaja en esta sesión (viene en el token). No se guarda:
+   * lo completa la estrategia JWT en cada petición.
+   */
+  rolActivo?: string;
+
+  /** Todos los perfiles disponibles (no se guarda; lo completa la estrategia JWT). */
+  rolesDisponibles?: string[];
 
   /** El correo se confirmó con el código enviado (isEmailVerified). */
   @Column('boolean', { name: 'email_verificado', default: false })

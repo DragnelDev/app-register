@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAuthStore } from '@/stores/auth.store'
 import IconButton from '@/components/ui/IconButton.vue'
 import DevolucionModal from '../components/DevolucionModal.vue'
 import C31DetailModal from '@/modules/c31-gastos/components/C31DetailModal.vue'
@@ -22,6 +23,7 @@ import type {
 } from '@/types/prestamos.types'
 import { rotuloC31 } from '@/types/c31.types'
 
+const auth = useAuthStore()
 const store = usePrestamosStore()
 const modalOpen = ref(false)
 const saving = ref(false)
@@ -91,11 +93,7 @@ function cantidadLote(row: PrestamoCuaderno) {
 
 const hoyIso = new Date().toISOString().slice(0, 10)
 function vencido(row: PrestamoCuaderno) {
-  return (
-    !row.devuelto &&
-    !!row.fechaDevolucionEstimada &&
-    row.fechaDevolucionEstimada.slice(0, 10) < hoyIso
-  )
+  return !row.devuelto && !!row.fechaDevolucionEstimada && row.fechaDevolucionEstimada.slice(0, 10) < hoyIso
 }
 
 const pestanas = [
@@ -170,7 +168,7 @@ onMounted(async () => {
           Préstamo individual y rápido de comprobantes ya en archivo.
         </p>
       </div>
-      <BaseButton @click="modalOpen = true">+ Registrar préstamo</BaseButton>
+      <BaseButton v-if="!auth.esSoloConsulta" @click="modalOpen = true">+ Registrar préstamo</BaseButton>
     </div>
 
     <p
@@ -255,8 +253,7 @@ onMounted(async () => {
             label="Ver seguimiento del comprobante"
             @click="verSeguimiento(row)"
           />
-          <IconButton
-            v-if="!row.devuelto"
+          <IconButton v-if="(!row.devuelto) && !auth.esSoloConsulta"
             icon="fa-rotate-left"
             :label="cantidadLote(row) > 1 ? 'Devolver lote completo' : 'Registrar devolución'"
             variant="success"

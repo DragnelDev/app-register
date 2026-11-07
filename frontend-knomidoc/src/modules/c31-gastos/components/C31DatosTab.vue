@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import BeneficiarioSelect from '@/components/shared/BeneficiarioSelect.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import MontoInput from '@/components/shared/MontoInput.vue'
+import FechaInput from '@/components/shared/FechaInput.vue'
 import { useC31Store } from '@/stores/c31.store'
 import { extractApiErrorMessage } from '@/utils/http-error'
 import { bs, fechaCorta } from '@/utils/estados'
@@ -109,55 +112,78 @@ const titulo = 'mb-1 font-semibold text-ink-700 dark:text-ink-200'
       >. Al completarlos el comprobante pasa solo a “En revisión / firmado”.
     </p>
     <div v-if="!editando" class="space-y-4">
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <h4 :class="titulo">
+      <!-- Datos cortos, en una cuadrícula compacta -->
+      <dl class="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+        <div class="min-w-0">
+          <dt :class="titulo">
             {{ comprobante.tipoC31 === 'CON_IMPUTACION' ? 'N° de preventivo' : 'N° de devengado' }}
-          </h4>
-          <p>{{ identificadorC31(comprobante) ?? '—' }}</p>
+          </dt>
+          <dd class="break-words">{{ identificadorC31(comprobante) ?? '—' }}</dd>
         </div>
-        <div>
-          <h4 :class="titulo">Monto total del documento</h4>
-          <p>{{ comprobante.montoTotal ? `Bs ${bs(comprobante.montoTotal)}` : sinCompletar }}</p>
+        <div class="min-w-0">
+          <dt :class="titulo">Monto total</dt>
+          <dd class="tabular-nums">
+            {{ comprobante.montoTotal ? `Bs ${bs(comprobante.montoTotal)}` : sinCompletar }}
+          </dd>
         </div>
-        <div>
-          <h4 :class="titulo">Beneficiarios</h4>
-          <ul v-if="comprobante.beneficiarios.length" class="list-inside list-disc">
-            <li v-for="b in comprobante.beneficiarios" :key="b.id ?? b.nombreBeneficiario">
-              {{ b.nombreBeneficiario }}
-            </li>
-          </ul>
-          <p v-else class="text-ink-400">{{ sinCompletar }}</p>
-        </div>
-        <div>
-          <h4 :class="titulo">Fecha de elaboración</h4>
-          <p>
+        <div class="min-w-0">
+          <dt :class="titulo">Fecha de elaboración</dt>
+          <dd>
             {{
               comprobante.fechaElaboracion ? fechaCorta(comprobante.fechaElaboracion) : sinCompletar
             }}
-            · Gestión {{ comprobante.gestion }}
-          </p>
+            <span class="text-ink-400">· Gestión {{ comprobante.gestion }}</span>
+          </dd>
         </div>
-        <div>
-          <h4 :class="titulo">N° de folio</h4>
-          <p>{{ comprobante.numeroFolio || 'Sin asignar aún.' }}</p>
+        <div class="min-w-0">
+          <dt :class="titulo">N° de folio</dt>
+          <dd class="break-words">{{ comprobante.numeroFolio || 'Sin asignar aún.' }}</dd>
         </div>
-        <div>
-          <h4 :class="titulo">Ubicación física</h4>
-          <p>{{ comprobante.ubicacionFisica || 'Sin asignar aún.' }}</p>
+        <div class="min-w-0">
+          <dt :class="titulo">Ubicación física</dt>
+          <dd class="break-words">{{ comprobante.ubicacionFisica || 'Sin asignar aún.' }}</dd>
         </div>
-        <div v-if="comprobante.actaEntrega">
-          <h4 :class="titulo">Acta de entrega</h4>
-          <p>{{ comprobante.actaEntrega.numeroActa }}</p>
+        <div v-if="comprobante.actaEntrega" class="min-w-0">
+          <dt :class="titulo">Acta de entrega</dt>
+          <dd class="break-words">{{ comprobante.actaEntrega.numeroActa }}</dd>
         </div>
+      </dl>
+
+      <!-- Beneficiarios: etiquetas, no una lista larga -->
+      <div>
+        <h4 :class="titulo">Beneficiarios</h4>
+        <ul v-if="comprobante.beneficiarios.length" class="flex flex-wrap gap-1.5">
+          <li
+            v-for="b in comprobante.beneficiarios"
+            :key="b.id ?? b.nombreBeneficiario"
+            class="max-w-full break-words rounded-full bg-ink-100 px-2.5 py-1 text-xs text-ink-800 dark:bg-white/10 dark:text-ink-100"
+          >
+            {{ b.nombreBeneficiario }}
+          </li>
+        </ul>
+        <p v-else class="text-ink-400">{{ sinCompletar }}</p>
       </div>
+
+      <!-- Textos largos: bloque propio con desplazamiento, sin ensanchar el modal -->
       <div>
         <h4 :class="titulo">Descripción / glosa</h4>
-        <p class="whitespace-pre-line">{{ comprobante.descripcion || sinCompletar }}</p>
+        <div
+          class="max-h-52 overflow-y-auto rounded-md border border-ink-100 bg-ink-50/60 px-3 py-2 leading-relaxed dark:border-white/10 dark:bg-white/5"
+        >
+          <p class="whitespace-pre-line break-words [overflow-wrap:anywhere]">
+            {{ comprobante.descripcion || sinCompletar }}
+          </p>
+        </div>
       </div>
       <div v-if="comprobante.observaciones">
         <h4 :class="titulo">Observaciones</h4>
-        <p class="whitespace-pre-line">{{ comprobante.observaciones }}</p>
+        <div
+          class="max-h-40 overflow-y-auto rounded-md border border-ink-100 bg-ink-50/60 px-3 py-2 leading-relaxed dark:border-white/10 dark:bg-white/5"
+        >
+          <p class="whitespace-pre-line break-words [overflow-wrap:anywhere]">
+            {{ comprobante.observaciones }}
+          </p>
+        </div>
       </div>
       <BaseButton
         v-if="puedeEditar && !anulado"
@@ -192,11 +218,11 @@ const titulo = 'mb-1 font-semibold text-ink-700 dark:text-ink-200'
         </div>
         <div>
           <label :class="etiqueta">Monto total (Bs)</label>
-          <input v-model="form.montoTotal" type="number" step="0.01" :class="campo" />
+          <MontoInput v-model="form.montoTotal" />
         </div>
         <div>
           <label :class="etiqueta">Fecha de elaboración</label>
-          <input v-model="form.fechaElaboracion" type="date" :class="campo" />
+          <FechaInput v-model="form.fechaElaboracion" />
         </div>
         <div>
           <label :class="etiqueta">N° de folio</label>
@@ -227,12 +253,11 @@ const titulo = 'mb-1 font-semibold text-ink-700 dark:text-ink-200'
           </li>
         </ul>
         <div class="flex gap-2">
-          <input
+          <BeneficiarioSelect
             v-model="nuevoBeneficiario"
-            type="text"
-            :class="campo"
-            placeholder="Agregar beneficiario"
-            @keydown.enter.prevent="agregar"
+            :input-class="campo"
+            placeholder="Buscar en el directorio o escribir un nombre nuevo…"
+            @enter="agregar"
           />
           <BaseButton type="button" variant="secondary" size="sm" @click="agregar"
             >Agregar</BaseButton

@@ -118,10 +118,7 @@ async function ejecutar(accion: 'guardar' | 'previsualizar' | 'aprobar') {
         <strong>{{ filas.length }} comprobante{{ filas.length === 1 ? '' : 's' }}</strong> siguen en
         el archivo hasta que apruebe la nota.
       </p>
-      <p
-        v-if="error"
-        class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300"
-      >
+      <p v-if="error" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">
         {{ error }}
       </p>
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -166,25 +163,13 @@ async function ejecutar(accion: 'guardar' | 'previsualizar' | 'aprobar') {
       </div>
     </div>
     <template #footer>
-      <BaseButton
-        variant="ghost"
-        :disabled="trabajando !== null"
-        @click="emit('update:modelValue', false)"
-      >
+      <BaseButton variant="ghost" :disabled="trabajando !== null" @click="emit('update:modelValue', false)">
         Cerrar
       </BaseButton>
-      <BaseButton
-        variant="secondary"
-        :loading="trabajando === 'guardar'"
-        @click="ejecutar('guardar')"
-      >
+      <BaseButton variant="secondary" :loading="trabajando === 'guardar'" @click="ejecutar('guardar')">
         Guardar cambios
       </BaseButton>
-      <BaseButton
-        variant="secondary"
-        :loading="trabajando === 'previsualizar'"
-        @click="ejecutar('previsualizar')"
-      >
+      <BaseButton variant="secondary" :loading="trabajando === 'previsualizar'" @click="ejecutar('previsualizar')">
         Guardar y previsualizar PDF
       </BaseButton>
       <BaseButton :loading="trabajando === 'aprobar'" @click="ejecutar('aprobar')">

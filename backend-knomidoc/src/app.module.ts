@@ -29,6 +29,8 @@ import { ParametrosGestionModule } from './parametros-gestion/parametros-gestion
 import { AuditoriaModule } from './auditoria/auditoria.module';
 import { ReportesModule } from './reportes/reportes.module';
 import { ResumenModule } from './resumen/resumen.module';
+import { BeneficiariosModule } from './beneficiarios/beneficiarios.module';
+import { RemisionesModule } from './remisiones/remisiones.module';
 import { FuncionariosModule } from './funcionarios/funcionarios.module';
 
 @Module({
@@ -47,6 +49,8 @@ import { FuncionariosModule } from './funcionarios/funcionarios.module';
     }),
     UsuariosModule,
     FuncionariosModule,
+    BeneficiariosModule,
+    RemisionesModule,
     ActasEntregaModule,
     ComprobantesC31Module,
     CarpetasModule,

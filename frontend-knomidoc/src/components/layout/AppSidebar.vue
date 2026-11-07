@@ -8,7 +8,7 @@ import { useSidebar } from '@/composables/useSidebar'
 const auth = useAuthStore()
 const resumen = useResumenStore()
 const route = useRoute()
-const { abierto, cerrar } = useSidebar()
+const { abierto, cerrar, colapsado, alternarColapso } = useSidebar()
 
 interface NavItem {
   to: string
@@ -27,13 +27,17 @@ interface NavGroup {
 
 const ARCHIVO = ['ADMIN', 'OPERADOR_ARCHIVOS']
 const PRESTAMOS = ['ADMIN', 'ENCARGADO_PRESTAMOS']
+const CONSULTA = ['CONSULTA_AVANZADA', 'SOLO_LECTURA', 'CONSULTA_EXTERNA']
+const ARCHIVO_Y_CONSULTA = [...ARCHIVO, ...CONSULTA]
+const PRESTAMOS_Y_CONSULTA = [...PRESTAMOS, ...CONSULTA]
 
 const navGroups = computed<NavGroup[]>(() => [
   {
     title: 'Principal',
     items: [
       { to: '/', label: 'Panel principal', icon: 'fa-chart-pie' },
-      { to: '/actas-entrega', label: 'Actas de entrega', icon: 'fa-file-invoice', roles: ARCHIVO },
+      { to: '/remisiones', label: 'Remisiones de C31', icon: 'fa-paper-plane', roles: ['ADMIN', 'OPERADOR_ARCHIVOS', 'REMITENTE_C31'] },
+      { to: '/actas-entrega', label: 'Actas de entrega', icon: 'fa-file-invoice', roles: ARCHIVO_Y_CONSULTA },
     ],
   },
   {
@@ -44,6 +48,7 @@ const navGroups = computed<NavGroup[]>(() => [
       { to: '/c31/sin-imputacion', label: 'C31 Sin Imputación', icon: 'fa-file-circle-xmark' },
       { to: '/c31/nuevo', label: 'Registrar Comprobante', icon: 'fa-circle-plus', roles: ARCHIVO },
       { to: '/pagos', label: 'Pagos', icon: 'fa-money-check-dollar' },
+      { to: '/beneficiarios', label: 'Beneficiarios', icon: 'fa-address-book', roles: [...ARCHIVO, 'ENCARGADO_PRESTAMOS', ...CONSULTA] },
       {
         to: '/c31/vinculos',
         label: 'Vínculos / Regularización',
@@ -74,13 +79,13 @@ const navGroups = computed<NavGroup[]>(() => [
         to: '/prestamos/cuaderno',
         label: 'Préstamo (Cuaderno)',
         icon: 'fa-book',
-        roles: PRESTAMOS,
+        roles: PRESTAMOS_Y_CONSULTA,
       },
       {
         to: '/prestamos/notas',
         label: 'Préstamo (Nota oficial)',
         icon: 'fa-envelope-open-text',
-        roles: PRESTAMOS,
+        roles: PRESTAMOS_Y_CONSULTA,
       },
       {
         to: '/funcionarios',
@@ -97,7 +102,7 @@ const navGroups = computed<NavGroup[]>(() => [
         to: '/reportes',
         label: 'Reportes Financieros',
         icon: 'fa-chart-line',
-        roles: ['ADMIN', 'OPERADOR_ARCHIVOS', 'CONSULTA_EXTERNA'],
+        roles: ['ADMIN', 'OPERADOR_ARCHIVOS', 'CONSULTA_AVANZADA', 'CONSULTA_EXTERNA'],
       },
       {
         to: '/auditoria',
@@ -121,7 +126,9 @@ const visibleGroups = computed(() =>
     .map((group) => ({
       ...group,
       items: group.items.filter(
-        (item) => !item.roles || (auth.rol && item.roles.includes(auth.rol)),
+        // Los ítems sin roles son para cualquier perfil, salvo el remitente (solo ve lo suyo)
+        (item) =>
+          item.roles ? Boolean(auth.rol && item.roles.includes(auth.rol)) : !auth.esRemitente,
       ),
     }))
     .filter((group) => group.items.length > 0),
@@ -142,11 +149,22 @@ watch(
   <!-- Fondo oscuro del cajón (solo móvil) -->
   <div v-if="abierto" class="sidebar-backdrop lg:hidden" aria-hidden="true" @click="cerrar" />
 
-  <nav class="sidebar" :class="{ 'sidebar--open': abierto }" aria-label="Navegación principal">
+  <nav
+    class="sidebar"
+    :class="{ 'sidebar--open': abierto, 'sidebar--colapsado': colapsado }" aria-label="Navegación principal">
     <!-- Logo y nombre del sistema -->
     <div class="sidebar-header">
       <div class="logo-box">K</div>
       <div class="logo-text">KnomiDoc</div>
+      <button
+        type="button"
+        class="collapse-btn"
+        :aria-label="colapsado ? 'Expandir barra lateral' : 'Contraer barra lateral'"
+        :title="colapsado ? 'Expandir barra lateral' : 'Contraer barra lateral'"
+        @click="alternarColapso"
+      >
+        <i class="fa-solid" :class="colapsado ? 'fa-angles-right' : 'fa-angles-left'" aria-hidden="true" />
+      </button>
     </div>
 
     <div class="sidebar-menu">
@@ -159,9 +177,10 @@ watch(
           class="menu-item"
           active-class=""
           exact-active-class="active"
+          :title="colapsado ? item.label : undefined"
         >
           <i class="fa-solid" :class="item.icon" aria-hidden="true" />
-          {{ item.label }}
+          <span class="menu-label">{{ item.label }}</span>
           <span
             v-if="item.badge && item.badge.value > 0"
             class="menu-badge"
@@ -174,7 +193,7 @@ watch(
       </template>
     </div>
 
-    <div class="sidebar-footer">Gestión de comprobantes C31 v1.0</div>
+    <div class="sidebar-footer"><span class="menu-label">Gestión de comprobantes C31 v1.0</span></div>
   </nav>
 </template>
 
@@ -335,6 +354,80 @@ watch(
 .sidebar::-webkit-scrollbar-thumb {
   background: var(--scroll-thumb);
   border-radius: 10px;
+}
+
+.collapse-btn {
+  display: none;
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.collapse-btn:hover {
+  background-color: var(--sidebar-hover);
+  color: var(--hover-text);
+}
+
+/* ───────── Escritorio: barra contraída (solo íconos) ───────── */
+@media (min-width: 1024px) {
+  .sidebar {
+    transition: width 0.2s ease;
+  }
+  .collapse-btn {
+    display: inline-flex;
+  }
+  .sidebar--colapsado {
+    width: 72px;
+  }
+  .sidebar--colapsado .sidebar-header {
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 0;
+  }
+  .sidebar--colapsado .logo-box {
+    margin-right: 0;
+  }
+  .sidebar--colapsado .logo-text,
+  .sidebar--colapsado .menu-label,
+  .sidebar--colapsado .sidebar-footer {
+    display: none;
+  }
+  .sidebar--colapsado .collapse-btn {
+    margin-left: 0;
+  }
+  .sidebar--colapsado .menu-category {
+    height: 1px;
+    margin: 12px 10px;
+    padding: 0;
+    overflow: hidden;
+    font-size: 0;
+    background-color: var(--border-color);
+  }
+  .sidebar--colapsado .menu-item {
+    justify-content: center;
+    position: relative;
+    padding: 10px 0;
+  }
+  .sidebar--colapsado .menu-item i {
+    margin-right: 0;
+  }
+  .sidebar--colapsado .menu-badge {
+    position: absolute;
+    top: 2px;
+    right: 6px;
+    margin-left: 0;
+    padding: 0 5px;
+    font-size: 10px;
+  }
+  .sidebar--colapsado .menu-divider {
+    display: none;
+  }
 }
 
 /* ───────── Móvil: cajón deslizable ───────── */

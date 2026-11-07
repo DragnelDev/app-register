@@ -27,6 +27,8 @@ const ORIGEN: Record<string, string> = {
   MANUAL: 'Manual',
   ACTA: 'Acta de entrega',
   PRESTAMO: 'Préstamo',
+  SISTEMA: 'Ubicación / sistema',
+  REMISION: 'Remisión',
 }
 </script>
 
@@ -40,6 +42,54 @@ const ORIGEN: Record<string, string> = {
     </p>
 
     <template v-if="datos">
+      <section>
+        <h4 class="mb-2 font-semibold text-ink-800 dark:text-ink-100">Ubicación del archivo físico</h4>
+        <div
+          v-if="datos.ubicacion.enPoderDe"
+          class="mb-3 rounded-md px-3 py-2 text-xs"
+          :class="
+            datos.ubicacion.enPoderDe.vencido
+              ? 'bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-200'
+              : 'bg-amber-50 text-amber-800 dark:bg-amber-400/10 dark:text-amber-200'
+          "
+        >
+          <strong>Fuera del archivo:</strong> lo tiene {{ datos.ubicacion.enPoderDe.solicitante }}
+          ({{ datos.ubicacion.enPoderDe.institucionOArea }}) desde
+          {{ fechaCorta(datos.ubicacion.enPoderDe.desde) }} · {{ datos.ubicacion.enPoderDe.referencia }}
+          <template v-if="datos.ubicacion.enPoderDe.devolucionEstimada">
+            · devolución estimada {{ fechaCorta(datos.ubicacion.enPoderDe.devolucionEstimada) }}
+          </template>
+        </div>
+        <ul v-if="datos.ubicacion.carpetas.length" class="space-y-2">
+          <li
+            v-for="u in datos.ubicacion.carpetas"
+            :key="u.id"
+            class="rounded-md border border-ink-100 px-3 py-2 dark:border-white/10"
+          >
+            <p class="font-medium text-ink-900 dark:text-white">
+              <i class="fa-solid fa-warehouse mr-1 text-ink-400" aria-hidden="true" />
+              {{ u.deposito ?? 'Sin depósito' }}
+              <span class="text-ink-400">›</span> Estante {{ u.estante ?? '—' }}
+              <span class="text-ink-400">›</span> Carpeta {{ u.carpeta ?? '—' }}
+              <span class="ml-1 text-xs font-normal text-ink-500">(parte {{ u.numeroParte }})</span>
+            </p>
+            <p v-if="u.referencia" class="text-xs text-ink-500">{{ u.referencia }}</p>
+          </li>
+        </ul>
+        <p v-else class="text-ink-400">
+          Aún no tiene carpeta asignada.
+          <template v-if="datos.ubicacion.ubicacionFisica">
+            Ubicación referencial: {{ datos.ubicacion.ubicacionFisica }}.
+          </template>
+        </p>
+        <p v-if="datos.ubicacion.numeroFolio" class="mt-2 text-xs text-ink-500">
+          Folio: {{ datos.ubicacion.numeroFolio }}
+        </p>
+        <p v-if="datos.acta" class="text-xs text-ink-500">
+          Acta de entrega: {{ datos.acta.numeroActa }} ({{ datos.acta.estado }})
+        </p>
+      </section>
+
       <section>
         <h4 class="mb-2 font-semibold text-ink-800 dark:text-ink-100">Préstamos</h4>
         <div
@@ -171,7 +221,13 @@ const ORIGEN: Record<string, string> = {
               <span v-if="h.referencia"> · {{ h.referencia }}</span>
               <span v-if="h.usuario"> · {{ h.usuario }}</span>
             </p>
-            <p class="text-ink-900 dark:text-white">
+            <p
+              v-if="h.origen === 'SISTEMA' && h.estadoAnterior === h.estadoNuevo"
+              class="text-ink-900 dark:text-white"
+            >
+              <strong>Movimiento de ubicación</strong>
+            </p>
+            <p v-else class="text-ink-900 dark:text-white">
               <template v-if="h.estadoAnterior"
                 >{{ ESTADO_C31_LABEL[h.estadoAnterior] }} →
               </template>

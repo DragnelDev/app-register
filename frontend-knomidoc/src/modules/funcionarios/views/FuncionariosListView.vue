@@ -26,6 +26,7 @@ const columns: DataTableColumn<Funcionario>[] = [
   { key: 'cargo', label: 'Cargo' },
   { key: 'unidadOficina', label: 'Unidad / oficina' },
   { key: 'telefono', label: 'Teléfono' },
+  { key: 'huellaRegistradaEn', label: 'Huella' },
   { key: 'estado', label: 'Estado' },
 ]
 
@@ -83,6 +84,11 @@ async function actualizar(id: number, payload: Partial<FuncionarioPayload>) {
   } finally {
     saving.value = false
   }
+}
+
+async function alCambiarHuella() {
+  await cargar()
+  if (editando.value) editando.value = store.items.find((x) => x.id === editando.value?.id) ?? editando.value
 }
 
 async function alternarEstado(f: Funcionario) {
@@ -143,12 +149,7 @@ onBeforeUnmount(() => clearTimeout(temporizador))
           id="f-estado"
           v-model="store.estado"
           class="rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
-          @change="
-            () => {
-              store.setFilters({ estado: store.estado })
-              cargar()
-            }
-          "
+          @change="() => { store.setFilters({ estado: store.estado }); cargar() }"
         >
           <option value="">Todos</option>
           <option value="ACTIVO">Activos</option>
@@ -157,10 +158,7 @@ onBeforeUnmount(() => clearTimeout(temporizador))
       </div>
     </div>
 
-    <p
-      v-if="listError"
-      class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300"
-    >
+    <p v-if="listError" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">
       {{ listError }}
     </p>
 
@@ -171,16 +169,19 @@ onBeforeUnmount(() => clearTimeout(temporizador))
       :page="store.page"
       :total-pages="store.totalPages"
       empty-message="No hay funcionarios que coincidan."
-      @update:page="
-        (p) => {
-          store.page = p
-          cargar()
-        }
-      "
+      @update:page="(p) => { store.page = p; cargar() }"
       @row-click="editar"
     >
       <template #cell-apellidos="{ row }">{{ row.nombres }} {{ row.apellidos }}</template>
       <template #cell-telefono="{ row }">{{ row.telefono || '—' }}</template>
+      <template #cell-huellaRegistradaEn="{ row }">
+        <i
+          class="fa-solid fa-fingerprint"
+          :class="row.huellaRegistradaEn ? 'text-emerald-500' : 'text-ink-300 dark:text-ink-600'"
+          :title="row.huellaRegistradaEn ? 'Huella registrada' : 'Sin huella'"
+          aria-hidden="true"
+        />
+      </template>
       <template #cell-estado="{ row }">
         <BaseBadge :estado="row.estado === 'ACTIVO' ? 'EN_ARCHIVO' : 'ANULADO'">
           {{ row.estado === 'ACTIVO' ? 'Activo' : 'Inactivo' }}
@@ -214,6 +215,7 @@ onBeforeUnmount(() => clearTimeout(temporizador))
       :server-error="saveError"
       @create="crear"
       @update="actualizar"
+      @huella="alCambiarHuella"
     />
   </div>
 </template>

@@ -5,6 +5,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import ComprobanteC31Picker from '@/components/shared/ComprobanteC31Picker.vue'
 import ComprobantesC31SelectedTable from '@/components/shared/ComprobantesC31SelectedTable.vue'
 import FuncionarioSelect from '@/components/shared/FuncionarioSelect.vue'
+import HuellaPanel from '@/components/shared/HuellaPanel.vue'
 import { required, runValidators } from '@/utils/validators'
 import type { PrestamoCuadernoCreatePayload } from '@/types/prestamos.types'
 import type { ComprobanteC31 } from '@/types/c31.types'
@@ -33,7 +34,12 @@ const seleccionados = ref<ComprobanteC31[]>([])
 const excludeIds = computed(() => seleccionados.value.map((c) => c.id))
 
 // La unidad se propone con la del funcionario (editable)
+const funcionarioElegido = ref<Funcionario | null>(null)
+const huellaVerificada = ref(false)
+const errorHuella = ref('')
 function alElegirFuncionario(f: Funcionario | null) {
+  funcionarioElegido.value = f
+  huellaVerificada.value = false
   if (f) form.areaUnidad = f.unidadOficina
 }
 
@@ -64,7 +70,13 @@ function validateAll(): boolean {
     validateField(field)
   })
   validateComprobante()
-  return !errors.funcionarioId && !errors.areaUnidad && !errors.comprobante
+  errorHuella.value = ''
+  if (form.metodoVerificacion === 'HUELLA_DIGITAL') {
+    if (!funcionarioElegido.value?.huellaRegistradaEn)
+      errorHuella.value = 'El funcionario no tiene huella registrada (se enrola en Funcionarios)'
+    else if (!huellaVerificada.value) errorHuella.value = 'Verifique la huella del funcionario antes de registrar'
+  }
+  return !errorHuella.value && !errors.funcionarioId && !errors.areaUnidad && !errors.comprobante
 }
 
 function addComprobante(comprobante: ComprobanteC31) {
@@ -102,6 +114,8 @@ function handleSubmit() {
   form.funcionarioId = null
   form.areaUnidad = ''
   form.observaciones = ''
+  funcionarioElegido.value = null
+  huellaVerificada.value = false
   touched.funcionarioId = false
   touched.areaUnidad = false
 }
@@ -161,8 +175,30 @@ function handleSubmit() {
         class="w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
       >
         <option value="FIRMA_MANUAL">Firma manual</option>
-        <option value="HUELLA_DIGITAL">Huella digital (futuro)</option>
+        <option value="HUELLA_DIGITAL">Huella digital (lector demo)</option>
       </select>
+    </div>
+
+    <div v-if="form.metodoVerificacion === 'HUELLA_DIGITAL'" class="sm:col-span-2">
+      <p v-if="!funcionarioElegido" class="text-xs text-ink-500 dark:text-ink-400">
+        Seleccione primero al funcionario para verificar su huella.
+      </p>
+      <p
+        v-else-if="!funcionarioElegido.huellaRegistradaEn"
+        class="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-400/10 dark:text-amber-200"
+      >
+        Este funcionario aún no tiene huella registrada. Enrólela en Funcionarios → Editar.
+      </p>
+      <HuellaPanel
+        v-else
+        :key="funcionarioElegido.id"
+        :funcionario-id="funcionarioElegido.id"
+        modo="verificar"
+        tiene-huella
+        @verificado="huellaVerificada = true"
+        @fallo="huellaVerificada = false"
+      />
+      <p v-if="errorHuella" class="mt-1 text-xs text-red-600">{{ errorHuella }}</p>
     </div>
 
     <BaseInput

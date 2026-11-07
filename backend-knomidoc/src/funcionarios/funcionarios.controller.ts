@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -14,6 +15,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { FuncionariosService } from './funcionarios.service';
 import { CreateFuncionarioDto } from './dto/create-funcionario.dto';
 import { UpdateFuncionarioDto } from './dto/update-funcionario.dto';
+import { HuellaDto } from './dto/huella.dto';
 import { FilterFuncionariosDto } from './dto/filter-funcionarios.dto';
 
 @ApiTags('funcionarios')
@@ -46,6 +48,30 @@ export class FuncionariosController {
     @Body() dto: UpdateFuncionarioDto,
   ) {
     return this.service.update(id, dto);
+  }
+
+  @Roles('ADMIN', 'ENCARGADO_PRESTAMOS')
+  @Put(':id/huella')
+  registrarHuella(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: HuellaDto,
+  ) {
+    return this.service.registrarHuella(id, dto.plantilla as string, dto.lector);
+  }
+
+  @Roles('ADMIN', 'ENCARGADO_PRESTAMOS')
+  @Delete(':id/huella')
+  quitarHuella(@Param('id', ParseIntPipe) id: number) {
+    return this.service.quitarHuella(id);
+  }
+
+  @Roles('ADMIN', 'ENCARGADO_PRESTAMOS')
+  @Post(':id/huella/verificar')
+  verificarHuella(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: HuellaDto,
+  ) {
+    return this.service.verificarHuella(id, dto.plantilla as string);
   }
 
   @Roles('ADMIN')

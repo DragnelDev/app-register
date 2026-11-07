@@ -5,7 +5,14 @@ export type EstadoFisico =
 export type TipoC31 = 'CON_IMPUTACION' | 'SIN_IMPUTACION'
 export type EstadoPrestamoNota = 'BORRADOR' | 'ENTREGADO' | 'DEVUELTO'
 export type MetodoVerificacion = 'FIRMA_MANUAL' | 'HUELLA_DIGITAL'
-export type RolUsuario = 'ADMIN' | 'OPERADOR_ARCHIVOS' | 'ENCARGADO_PRESTAMOS' | 'CONSULTA_EXTERNA'
+export type RolUsuario =
+  | 'ADMIN'
+  | 'OPERADOR_ARCHIVOS'
+  | 'ENCARGADO_PRESTAMOS'
+  | 'REMITENTE_C31'
+  | 'CONSULTA_AVANZADA'
+  | 'SOLO_LECTURA'
+  | 'CONSULTA_EXTERNA'
 
 /** Envelope estándar de respuesta paginada del backend */
 export interface PaginatedResponse<T> {

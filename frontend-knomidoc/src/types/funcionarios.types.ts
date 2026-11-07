@@ -10,6 +10,9 @@ export interface Funcionario {
   unidadOficina: string
   telefono?: string | null
   estado: EstadoFuncionario
+  /** Fecha en que se enroló su huella (null = sin huella). */
+  huellaRegistradaEn?: string | null
+  huellaLector?: string | null
   fechaCreacion?: string
   fechaModificacion?: string
 }

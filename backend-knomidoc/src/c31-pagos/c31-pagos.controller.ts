@@ -1,3 +1,4 @@
+import { ROLES_REPORTES } from '../common/constants/roles.constant';
 import {
   Body,
   Controller,
@@ -50,6 +51,7 @@ export class C31PagosController {
     return this.service.porComprobante(comprobanteId);
   }
 
+  @Roles(...ROLES_REPORTES)
   @Get('export')
   async exportExcel(@Query() query: FilterC31PagoDto) {
     const buffer = await this.service.exportExcel(query);

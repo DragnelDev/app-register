@@ -6,7 +6,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 
 @ApiTags('reportes')
 @ApiBearerAuth()
-@Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'CONSULTA_EXTERNA')
+@Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'CONSULTA_AVANZADA', 'CONSULTA_EXTERNA')
 @Controller('reportes')
 export class ReportesController {
   constructor(private readonly service: ReportesService) {}

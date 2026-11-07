@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import MontoInput from '@/components/shared/MontoInput.vue'
+import FechaInput from '@/components/shared/FechaInput.vue'
 import { computed, reactive, ref, watch } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -224,7 +226,7 @@ const etiqueta = 'mb-1 block text-xs font-semibold text-ink-700 dark:text-ink-20
 
         <div>
           <label :class="etiqueta">Monto (Bs) <span class="text-seal-500">*</span></label>
-          <input v-model="form.monto" type="number" step="0.01" min="0" :class="campo" />
+          <MontoInput v-model="form.monto" />
           <button
             type="button"
             class="mt-1 text-xs text-seal-600 hover:underline dark:text-seal-300"
@@ -235,7 +237,7 @@ const etiqueta = 'mb-1 block text-xs font-semibold text-ink-700 dark:text-ink-20
         </div>
         <div>
           <label :class="etiqueta">Fecha de pago</label>
-          <input v-model="form.fechaPago" type="date" :class="campo" />
+          <FechaInput v-model="form.fechaPago" />
         </div>
 
         <div>

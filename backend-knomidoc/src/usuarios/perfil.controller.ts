@@ -6,6 +6,7 @@ import { UsuariosService } from './usuarios.service';
 import { CambiarPasswordDto, UpdatePerfilDto } from './dto/perfil.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Usuario } from './entities/usuario.entity';
+import { AbiertoATodosLosPerfiles } from '../auth/decorators/abierto-a-todos.decorator';
 import { SinVerificacionEmail } from '../auth/decorators/sin-verificacion-email.decorator';
 import { ComprobantesC31 } from '../comprobantes_c31/entities/comprobantes_c31.entity';
 import { C31Historial } from '../c31-historial/entities/c31-historial.entity';
@@ -14,6 +15,7 @@ import { C31Historial } from '../c31-historial/entities/c31-historial.entity';
 @ApiTags('perfil')
 @ApiBearerAuth()
 @SinVerificacionEmail()
+@AbiertoATodosLosPerfiles()
 @Controller('perfil')
 export class PerfilController {
   constructor(

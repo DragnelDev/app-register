@@ -16,6 +16,13 @@ export const authService = {
     return apiClient.post<LoginResponse>('/auth/login', payload).then((r) => r.data)
   },
 
+  /** Cambia el perfil activo (devuelve un token nuevo con ese rol). */
+  cambiarPerfil(rol: string) {
+    return apiClient
+      .post<{ accessToken: string; rol: string; roles: string[] }>('/auth/perfil', { rol })
+      .then((r) => r.data)
+  },
+
   me() {
     return apiClient.get<Usuario>('/auth/me').then((r) => r.data)
   },

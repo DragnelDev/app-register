@@ -188,6 +188,18 @@ export class CreateComprobantesC31Dto {
   })
   readonly numeroDevengado?: string;
 
+  @ApiPropertyOptional({
+    type: [Number],
+    example: [12],
+    description:
+      'Beneficiarios del directorio (módulo Beneficiarios). Se suman a `beneficiarios`.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsInt({ each: true })
+  readonly beneficiarioIds?: number[];
+
   @ApiPropertyOptional({ type: [String], example: ['Juan Pérez'] })
   @IsOptional()
   @IsArray()

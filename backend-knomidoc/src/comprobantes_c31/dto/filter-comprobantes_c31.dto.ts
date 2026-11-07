@@ -92,6 +92,15 @@ export class FilterComprobantesC31Dto extends PaginationQueryDto {
   @IsString()
   detalle?: string;
 
+  @ApiPropertyOptional({ description: 'Beneficiario del directorio' })
+  @IsOptional()
+  @Transform(({ value }): unknown => (value === '' ? undefined : value), {
+    toClassOnly: true,
+  })
+  @Type(() => Number)
+  @IsInt()
+  beneficiarioId?: number;
+
   @ApiPropertyOptional({
     example: '1234',
     description:

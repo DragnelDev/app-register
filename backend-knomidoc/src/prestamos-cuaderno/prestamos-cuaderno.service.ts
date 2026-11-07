@@ -70,8 +70,15 @@ export class PrestamosCuadernoService {
           'El funcionario solicitante está inactivo',
         );
       }
-      const areaUnidad =
-        dto.areaUnidad ?? (funcionario.unidadOficina as string);
+      if (
+        dto.metodoVerificacion === 'HUELLA_DIGITAL' &&
+        !funcionario.huellaRegistradaEn
+      ) {
+        throw new BadRequestException(
+          'El funcionario no tiene huella registrada: enrólela en el módulo Funcionarios',
+        );
+      }
+      const areaUnidad = dto.areaUnidad ?? (funcionario.unidadOficina as string);
       const salida = dto.fechaHoraSalida
         ? new Date(dto.fechaHoraSalida)
         : new Date();
@@ -96,7 +103,8 @@ export class PrestamosCuadernoService {
         if (!comprobante) {
           throw new NotFoundException(`El comprobante ${id} no existe`);
         }
-        const nombre = identificadorC31(comprobante, `#${id}`);
+        const nombre =
+identificadorC31(comprobante, `#${id}`);
         if (comprobante.estadoFisico === EstadoFisicoC31.PRESTADO) {
           throw new ConflictException(
             `El comprobante ${nombre} ya se encuentra prestado`,

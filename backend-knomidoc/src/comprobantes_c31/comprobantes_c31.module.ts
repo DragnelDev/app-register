@@ -7,6 +7,7 @@ import { Carpeta } from 'src/carpetas/entities/carpeta.entity';
 import { C31Historial } from '../c31-historial/entities/c31-historial.entity';
 import { PrestamosNota } from '../prestamos-nota/entities/prestamos-nota.entity';
 import { PrestamosCuaderno } from '../prestamos-cuaderno/entities/prestamos-cuaderno.entity';
+import { BeneficiariosModule } from '../beneficiarios/beneficiarios.module';
 import { C31SeguimientoService } from './c31-seguimiento.service';
 
 @Module({
@@ -18,6 +19,7 @@ import { C31SeguimientoService } from './c31-seguimiento.service';
       PrestamosNota,
       PrestamosCuaderno,
     ]),
+    BeneficiariosModule,
   ],
   controllers: [ComprobantesC31Controller],
   providers: [ComprobantesC31Service, C31SeguimientoService],

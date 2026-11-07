@@ -1,3 +1,4 @@
+import { ROLES_REPORTES } from '../common/constants/roles.constant';
 import {
   Controller,
   Get,
@@ -38,6 +39,7 @@ export class PrestamosNotaController {
   }
 
   /** Nota de remisión en PDF (carta) lista para imprimir y firmar. */
+  @Roles(...ROLES_REPORTES)
   @Get('pdf')
   async pdf(
     @Query('numeroNota') numeroNota: string,

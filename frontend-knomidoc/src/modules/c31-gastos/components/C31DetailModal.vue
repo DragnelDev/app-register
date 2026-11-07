@@ -12,7 +12,8 @@ import { useAuthStore } from '@/stores/auth.store'
 import { useC31Store } from '@/stores/c31.store'
 import { extractApiErrorMessage } from '@/utils/http-error'
 import { ESTADO_C31_LABEL, ESTADOS_C31, TRANSICIONES_MANUALES, bs } from '@/utils/estados'
-import { rotuloC31, type ComprobanteC31 } from '@/types/c31.types'
+import { c31Service } from '@/services/c31.service'
+import { rotuloC31, type C31GrupoMiembro, type ComprobanteC31 } from '@/types/c31.types'
 import type { EstadoFisico } from '@/types/common.types'
 
 const props = defineProps<{
@@ -38,6 +39,25 @@ const nuevoEstado = ref<EstadoFisico | ''>('')
 const motivo = ref('')
 const errorEstado = ref('')
 const guardando = ref(false)
+const grupo = ref<C31GrupoMiembro[]>([])
+/** "PREV 3 - PREV 5": los comprobantes unidos a este, de un vistazo. */
+const unidos = computed(() => grupo.value.map((m) => m.identificador).join(' - '))
+
+async function cargarGrupo() {
+  grupo.value = []
+  if (!props.comprobante?.grupoUnionId) return
+  try {
+    grupo.value = await c31Service.grupo(props.comprobante.id)
+  } catch {
+    grupo.value = []
+  }
+}
+async function alCambiarUnion() {
+  if (props.comprobante) await store.fetchOne(props.comprobante.id)
+  await cargarGrupo()
+  emit('digitalizacion')
+}
+
 const version = ref(0) // fuerza la recarga de las pestañas tras un cambio de estado
 
 watch(
@@ -45,6 +65,7 @@ watch(
   () => {
     if (!props.modelValue) return
     pestana.value = props.tab ?? 'datos'
+    cargarGrupo()
     cambiandoEstado.value = false
     errorEstado.value = ''
   },
@@ -96,7 +117,7 @@ async function confirmarEstado() {
 const tabs = [
   { id: 'datos', label: 'Datos' },
   { id: 'pagos', label: 'Pagos' },
-  { id: 'seguimiento', label: 'Seguimiento' },
+  { id: 'seguimiento', label: 'Seguimiento y ubicación' },
   { id: 'union', label: 'Unión' },
   { id: 'adjuntos', label: 'Digitalización' },
 ] as const
@@ -123,25 +144,22 @@ const tabs = [
             · Gestión {{ comprobante.gestion }} ·
             {{ comprobante.tipoC31 === 'CON_IMPUTACION' ? 'Con imputación' : 'Sin imputación' }}
           </p>
+          <p
+            v-if="grupo.length > 1"
+            class="mt-1 inline-flex max-w-full items-center gap-1.5 rounded-full bg-seal-50 px-2.5 py-1 text-xs font-semibold text-seal-700 dark:bg-seal-500/10 dark:text-seal-300"
+            title="Comprobantes unidos: vienen como un solo documento"
+          >
+            <i class="fa-solid fa-link" aria-hidden="true" />
+            <span class="truncate">{{ unidos }}</span>
+          </p>
         </div>
         <div class="flex flex-col items-end gap-1">
           <BaseBadge :estado="comprobante.estadoFisico" />
           <span
             class="text-xs font-medium"
-            :class="
-              comprobante.archivoAdjuntoUrl
-                ? 'text-emerald-600 dark:text-emerald-300'
-                : 'text-amber-600 dark:text-amber-300'
-            "
+            :class="comprobante.archivoAdjuntoUrl ? 'text-emerald-600 dark:text-emerald-300' : 'text-amber-600 dark:text-amber-300'"
           >
-            <i
-              :class="
-                comprobante.archivoAdjuntoUrl
-                  ? 'fa-solid fa-circle-check'
-                  : 'fa-solid fa-hourglass-half'
-              "
-              aria-hidden="true"
-            />
+            <i :class="comprobante.archivoAdjuntoUrl ? 'fa-solid fa-circle-check' : 'fa-solid fa-hourglass-half'" aria-hidden="true" />
             {{ comprobante.archivoAdjuntoUrl ? 'Digitalizado' : 'Pendiente de digitalizar' }}
           </span>
           <button
@@ -244,7 +262,7 @@ const tabs = [
         v-else-if="pestana === 'union'"
         :comprobante="comprobante"
         :puede-editar="auth.puedeRegistrarC31 && comprobante.estadoFisico !== 'ANULADO'"
-        @cambio="alCambiarAdjuntos"
+        @cambio="alCambiarUnion"
       />
       <C31AdjuntosTab
         v-else-if="pestana === 'adjuntos'"

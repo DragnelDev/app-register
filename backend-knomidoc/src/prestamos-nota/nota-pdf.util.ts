@@ -72,7 +72,7 @@ export function generarNotaPrestamoPdf({
 
   const doc = new PDFDocument({
     size: 'LETTER',
-    margins: { top: 60, bottom: 60, left: 72, right: 72 },
+    margins: { top: 42, bottom: 42, left: 64, right: 64 },
     info: {
       Title: `Nota de préstamo ${primera.numeroNotaSolicitud}`,
       Author: entidad,
@@ -90,13 +90,13 @@ export function generarNotaPrestamoPdf({
     .font('Helvetica')
     .fontSize(10)
     .text(unidad.toUpperCase(), { align: 'center' });
-  doc.moveDown(0.3);
+  doc.moveDown(0.2);
   doc
     .moveTo(izq, doc.y)
     .lineTo(izq + ancho, doc.y)
     .lineWidth(1.2)
     .stroke();
-  doc.moveDown(0.8);
+  doc.moveDown(0.5);
 
   // --- CITE y lugar/fecha
   doc
@@ -108,10 +108,10 @@ export function generarNotaPrestamoPdf({
     .text(`${ciudad}, ${fechaLarga(new Date().toISOString())}`, {
       align: 'right',
     });
-  doc.moveDown(1);
+  doc.moveDown(0.6);
 
   // --- Destinatario
-  doc.font('Helvetica').fontSize(11).text('Señor(a):');
+  doc.font('Helvetica').fontSize(10.5).text('Señor(a):');
   doc
     .font('Helvetica-Bold')
     .text(
@@ -123,7 +123,7 @@ export function generarNotaPrestamoPdf({
     .font('Helvetica-Bold')
     .text(String(primera.institucionSolicitante ?? '').toUpperCase());
   doc.font('Helvetica-Bold').text('Presente.-');
-  doc.moveDown(0.8);
+  doc.moveDown(0.5);
 
   // --- Referencia
   doc.font('Helvetica-Bold').text('REF.: ', { continued: true });
@@ -134,21 +134,21 @@ export function generarNotaPrestamoPdf({
     ).toUpperCase(),
     { underline: false },
   );
-  doc.moveDown(0.8);
+  doc.moveDown(0.5);
 
   // --- Cuerpo
   doc
     .font('Helvetica')
-    .fontSize(11)
+    .fontSize(10.5)
     .text('De mi mayor consideración:', { align: 'left' });
-  doc.moveDown(0.5);
+  doc.moveDown(0.3);
   doc.text(
     `En atención a su nota ${primera.numeroNotaSolicitud} y en el marco de la normativa de gestión documental, ` +
       `se remite en calidad de PRÉSTAMO TEMPORAL ${filas.length === 1 ? 'el siguiente comprobante C31' : `los siguientes ${filas.length} comprobantes C31`}, ` +
       `custodiados por la ${unidad.toLowerCase()} de ${entidad.toLowerCase().includes('municipal') ? 'este Gobierno Autónomo Municipal' : 'esta entidad'}:`,
     { align: 'justify' },
   );
-  doc.moveDown(0.6);
+  doc.moveDown(0.4);
 
   // --- Tabla de documentos
   const columnas = [
@@ -202,7 +202,8 @@ export function generarNotaPrestamoPdf({
   let total = 0;
   filas.forEach((f, i) => {
     const c = f.comprobante;
-    const ident = rotuloC31(c, '—');
+    const ident =
+rotuloC31(c, '—');
     const benef = (c?.beneficiarios ?? [])
       .map((b) => b.nombreBeneficiario)
       .join(', ');
@@ -211,7 +212,7 @@ export function generarNotaPrestamoPdf({
       String(i + 1),
       `${c?.tipoC31 === 'SIN_IMPUTACION' ? 'Dev.' : 'Prev.'} ${ident}`,
       String(c?.gestion ?? ''),
-      `${benef}${benef && glosa ? ' — ' : ''}${glosa.length > 140 ? glosa.slice(0, 137) + '…' : glosa}`,
+      `${benef}${benef && glosa ? ' — ' : ''}${glosa.length > 100 ? glosa.slice(0, 97) + '…' : glosa}`,
       bs(c?.montoTotal),
       c?.numeroFolio ?? '—',
     ];
@@ -235,7 +236,7 @@ export function generarNotaPrestamoPdf({
   doc.x = izq;
 
   // --- Condiciones
-  doc.font('Helvetica').fontSize(11);
+  doc.font('Helvetica').fontSize(10.5);
   doc.text(
     `Los documentos deberán ser devueltos ${devolucion ? `hasta el ${fechaLarga(devolucion)}` : 'a la brevedad posible, una vez concluida la revisión'}, ` +
       'en las mismas condiciones en que fueron entregados: completos, foliados y sin alteraciones, ' +
@@ -245,23 +246,30 @@ export function generarNotaPrestamoPdf({
     { width: ancho, align: 'justify' },
   );
   if (observaciones) {
-    doc.moveDown(0.4);
+    doc.moveDown(0.3);
     doc
       .font('Helvetica-Bold')
       .text('Observaciones: ', { continued: true, width: ancho });
     doc.font('Helvetica').text(observaciones, { width: ancho });
   }
-  doc.moveDown(0.6);
+  doc.moveDown(0.4);
   doc.text('Sin otro particular, saludo a usted atentamente.', izq, doc.y, {
     width: ancho,
   });
 
-  // --- Firmas
-  if (doc.y > doc.page.height - doc.page.margins.bottom - 150) doc.addPage();
-  const yf = Math.max(
-    doc.y + 55,
-    doc.page.height - doc.page.margins.bottom - 140,
-  );
+  // --- Firmas, fecha de recepción y distribución: un solo bloque que sigue al
+  // texto. Si no cabe completo en la hoja se pasa entero a la siguiente (nunca
+  // queda una firma suelta ni una hoja casi vacía).
+  // El bloque mide ~115 pt (42 de espacio para firmar + firmas + recepción + Cc).
+  // Se escribe dentro del margen inferior, por eso se anula: pdfkit agrega una
+  // hoja en blanco si un texto termina más abajo del margen.
+  const ALTO_FIRMAS = 115;
+  const LIMITE_INFERIOR = doc.page.height - 30;
+  if (doc.y + ALTO_FIRMAS > LIMITE_INFERIOR) {
+    doc.addPage();
+  }
+  doc.page.margins.bottom = 0;
+  const yf = doc.y + 42;
   const mitad = ancho / 2 - 15;
   const bloque = (x: number, titulo: string, l1: string, l2: string) => {
     doc
@@ -285,28 +293,24 @@ export function generarNotaPrestamoPdf({
     emisor.nombre,
     [emisor.cargo, unidad].filter(Boolean).join(' - '),
   );
+  const yAbajoEmisor = doc.y;
   bloque(
     izq + mitad + 30,
     'RECIBÍ CONFORME',
     String(primera.funcionarioResponsable ?? ''),
     String(primera.institucionSolicitante ?? ''),
   );
+  const yDebajo = Math.max(yAbajoEmisor, doc.y) + 10;
   doc
     .font('Helvetica')
     .fontSize(8)
     .text(
       'Fecha y hora de recepción: ____ / ____ / ________   ____:____        C.I.: ______________',
       izq,
-      doc.y + 14,
+      yDebajo,
       { width: ancho, align: 'right' },
     );
-
-  // --- Distribución
-  doc
-    .fontSize(8)
-    .text(`Cc. Archivo`, izq, doc.page.height - doc.page.margins.bottom - 14, {
-      width: ancho,
-    });
+  doc.fontSize(8).text('Cc. Archivo', izq, doc.y + 6, { width: ancho });
   doc.end();
 
   return new Promise((resolve) =>

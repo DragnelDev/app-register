@@ -76,9 +76,7 @@ export class PrestamosNotaService {
     });
     if (!f) throw new NotFoundException('El funcionario no existe');
     if (f.estado === EstadoFuncionario.INACTIVO) {
-      throw new BadRequestException(
-        'El funcionario seleccionado está inactivo',
-      );
+      throw new BadRequestException('El funcionario seleccionado está inactivo');
     }
     return {
       funcionarioId: f.id as number,
@@ -505,9 +503,7 @@ export class PrestamosNotaService {
     return this.dataSource.transaction(async (manager) => {
       const filas = await this.filasDeNota(manager, numeroNota);
       if (filas.some((f) => f.estadoPrestamo !== EstadoPrestamoNota.BORRADOR)) {
-        throw new ConflictException(
-          'Solo se pueden descartar notas en borrador',
-        );
+        throw new ConflictException('Solo se pueden descartar notas en borrador');
       }
       await manager.remove(PrestamosNota, filas);
       return { eliminados: filas.length };

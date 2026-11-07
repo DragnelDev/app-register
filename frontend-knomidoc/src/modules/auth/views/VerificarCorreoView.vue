@@ -68,11 +68,11 @@ onBeforeUnmount(() => clearInterval(reloj))
 
 <template>
   <div class="flex min-h-screen items-center justify-center bg-ink-950 px-4">
-    <div class="w-full max-w-sm rounded-lg bg-white p-8 shadow-xl">
+    <div class="w-full max-w-sm rounded-lg bg-white p-8 shadow-xl dark:border dark:border-white/10 dark:bg-ink-900">
       <div class="mb-5 text-center">
-        <h1 class="font-display text-2xl font-semibold text-ink-900">Verifica tu correo</h1>
-        <p class="mt-2 text-sm text-ink-500">
-          Enviamos un código de 6 dígitos a <strong class="text-ink-800">{{ correo }}</strong
+        <h1 class="font-display text-2xl font-semibold text-ink-900 dark:text-white">Verifica tu correo</h1>
+        <p class="mt-2 text-sm text-ink-500 dark:text-ink-400">
+          Enviamos un código de 6 dígitos a <strong class="text-ink-800 dark:text-ink-100">{{ correo }}</strong
           >. Vence en 10 minutos.
         </p>
       </div>
@@ -89,7 +89,7 @@ onBeforeUnmount(() => clearInterval(reloj))
       <div class="mt-5 space-y-2 text-center text-sm">
         <button
           type="button"
-          class="font-medium text-ink-700 hover:underline disabled:cursor-not-allowed disabled:text-ink-300 disabled:no-underline"
+          class="font-medium text-ink-700 dark:text-ink-200 hover:underline disabled:cursor-not-allowed disabled:text-ink-300 disabled:no-underline"
           :disabled="espera > 0 || enviando"
           @click="enviar"
         >
@@ -97,7 +97,7 @@ onBeforeUnmount(() => clearInterval(reloj))
         </button>
         <p class="text-ink-400">
           ¿Correo equivocado?
-          <RouterLink to="/perfil" class="font-medium text-ink-700 hover:underline"
+          <RouterLink to="/perfil" class="font-medium text-ink-700 dark:text-ink-200 hover:underline"
             >Corrígelo en tu perfil</RouterLink
           >
         </p>

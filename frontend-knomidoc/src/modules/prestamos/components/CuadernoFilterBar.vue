@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { useAuthStore } from '@/stores/auth.store'
 import { reactive, watch } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FuncionarioSelect from '@/components/shared/FuncionarioSelect.vue'
 import type { CuadernoFilterState } from '@/types/prestamos.types'
 
+const auth = useAuthStore()
 const props = defineProps<{
   modelValue: CuadernoFilterState
   gestiones: number[]
@@ -61,16 +63,8 @@ const campo =
       <FuncionarioSelect v-model="local.funcionarioId" label="Funcionario" />
     </div>
     <div>
-      <label class="mb-1 block text-xs font-medium text-ink-500" for="cq-unidad"
-        >Unidad / área</label
-      >
-      <input
-        id="cq-unidad"
-        v-model="local.unidad"
-        type="text"
-        placeholder="Ej: Auditoría"
-        :class="campo"
-      />
+      <label class="mb-1 block text-xs font-medium text-ink-500" for="cq-unidad">Unidad / área</label>
+      <input id="cq-unidad" v-model="local.unidad" type="text" placeholder="Ej: Auditoría" :class="campo" />
     </div>
     <div>
       <label class="mb-1 block text-xs font-medium text-ink-500" for="cq-estado">Estado</label>
@@ -84,7 +78,13 @@ const campo =
     <div class="flex gap-2">
       <BaseButton type="submit" size="sm">Filtrar</BaseButton>
       <BaseButton variant="secondary" size="sm" @click="limpiar">Limpiar</BaseButton>
-      <BaseButton variant="secondary" size="sm" :loading="generandoPdf" @click="emit('pdf')">
+      <BaseButton
+        v-if="auth.puedeExportar"
+        variant="secondary"
+        size="sm"
+        :loading="generandoPdf"
+        @click="emit('pdf')"
+      >
         <i class="fa-solid fa-file-pdf" aria-hidden="true" /> Reporte PDF
       </BaseButton>
     </div>

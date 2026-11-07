@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAuthStore } from '@/stores/auth.store'
 import DevolucionModal from '../components/DevolucionModal.vue'
 import IconButton from '@/components/ui/IconButton.vue'
 import C31DetailModal from '@/modules/c31-gastos/components/C31DetailModal.vue'
@@ -18,6 +19,7 @@ import { prestamosService } from '@/services/prestamos.service'
 import type { PrestamoNota, PrestamoNotaCreatePayload } from '@/types/prestamos.types'
 import { rotuloC31 } from '@/types/c31.types'
 
+const auth = useAuthStore()
 const store = usePrestamosStore()
 const modalOpen = ref(false)
 const saving = ref(false)
@@ -161,7 +163,7 @@ onMounted(() => store.fetchNotas())
           Interna).
         </p>
       </div>
-      <BaseButton @click="modalOpen = true">+ Registrar solicitud</BaseButton>
+      <BaseButton v-if="!auth.esSoloConsulta" @click="modalOpen = true">+ Registrar solicitud</BaseButton>
     </div>
 
     <p
@@ -194,41 +196,34 @@ onMounted(() => store.fetchNotas())
     >
       <template #cell-comprobanteId="{ row }">{{ nombreComprobante(row) }}</template>
       <template #cell-funcionarioResponsable="{ row }">
-        {{
-          row.funcionario
-            ? `${row.funcionario.nombres} ${row.funcionario.apellidos}`
-            : (row.funcionarioResponsable ?? '—')
-        }}
+        {{ row.funcionario ? `${row.funcionario.nombres} ${row.funcionario.apellidos}` : (row.funcionarioResponsable ?? '—') }}
       </template>
-      <template #cell-institucionSolicitante="{ row }">{{
-        row.institucionSolicitante ?? '—'
-      }}</template>
+      <template #cell-institucionSolicitante="{ row }">{{ row.institucionSolicitante ?? '—' }}</template>
       <template #cell-estadoPrestamo="{ row }"><BaseBadge :estado="row.estadoPrestamo" /></template>
       <template #actions="{ row }">
         <div class="flex justify-end gap-1">
           <template v-if="row.estadoPrestamo === 'BORRADOR'">
-            <IconButton
+            <IconButton v-if="!auth.esSoloConsulta"
               icon="fa-pen-to-square"
               label="Editar y previsualizar nota"
               variant="primary"
               @click="editarNota(row.numeroNotaSolicitud)"
             />
-            <IconButton
+            <IconButton v-if="!auth.esSoloConsulta"
               icon="fa-circle-check"
               label="Aprobar y entregar"
               variant="success"
               :loading="aprobando === row.numeroNotaSolicitud"
               @click="aprobar(row.numeroNotaSolicitud)"
             />
-            <IconButton
+            <IconButton v-if="!auth.esSoloConsulta"
               icon="fa-trash"
               label="Descartar borrador"
               variant="danger"
               @click="descartar(row.numeroNotaSolicitud)"
             />
           </template>
-          <IconButton
-            v-else
+          <IconButton v-else-if="auth.puedeExportar"
             icon="fa-print"
             label="Imprimir nota (PDF)"
             variant="primary"
@@ -239,8 +234,7 @@ onMounted(() => store.fetchNotas())
             label="Ver seguimiento del comprobante"
             @click="verSeguimiento(row)"
           />
-          <IconButton
-            v-if="row.estadoPrestamo === 'ENTREGADO'"
+          <IconButton v-if="(row.estadoPrestamo === 'ENTREGADO') && !auth.esSoloConsulta"
             icon="fa-rotate-left"
             label="Devolver nota completa"
             variant="success"

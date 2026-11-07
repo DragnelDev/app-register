@@ -155,6 +155,8 @@ export interface C31FilterState {
   search?: string
   /** Detalle / glosa del gasto: "combustible", "pasajes"... */
   detalle?: string
+  /** Beneficiario del directorio */
+  beneficiarioId?: number | ''
   /** N° de preventivo (o devengado) */
   numeroPreventivo?: string
   depositoId?: number | ''
@@ -208,16 +210,39 @@ export interface C31HistorialItem {
   fecha: string
   estadoAnterior: string | null
   estadoNuevo: string
-  origen: 'REGISTRO' | 'MANUAL' | 'ACTA' | 'PRESTAMO'
+  origen: 'REGISTRO' | 'MANUAL' | 'ACTA' | 'PRESTAMO' | 'SISTEMA' | 'REMISION'
   referencia: string | null
   detalle: string | null
   usuario: string | null
+}
+
+/** Dónde está físicamente el comprobante y quién lo tiene. */
+export interface C31UbicacionFisica {
+  ubicacionFisica: string | null
+  numeroFolio: string | null
+  carpetas: {
+    id: number
+    numeroParte: number
+    carpeta: string | null
+    referencia: string | null
+    estante: string | null
+    deposito: string | null
+  }[]
+  enPoderDe: {
+    solicitante: string
+    institucionOArea: string
+    desde: string
+    devolucionEstimada: string | null
+    vencido: boolean
+    referencia: string
+  } | null
 }
 
 export interface C31Seguimiento {
   comprobanteId: number
   estadoFisico: string
   acta: { id: number; numeroActa: string; estado: string } | null
+  ubicacion: C31UbicacionFisica
   resumenPrestamos: { total: number; activos: number; vencidos: number; conNovedad: number }
   prestamos: C31PrestamoSeguimiento[]
   historial: C31HistorialItem[]

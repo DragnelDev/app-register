@@ -44,4 +44,28 @@ export class Funcionario extends BaseFechasEntity {
     default: EstadoFuncionario.ACTIVO,
   })
   estado: EstadoFuncionario | undefined;
+
+  /**
+   * Plantilla de huella enrolada. Hoy la genera el lector DEMO del frontend; con un
+   * lector real (SDK) aquí se guarda la plantilla que entregue el dispositivo.
+   * No se devuelve en las consultas (select: false).
+   */
+  @Column({
+    name: 'huella_plantilla',
+    type: 'text',
+    nullable: true,
+    select: false,
+  })
+  huellaPlantilla?: string | null;
+
+  @Column({
+    name: 'huella_registrada_en',
+    type: 'timestamp',
+    nullable: true,
+  })
+  huellaRegistradaEn?: Date | null;
+
+  /** 'DEMO' o el identificador del lector real que la capturó. */
+  @Column({ name: 'huella_lector', type: 'varchar', length: 30, nullable: true })
+  huellaLector?: string | null;
 }

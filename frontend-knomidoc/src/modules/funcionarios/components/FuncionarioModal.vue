@@ -4,6 +4,7 @@ import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import HuellaPanel from '@/components/shared/HuellaPanel.vue'
 import {
   required,
   maxLength,
@@ -25,6 +26,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   create: [payload: FuncionarioPayload]
   update: [id: number, payload: Partial<FuncionarioPayload>]
+  huella: []
 }>()
 
 const vacio = () => ({
@@ -48,7 +50,12 @@ const rules = {
     pattern(/^[A-Za-z0-9-]+$/, 'Solo letras, números y guion'),
   ],
   nombres: [required('Los nombres son obligatorios'), minLength(2), nombreOk, maxLength(100)],
-  apellidos: [required('Los apellidos son obligatorios'), minLength(2), nombreOk, maxLength(100)],
+  apellidos: [
+    required('Los apellidos son obligatorios'),
+    minLength(2),
+    nombreOk,
+    maxLength(100),
+  ],
   cargo: [required('El cargo es obligatorio'), maxLength(150)],
   unidadOficina: [required('La unidad u oficina es obligatoria'), maxLength(150)],
 } as const
@@ -110,15 +117,8 @@ function guardar() {
     :title="esEdicion() ? 'Editar funcionario' : 'Registrar funcionario'"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <form
-      id="form-funcionario"
-      class="grid grid-cols-1 gap-4 sm:grid-cols-2"
-      @submit.prevent="guardar"
-    >
-      <p
-        v-if="serverError"
-        class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 sm:col-span-2 dark:bg-red-950/40 dark:text-red-300"
-      >
+    <form id="form-funcionario" class="grid grid-cols-1 gap-4 sm:grid-cols-2" @submit.prevent="guardar">
+      <p v-if="serverError" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 sm:col-span-2 dark:bg-red-950/40 dark:text-red-300">
         {{ serverError }}
       </p>
       <BaseInput v-model="form.ci" label="CI" required :error="errors.ci" @blur="validar" />
@@ -133,6 +133,23 @@ function guardar() {
         required
         :error="errors.unidadOficina"
       />
+      <div v-if="funcionario" class="sm:col-span-2">
+        <p class="mb-1 text-sm font-medium text-ink-700 dark:text-ink-200">
+          Huella digital
+          <span
+            class="ml-1 text-xs font-normal"
+            :class="funcionario.huellaRegistradaEn ? 'text-emerald-600 dark:text-emerald-300' : 'text-ink-400'"
+          >
+            {{ funcionario.huellaRegistradaEn ? 'registrada' : 'sin registrar' }}
+          </span>
+        </p>
+        <HuellaPanel
+          :funcionario-id="funcionario.id"
+          modo="enrolar"
+          :tiene-huella="Boolean(funcionario.huellaRegistradaEn)"
+          @enrolada="emit('huella')"
+        />
+      </div>
       <BaseSelect
         v-if="esEdicion()"
         v-model="form.estado"
@@ -144,9 +161,7 @@ function guardar() {
       />
     </form>
     <template #footer>
-      <BaseButton variant="secondary" @click="emit('update:modelValue', false)"
-        >Cancelar</BaseButton
-      >
+      <BaseButton variant="secondary" @click="emit('update:modelValue', false)">Cancelar</BaseButton>
       <BaseButton type="submit" form="form-funcionario" :loading="saving">Guardar</BaseButton>
     </template>
   </BaseModal>

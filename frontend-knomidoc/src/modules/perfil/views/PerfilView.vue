@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { rolLabel } from '@/constants/roles'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -24,12 +25,7 @@ const perfil = ref<Perfil | null>(null)
 const cargando = ref(true)
 const errorCarga = ref('')
 
-const ROL: Record<string, string> = {
-  ADMIN: 'Administrador',
-  OPERADOR_ARCHIVOS: 'Operador de archivos',
-  ENCARGADO_PRESTAMOS: 'Encargado de préstamos',
-  CONSULTA_EXTERNA: 'Consulta externa',
-}
+const ROL = new Proxy({} as Record<string, string>, { get: (_t, k) => rolLabel(String(k)) })
 
 // --- Datos personales ---
 const datos = reactive({ nombreCompleto: '', email: '', cargo: '', unidadOArea: '', telefono: '' })

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAuthStore } from '@/stores/auth.store'
 import IconButton from '@/components/ui/IconButton.vue'
 import { onMounted, ref } from 'vue'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
@@ -17,6 +18,7 @@ import type {
   EstadoActa,
 } from '@/types/actas-entrega.types'
 
+const auth = useAuthStore()
 const resumen = useResumenStore()
 const rows = ref<ActaEntrega[]>([])
 const total = ref(0)
@@ -150,7 +152,7 @@ onMounted(loadRows)
           <option value="RECIBIDA">Recibidas</option>
           <option value="ANULADA">Anuladas</option>
         </select>
-        <BaseButton @click="openCreate">+ Registrar acta</BaseButton>
+        <BaseButton v-if="!auth.esSoloConsulta" @click="openCreate">+ Registrar acta</BaseButton>
       </div>
     </div>
 
@@ -180,8 +182,7 @@ onMounted(loadRows)
       <template #cell-estado="{ row }"><BaseBadge :estado="row.estado" /></template>
       <template #actions="{ row }">
         <div class="flex justify-end gap-2">
-          <IconButton
-            v-if="row.estado === 'BORRADOR' && row.cantidadComprobantes > 0"
+          <IconButton v-if="(row.estado === 'BORRADOR' && row.cantidadComprobantes > 0) && !auth.esSoloConsulta"
             icon="fa-clipboard-check"
             label="Recibir acta (aprobar)"
             variant="success"
@@ -192,8 +193,7 @@ onMounted(loadRows)
             :label="row.estado === 'BORRADOR' ? 'Editar acta' : 'Ver acta'"
             @click.stop="openDetail(row)"
           />
-          <IconButton
-            v-if="row.estado === 'BORRADOR'"
+          <IconButton v-if="(row.estado === 'BORRADOR') && !auth.esSoloConsulta"
             icon="fa-ban"
             label="Anular acta"
             variant="danger"

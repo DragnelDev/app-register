@@ -1,3 +1,4 @@
+import { ROLES_REPORTES } from '../common/constants/roles.constant';
 import {
   Controller,
   Get,
@@ -46,6 +47,7 @@ export class PrestamosCuadernoController {
   }
 
   /** Planilla PDF de préstamos por cuaderno con los mismos filtros del listado. */
+  @Roles(...ROLES_REPORTES)
   @Get('reporte/pdf')
   async reportePdf(
     @Query() query: FilterPrestamosCuadernoDto,

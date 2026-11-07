@@ -53,11 +53,7 @@ function validateAll(): boolean {
   errors.numeroNotaSolicitud = runValidators(form.numeroNotaSolicitud, reglaNota) ?? ''
   errors.funcionarioId = form.funcionarioId ? '' : 'Seleccione al funcionario solicitante'
   validateItems()
-  if (
-    !errors.items &&
-    form.fechaDevolucionEstimada &&
-    form.fechaDevolucionEstimada < form.fechaPrestamo
-  ) {
+  if (!errors.items && form.fechaDevolucionEstimada && form.fechaDevolucionEstimada < form.fechaPrestamo) {
     errors.items = 'La devolución estimada no puede ser anterior a la fecha del préstamo'
   }
   return !errors.numeroNotaSolicitud && !errors.funcionarioId && !errors.items

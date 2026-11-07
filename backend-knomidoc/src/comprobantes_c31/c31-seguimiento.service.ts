@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { ComprobantesC31 } from './entities/comprobantes_c31.entity';
 import { C31Historial } from '../c31-historial/entities/c31-historial.entity';
 import { PrestamosNota } from '../prestamos-nota/entities/prestamos-nota.entity';
+import { C31CarpetasUbicacion } from '../c31-carpetas-ubicacion/entities/c31-carpetas-ubicacion.entity';
 import { PrestamosCuaderno } from '../prestamos-cuaderno/entities/prestamos-cuaderno.entity';
 
 export interface PrestamoSeguimiento {
@@ -85,6 +86,13 @@ export class C31SeguimientoService {
       }),
     ]);
 
+    // Dónde está físicamente: carpeta(s) → estante → depósito
+    const ubicaciones = await this.repo.manager.find(C31CarpetasUbicacion, {
+      where: { comprobante: { id } },
+      relations: { carpeta: { estante: { deposito: true } } },
+      order: { numeroParte: 'ASC' },
+    });
+
     const ahora = new Date().toISOString();
     const hoy = ahora.slice(0, 10);
 
@@ -149,9 +157,36 @@ export class C31SeguimientoService {
       }),
     ].sort((a, b) => b.fechaSalida.localeCompare(a.fechaSalida));
 
+    // Quién lo tiene hoy, si está prestado
+    const activo = prestamos.find((p) => !p.devuelto) ?? null;
+
     return {
       comprobanteId: id,
       estadoFisico: comprobante.estadoFisico,
+      ubicacion: {
+        ubicacionFisica: comprobante.ubicacionFisica ?? null,
+        numeroFolio: comprobante.numeroFolio ?? null,
+        carpetas: ubicaciones.map((u) => ({
+          id: u.id,
+          numeroParte: u.numeroParte,
+          carpeta: u.carpeta?.codigoCarpeta ?? null,
+          referencia: u.carpeta?.ubicacionFisica ?? null,
+          estante: u.carpeta?.estante?.codigo ?? null,
+          deposito: u.carpeta?.estante?.deposito
+            ? `${u.carpeta.estante.deposito.codigo} — ${u.carpeta.estante.deposito.nombre}`
+            : null,
+        })),
+        enPoderDe: activo
+          ? {
+              solicitante: activo.solicitante,
+              institucionOArea: activo.institucionOArea,
+              desde: activo.fechaSalida,
+              devolucionEstimada: activo.fechaDevolucionEstimada,
+              vencido: activo.vencido,
+              referencia: activo.referencia,
+            }
+          : null,
+      },
       acta: comprobante.actaEntrega
         ? {
             id: comprobante.actaEntrega.id,

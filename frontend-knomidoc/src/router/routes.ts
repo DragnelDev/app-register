@@ -3,6 +3,10 @@ import type { RolUsuario } from '@/types/common.types'
 
 const ARCHIVO: RolUsuario[] = ['ADMIN', 'OPERADOR_ARCHIVOS']
 const PRESTAMOS: RolUsuario[] = ['ADMIN', 'ENCARGADO_PRESTAMOS']
+// Los perfiles de consulta ven las listas (sin botones de registro) de actas y préstamos
+const CONSULTA: RolUsuario[] = ['CONSULTA_AVANZADA', 'SOLO_LECTURA', 'CONSULTA_EXTERNA']
+const ARCHIVO_Y_CONSULTA: RolUsuario[] = [...ARCHIVO, ...CONSULTA]
+const PRESTAMOS_Y_CONSULTA: RolUsuario[] = [...PRESTAMOS, ...CONSULTA]
 
 // Meta.roles vacío o ausente = accesible para cualquier usuario autenticado
 export const routes: RouteRecordRaw[] = [
@@ -31,6 +35,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { fullscreen: true },
   },
   {
+    path: '/seleccionar-perfil',
+    name: 'seleccionar-perfil',
+    component: () => import('@/modules/auth/views/SeleccionarPerfilView.vue'),
+    meta: { fullscreen: true, abiertoATodos: true },
+  },
+  {
     path: '/',
     name: 'dashboard',
     component: () => import('@/modules/dashboard/views/DashboardView.vue'),
@@ -39,7 +49,7 @@ export const routes: RouteRecordRaw[] = [
     path: '/actas-entrega',
     name: 'actas-entrega',
     component: () => import('@/modules/actas-entrega/views/ActasEntregaListView.vue'),
-    meta: { roles: ARCHIVO },
+    meta: { roles: ARCHIVO_Y_CONSULTA },
   },
 
   // ── Gestión SIGEP (gastos) ──
@@ -80,6 +90,17 @@ export const routes: RouteRecordRaw[] = [
   },
 
   {
+    path: '/remisiones',
+    name: 'remisiones',
+    component: () => import('@/modules/remisiones/views/RemisionesView.vue'),
+    meta: { roles: ['ADMIN', 'OPERADOR_ARCHIVOS', 'REMITENTE_C31'] as RolUsuario[] },
+  },
+  {
+    path: '/beneficiarios',
+    name: 'beneficiarios',
+    component: () => import('@/modules/beneficiarios/views/BeneficiariosListView.vue'),
+  },
+  {
     path: '/pagos',
     name: 'pagos',
     component: () => import('@/modules/pagos/views/PagosView.vue'),
@@ -107,7 +128,7 @@ export const routes: RouteRecordRaw[] = [
     path: '/prestamos/cuaderno',
     name: 'prestamos-cuaderno',
     component: () => import('@/modules/prestamos/views/PrestamosCuadernoView.vue'),
-    meta: { roles: PRESTAMOS },
+    meta: { roles: PRESTAMOS_Y_CONSULTA },
   },
   {
     path: '/funcionarios',
@@ -119,7 +140,7 @@ export const routes: RouteRecordRaw[] = [
     path: '/prestamos/notas',
     name: 'prestamos-notas',
     component: () => import('@/modules/prestamos/views/PrestamosNotasView.vue'),
-    meta: { roles: PRESTAMOS },
+    meta: { roles: PRESTAMOS_Y_CONSULTA },
   },
 
   // ── Control y análisis ──
@@ -127,7 +148,9 @@ export const routes: RouteRecordRaw[] = [
     path: '/reportes',
     name: 'reportes',
     component: () => import('@/modules/reportes/views/ReportesFinancierosView.vue'),
-    meta: { roles: ['ADMIN', 'OPERADOR_ARCHIVOS', 'CONSULTA_EXTERNA'] as RolUsuario[] },
+    meta: {
+      roles: ['ADMIN', 'OPERADOR_ARCHIVOS', 'CONSULTA_AVANZADA', 'CONSULTA_EXTERNA'] as RolUsuario[],
+    },
   },
   {
     path: '/auditoria',
@@ -153,6 +176,7 @@ export const routes: RouteRecordRaw[] = [
     path: '/perfil',
     name: 'perfil',
     component: () => import('@/modules/perfil/views/PerfilView.vue'),
+    meta: { abiertoATodos: true },
   },
   {
     path: '/:pathMatch(.*)*',

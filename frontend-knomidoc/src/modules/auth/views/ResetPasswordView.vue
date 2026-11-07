@@ -46,9 +46,9 @@ async function handleSubmit() {
 
 <template>
   <div class="flex min-h-screen items-center justify-center bg-ink-950 px-4">
-    <div class="w-full max-w-sm rounded-lg bg-white p-8 shadow-xl">
+    <div class="w-full max-w-sm rounded-lg bg-white p-8 shadow-xl dark:border dark:border-white/10 dark:bg-ink-900">
       <div class="mb-6 text-center">
-        <h1 class="font-display text-2xl font-semibold text-ink-900">Nueva contraseña</h1>
+        <h1 class="font-display text-2xl font-semibold text-ink-900 dark:text-white">Nueva contraseña</h1>
         <p class="mt-1 text-sm text-ink-400">
           Si el correo está registrado, te enviamos un código de 6 dígitos (vence en 10 minutos).
         </p>
@@ -56,7 +56,7 @@ async function handleSubmit() {
 
       <p
         v-if="success"
-        class="rounded-md bg-emerald-50 px-3 py-3 text-center text-sm text-emerald-700"
+        class="rounded-md bg-emerald-50 px-3 py-3 text-center text-sm text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
         role="status"
       >
         Tu contraseña se actualizó correctamente. Serás redirigido al inicio de sesión…
@@ -65,7 +65,7 @@ async function handleSubmit() {
       <form v-else class="space-y-4" novalidate @submit.prevent="handleSubmit">
         <BaseInput v-model="form.email" type="email" label="Correo electrónico" required />
         <div>
-          <label class="mb-1.5 block text-sm font-medium text-ink-700">Código de 6 dígitos</label>
+          <label class="mb-1.5 block text-sm font-medium text-ink-700 dark:text-ink-200">Código de 6 dígitos</label>
           <CodigoInput v-model="form.codigo" />
         </div>
         <BaseInput
@@ -86,11 +86,11 @@ async function handleSubmit() {
           >Guardar nueva contraseña</BaseButton
         >
         <p class="text-center text-sm">
-          <RouterLink to="/forgot-password" class="text-ink-500 hover:underline"
+          <RouterLink to="/forgot-password" class="text-ink-500 dark:text-ink-400 hover:underline"
             >Pedir otro código</RouterLink
           >
           ·
-          <RouterLink to="/login" class="font-medium text-ink-700 hover:underline"
+          <RouterLink to="/login" class="font-medium text-ink-700 dark:text-ink-200 hover:underline"
             >Iniciar sesión</RouterLink
           >
         </p>

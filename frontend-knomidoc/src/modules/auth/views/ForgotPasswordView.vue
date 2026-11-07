@@ -35,9 +35,9 @@ async function handleSubmit() {
 
 <template>
   <div class="flex min-h-screen items-center justify-center bg-ink-950 px-4">
-    <div class="w-full max-w-sm rounded-lg bg-white p-8 shadow-xl">
+    <div class="w-full max-w-sm rounded-lg bg-white p-8 shadow-xl dark:border dark:border-white/10 dark:bg-ink-900">
       <div class="mb-6 text-center">
-        <h1 class="font-display text-2xl font-semibold text-ink-900">Recuperar contraseña</h1>
+        <h1 class="font-display text-2xl font-semibold text-ink-900 dark:text-white">Recuperar contraseña</h1>
         <p class="mt-1 text-sm text-ink-400">
           Ingresa tu correo registrado y te enviaremos un código de 6 dígitos.
         </p>
@@ -56,7 +56,7 @@ async function handleSubmit() {
           >Enviar código</BaseButton
         >
         <p class="text-center text-sm">
-          <RouterLink to="/login" class="font-medium text-ink-700 hover:underline"
+          <RouterLink to="/login" class="font-medium text-ink-700 dark:text-ink-200 hover:underline"
             >Volver a iniciar sesión</RouterLink
           >
         </p>

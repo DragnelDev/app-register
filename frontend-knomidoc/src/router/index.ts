@@ -15,7 +15,7 @@ router.beforeEach(async (to) => {
 
   if (to.meta.public) {
     if (auth.isAuthenticated && to.name === 'login') {
-      return { name: 'dashboard' }
+      return { path: auth.rutaInicial }
     }
     return true
   }
@@ -33,6 +33,14 @@ router.beforeEach(async (to) => {
     }
   }
 
+  // Con varios perfiles, primero se elige con cuál trabajar (como en el SIGEP)
+  if (auth.perfilPendiente && to.name !== 'seleccionar-perfil' && !auth.emailPendiente) {
+    return { name: 'seleccionar-perfil' }
+  }
+  if (!auth.perfilPendiente && to.name === 'seleccionar-perfil' && auth.perfiles.length < 2) {
+    return { path: auth.rutaInicial }
+  }
+
   // Sin correo verificado solo se puede verificar o corregir el correo en el perfil
   if (auth.emailPendiente && to.name !== 'verificar-email' && to.name !== 'perfil') {
     return { name: 'verificar-email' }
@@ -41,9 +49,18 @@ router.beforeEach(async (to) => {
     return { name: 'dashboard' }
   }
 
+  // El remitente solo entra a sus pantallas (las que lo declaran en meta.roles)
+  if (
+    auth.esRemitente &&
+    !to.meta.abiertoATodos &&
+    !(to.meta.roles as string[] | undefined)?.includes('REMITENTE_C31')
+  ) {
+    return { path: '/remisiones' }
+  }
+
   const requiredRoles = to.meta.roles as string[] | undefined
   if (requiredRoles && (!auth.rol || !requiredRoles.includes(auth.rol))) {
-    return { name: 'dashboard' }
+    return { path: auth.rutaInicial }
   }
 
   return true

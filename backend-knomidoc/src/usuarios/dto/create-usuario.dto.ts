@@ -2,6 +2,9 @@ import { MSG_PASSWORD, REGEX_PASSWORD } from '../../auth/dto/codigo.dto';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayUnique,
+  IsArray,
   IsEmail,
   IsIn,
   IsNotEmpty,
@@ -85,9 +88,26 @@ export class CreateUsuarioDto {
   readonly password?: string;
 
   @ApiProperty({ type: String, example: 'ADMIN', enum: ROLES_USUARIO })
-  @IsNotEmpty({ message: 'El campo rol es obligatorio' })
+  @IsOptional()
   @IsIn([...ROLES_USUARIO], {
     message: `El campo rol debe ser uno de: ${ROLES_USUARIO.join(', ')}`,
   })
   readonly rol: string | undefined;
+
+  @ApiPropertyOptional({
+    type: [String],
+    enum: ROLES_USUARIO,
+    example: ['OPERADOR_ARCHIVOS', 'CONSULTA_AVANZADA'],
+    description:
+      'Perfiles del usuario (puede tener varios). Si se envía, el primero pasa a ser el perfil por defecto y reemplaza a `rol`.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @ArrayMaxSize(ROLES_USUARIO.length)
+  @IsIn([...ROLES_USUARIO], {
+    each: true,
+    message: `Cada perfil debe ser uno de: ${ROLES_USUARIO.join(', ')}`,
+  })
+  readonly roles?: string[];
 }

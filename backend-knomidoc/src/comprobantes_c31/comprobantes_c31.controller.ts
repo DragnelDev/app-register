@@ -1,3 +1,4 @@
+import { ROLES_REPORTES } from '../common/constants/roles.constant';
 import {
   BadRequestException,
   Body,
@@ -63,6 +64,7 @@ export class ComprobantesC31Controller {
     return this.comprobantesC31Service.findGestiones();
   }
 
+  @Roles(...ROLES_REPORTES)
   @Get('export')
   async exportExcel(@Query('gestion') gestion?: string) {
     const buffer = await this.comprobantesC31Service.exportExcel(

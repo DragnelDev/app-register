@@ -121,6 +121,7 @@ onMounted(() => {
     sinActa: undefined,
     sinCarpeta: undefined,
     detalle: '',
+    beneficiarioId: '',
     numeroPreventivo: '',
     depositoId: '',
     estanteId: '',
@@ -149,7 +150,13 @@ onMounted(() => {
         >
           📥 Importar Excel
         </BaseButton>
-        <BaseButton variant="secondary" size="sm" :loading="exporting" @click="exportarExcel">
+        <BaseButton
+          v-if="auth.puedeExportar"
+          variant="secondary"
+          size="sm"
+          :loading="exporting"
+          @click="exportarExcel"
+        >
           📊 Exportar a Excel
         </BaseButton>
         <RouterLink
@@ -206,18 +213,11 @@ onMounted(() => {
         <button
           type="button"
           class="inline-flex items-center gap-1 text-xs font-medium"
-          :class="
-            esDigitalizado(row)
-              ? 'text-emerald-600 dark:text-emerald-300'
-              : 'text-amber-600 dark:text-amber-300'
-          "
+          :class="esDigitalizado(row) ? 'text-emerald-600 dark:text-emerald-300' : 'text-amber-600 dark:text-amber-300'"
           :title="esDigitalizado(row) ? 'Digitalizado: abrir archivos' : 'Pendiente de digitalizar'"
           @click.stop="openDetail(row, 'adjuntos')"
         >
-          <i
-            :class="esDigitalizado(row) ? 'fa-solid fa-circle-check' : 'fa-solid fa-hourglass-half'"
-            aria-hidden="true"
-          />
+          <i :class="esDigitalizado(row) ? 'fa-solid fa-circle-check' : 'fa-solid fa-hourglass-half'" aria-hidden="true" />
           {{ esDigitalizado(row) ? 'Sí' : 'Pendiente' }}
         </button>
       </template>

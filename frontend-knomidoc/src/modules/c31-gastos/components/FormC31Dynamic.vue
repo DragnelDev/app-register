@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import BeneficiarioSelect from '@/components/shared/BeneficiarioSelect.vue'
 import { computed, reactive, ref } from 'vue'
+import MontoInput from '@/components/shared/MontoInput.vue'
+import FechaInput from '@/components/shared/FechaInput.vue'
 import type { ComprobanteC31FormPayload } from '@/types/c31.types'
 
 /**
@@ -178,14 +181,12 @@ const etiqueta = 'mb-1.5 block text-xs font-semibold text-ink-700 dark:text-ink-
         :class="borde('')"
       >
         <div class="flex gap-2">
-          <input
+          <BeneficiarioSelect
             id="beneficiario"
             v-model="nuevoBeneficiario"
-            type="text"
-            :class="[campo, 'border-ink-200 dark:border-white/10']"
-            placeholder="Nombre completo o razón social del beneficiario..."
-            maxlength="200"
-            @keydown.enter.prevent="agregarBeneficiario"
+            :input-class="[campo, 'border-ink-200 dark:border-white/10'].join(' ')"
+            placeholder="Buscar en el directorio o escribir un nombre nuevo…"
+            @enter="agregarBeneficiario"
           />
           <button
             type="button"
@@ -232,30 +233,17 @@ const etiqueta = 'mb-1.5 block text-xs font-semibold text-ink-700 dark:text-ink-
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div>
         <label for="monto" :class="etiqueta"> Monto total (Bs.) </label>
-        <input
-          id="monto"
-          v-model="form.montoTotal"
-          type="number"
-          step="0.01"
-          min="0"
-          :class="[campo, borde(errores.montoTotal)]"
-          placeholder="0,00"
-        />
+        <MontoInput id="monto" v-model="form.montoTotal" :invalid="intentado && !!errores.montoTotal" />
         <p v-if="intentado && errores.montoTotal" class="mt-1 text-xs text-red-600">
           {{ errores.montoTotal }}
         </p>
         <p v-else class="mt-1 text-xs text-ink-400 dark:text-ink-500">
-          Total del documento (con impuestos). Los pagos a cada beneficiario se registran después.
+          Total del documento (con impuestos); acepta 12.345,67. Los pagos a cada beneficiario se registran después.
         </p>
       </div>
       <div>
         <label for="fecha" :class="etiqueta"> Fecha de elaboración </label>
-        <input
-          id="fecha"
-          v-model="form.fechaElaboracion"
-          type="date"
-          :class="[campo, borde(errores.fechaElaboracion)]"
-        />
+        <FechaInput id="fecha" v-model="form.fechaElaboracion" :invalid="intentado && !!errores.fechaElaboracion" />
         <p v-if="intentado && errores.fechaElaboracion" class="mt-1 text-xs text-red-600">
           {{ errores.fechaElaboracion }}
         </p>

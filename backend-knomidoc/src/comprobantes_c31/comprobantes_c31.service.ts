@@ -34,6 +34,10 @@ import { UpdateComprobantesC31Dto } from './dto/update-comprobantes_c31.dto';
 import { FilterComprobantesC31Dto } from './dto/filter-comprobantes_c31.dto';
 import { C31Preventivo } from '../c31-preventivos/entities/c31-preventivo.entity';
 import { C31Devengado } from '../c31-devengados/entities/c31-devengado.entity';
+import {
+  BeneficiariosService,
+  claveNombre,
+} from '../beneficiarios/beneficiarios.service';
 import { C31Beneficiario } from '../c31-beneficiarios/entities/c31-beneficiario.entity';
 import {
   C31Pago,
@@ -134,7 +138,24 @@ export class ComprobantesC31Service {
     @InjectRepository(ComprobantesC31)
     private readonly repo: Repository<ComprobantesC31>,
     private readonly dataSource: DataSource,
+    private readonly beneficiariosService: BeneficiariosService,
   ) {}
+
+  /**
+   * Nombres de los beneficiarios que llegan en el DTO: los del directorio (por id)
+   * más los escritos a mano. Undefined si el DTO no toca los beneficiarios.
+   */
+  private async nombresBeneficiarios(dto: {
+    beneficiarios?: string[];
+    beneficiarioIds?: number[];
+  }): Promise<string[] | undefined> {
+    if (dto.beneficiarios === undefined && dto.beneficiarioIds === undefined)
+      return undefined;
+    const deIds = dto.beneficiarioIds?.length
+      ? await this.beneficiariosService.nombresDe(dto.beneficiarioIds)
+      : [];
+    return limpiarLista([...deIds, ...(dto.beneficiarios ?? [])]);
+  }
 
   /**
    * Un C31 real puede agrupar varios preventivos (PREV 3 y 7 como un solo
@@ -245,7 +266,7 @@ export class ComprobantesC31Service {
       (dto.fechaElaboracion
         ? new Date(dto.fechaElaboracion).getUTCFullYear()
         : new Date().getFullYear());
-    const nombres = limpiarLista(dto.beneficiarios);
+    const nombres = (await this.nombresBeneficiarios(dto)) ?? [];
     // Con los cinco datos completos nace "En revisión / firmado"; solo con el N° queda "En trámite"
     const estadoInicial = datosCompletos({ ...dto, beneficiarios: nombres })
       ? EstadoFisicoC31.EN_REVISION
@@ -257,6 +278,12 @@ export class ComprobantesC31Service {
         preventivos,
         devengados,
         gestion,
+      );
+
+      const catalogo = await this.beneficiariosService.catalogar(
+        manager,
+        nombres,
+        usuario.id,
       );
 
       // Solo con el N° queda "En trámite (incompleto)" y reserva el correlativo;
@@ -279,7 +306,10 @@ export class ComprobantesC31Service {
           manager.create(C31Devengado, { numeroDevengado }),
         ),
         beneficiarios: nombres.map((nombreBeneficiario) =>
-          manager.create(C31Beneficiario, { nombreBeneficiario }),
+          manager.create(C31Beneficiario, {
+            nombreBeneficiario,
+            beneficiarioId: catalogo.get(claveNombre(nombreBeneficiario)),
+          }),
         ),
       });
 
@@ -368,6 +398,14 @@ export class ComprobantesC31Service {
       });
     }
 
+    // Beneficiario del directorio
+    if (query.beneficiarioId) {
+      qb.andWhere(
+        `EXISTS (SELECT 1 FROM c31_beneficiarios bf WHERE bf.comprobante_id = c.id AND bf.beneficiario_id = :beneficiarioId)`,
+        { beneficiarioId: query.beneficiarioId },
+      );
+    }
+
     // N° de preventivo o de devengado. Son numeraciones distintas (PREV 1 ≠ DEV 1):
     // con el tipo elegido se busca solo en su tabla; sin tipo, en ambas.
     const numero = query.numeroPreventivo?.trim();
@@ -441,15 +479,13 @@ export class ComprobantesC31Service {
 
   /**
    * Une comprobantes que en la práctica vienen como uno solo (PREV 3 + PREV 7,
-   * PREV + DEV). No fusiona registros: solo los agrupa. Si alguno ya pertenecía
-   * a un grupo, ese grupo completo se suma al nuevo.
+   * PREV + DEV). No fusiona registros: solo los agrupa. Si alguno ya pertenece
+   * a un grupo, los demás se suman a ese grupo; dos grupos distintos no se mezclan.
    */
   async unir(ids: number[]) {
     const unicos = [...new Set(ids)];
     if (unicos.length < 2) {
-      throw new BadRequestException(
-        'Seleccione al menos 2 comprobantes para unir',
-      );
+      throw new BadRequestException('Seleccione al menos 2 comprobantes para unir');
     }
     return this.dataSource.transaction(async (manager) => {
       const items = await manager.find(ComprobantesC31, {
@@ -469,18 +505,17 @@ export class ComprobantesC31Service {
       const gruposPrevios = [
         ...new Set(items.map((c) => c.grupoUnionId).filter(Boolean)),
       ] as string[];
-      const grupo = gruposPrevios[0] ?? randomUUID();
-      const idsFinal = new Set(unicos);
-      if (gruposPrevios.length > 0) {
-        const miembros = await manager.find(ComprobantesC31, {
-          where: { grupoUnionId: In(gruposPrevios) },
-          select: { id: true },
-        });
-        miembros.forEach((m) => idsFinal.add(m.id as number));
+      if (gruposPrevios.length > 1) {
+        throw new ConflictException(
+          'Los comprobantes seleccionados ya pertenecen a grupos distintos: separe primero el que no corresponde',
+        );
       }
+      // Solo se suman los comprobantes indicados al grupo existente (o a uno nuevo);
+      // nunca se arrastra a otros miembros ni se mezclan grupos.
+      const grupo = gruposPrevios[0] ?? randomUUID();
       await manager.update(
         ComprobantesC31,
-        { id: In([...idsFinal]) },
+        { id: In(unicos) },
         { grupoUnionId: grupo },
       );
       return this.grupoDe(unicos[0], manager);
@@ -561,9 +596,7 @@ export class ComprobantesC31Service {
     const enviaDev =
       dto.devengados !== undefined || dto.numeroDevengado !== undefined;
     const numeros = this.numerosDelDto(dto);
-    const prevFinal = enviaPrev
-      ? numeros.preventivos
-      : preventivosDe(comprobante);
+    const prevFinal = enviaPrev ? numeros.preventivos : preventivosDe(comprobante);
     const devFinal = enviaDev ? numeros.devengados : devengadosDe(comprobante);
     // Los registros existentes se conservan: solo se re-deriva el tipo si cambian los identificadores.
     const tipoFinal =
@@ -573,8 +606,9 @@ export class ComprobantesC31Service {
     const gestionFinal = dto.gestion ?? comprobante.gestion;
     const cambiaIdentificador =
       enviaPrev || enviaDev || dto.gestion !== undefined;
-    if (dto.beneficiarios !== undefined) {
-      if (limpiarLista(dto.beneficiarios).length === 0) {
+    const nombresNuevos = await this.nombresBeneficiarios(dto);
+    if (nombresNuevos !== undefined) {
+      if (nombresNuevos.length === 0) {
         throw new BadRequestException(
           'Debe registrar al menos un beneficiario',
         );
@@ -662,8 +696,13 @@ export class ComprobantesC31Service {
           );
         }
       }
-      if (dto.beneficiarios !== undefined) {
-        await this.sincronizarBeneficiarios(manager, id, dto.beneficiarios);
+      if (nombresNuevos !== undefined) {
+        await this.sincronizarBeneficiarios(
+          manager,
+          id,
+          nombresNuevos,
+          usuario?.id,
+        );
       }
 
       let actualizado = await manager.findOne(ComprobantesC31, {
@@ -707,8 +746,14 @@ export class ComprobantesC31Service {
     manager: EntityManager,
     comprobanteId: number,
     nombres: string[],
+    usuarioId?: number,
   ) {
     const deseados = limpiarLista(nombres);
+    const catalogo = await this.beneficiariosService.catalogar(
+      manager,
+      deseados,
+      usuarioId,
+    );
     const claves = new Set(deseados.map((n) => n.toUpperCase()));
     const actuales = await manager.find(C31Beneficiario, {
       where: { comprobante: { id: comprobanteId } },
@@ -737,9 +782,16 @@ export class ComprobantesC31Service {
         C31Beneficiario,
         manager.create(C31Beneficiario, {
           nombreBeneficiario: nombre,
+          beneficiarioId: catalogo.get(claveNombre(nombre)),
           comprobante: { id: comprobanteId } as ComprobantesC31,
         }),
       );
+    }
+    // Los beneficiarios que ya estaban y aún no tenían vínculo con el directorio
+    for (const b of actuales) {
+      if (b.beneficiarioId) continue;
+      const id = catalogo.get(claveNombre(b.nombreBeneficiario ?? ''));
+      if (id) await manager.update(C31Beneficiario, b.id as number, { beneficiarioId: id });
     }
   }
 
@@ -949,7 +1001,8 @@ export class ComprobantesC31Service {
     // Filas de datos
     comprobantes.forEach((c) => {
       const fila = hoja.addRow({
-        prev: identificadorC31(c),
+        prev:
+identificadorC31(c),
         cheque: (c.pagos ?? [])
           .filter(
             (p) =>
@@ -1084,6 +1137,11 @@ export class ComprobantesC31Service {
           textoDeCelda(ubicacion).slice(0, 150) || undefined;
 
         await this.dataSource.transaction(async (manager) => {
+          const catalogoImport = await this.beneficiariosService.catalogar(
+            manager,
+            beneficiarios,
+            usuario.id,
+          );
           const comprobante = manager.create(ComprobantesC31, {
             tipoC31: TipoC31.CON_IMPUTACION,
             montoTotal: montoNumerico,
@@ -1102,7 +1160,10 @@ export class ComprobantesC31Service {
               manager.create(C31Preventivo, { numeroPreventivo }),
             ),
             beneficiarios: beneficiarios.map((nombreBeneficiario) =>
-              manager.create(C31Beneficiario, { nombreBeneficiario }),
+              manager.create(C31Beneficiario, {
+                nombreBeneficiario,
+                beneficiarioId: catalogoImport.get(claveNombre(nombreBeneficiario)),
+              }),
             ),
           });
           const guardado = await manager.save(ComprobantesC31, comprobante);
