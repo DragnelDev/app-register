@@ -17,22 +17,22 @@
 
 ## ✨ Características Principales
 
-* 🔐 **Autenticación y Control de Acceso (RBAC):** Gestión de permisos basada en roles (`ADMIN`, `REGISTRADOR`, `CONSULTA`).
-* 📜 **Gestión de Comprobantes C31:** Registro, listado detallado y módulo de aprobaciones de gastos.
-* 📦 **Notas de Entrega:** Control e inventario de recepción y salida de documentos.
-* 📚 **Módulo de Préstamos:** Seguimiento y cuaderno digital de control de préstamos de documentos institucionales.
-* 🎨 **Interfaz Editorial (Paper Style):** UI limpia, accesible y optimizada con tipografías y paletas de color personalizadas (`paper`, `ink`, `seal`).
+- 🔐 **Autenticación y Control de Acceso (RBAC):** Gestión de permisos basada en roles (`ADMIN`, `REGISTRADOR`, `CONSULTA`).
+- 📜 **Gestión de Comprobantes C31:** Registro, listado detallado y módulo de aprobaciones de gastos.
+- 📦 **Notas de Entrega:** Control e inventario de recepción y salida de documentos.
+- 📚 **Módulo de Préstamos:** Seguimiento y cuaderno digital de control de préstamos de documentos institucionales.
+- 🎨 **Interfaz Editorial (Paper Style):** UI limpia, accesible y optimizada con tipografías y paletas de color personalizadas (`paper`, `ink`, `seal`).
 
 ---
 
 ## 🛠️ Tecnologías Utilizadas
 
-* **Framework:** [Vue 3](https://vuejs.org/) (Composition API + `<script setup>`)
-* **Lenguaje:** [TypeScript](https://www.typescriptlang.org/)
-* **Build Tool:** [Vite](https://vitejs.dev/)
-* **Estilos:** [Tailwind CSS v4](https://tailwindcss.com/) + [Sass (Dart Sass)](https://sass-lang.com/)
-* **Gestión de Estado:** [Pinia](https://pinia.vuejs.org/)
-* **Enrutamiento:** [Vue Router](https://router.vuejs.org/)
+- **Framework:** [Vue 3](https://vuejs.org/) (Composition API + `<script setup>`)
+- **Lenguaje:** [TypeScript](https://www.typescriptlang.org/)
+- **Build Tool:** [Vite](https://vitejs.dev/)
+- **Estilos:** [Tailwind CSS v4](https://tailwindcss.com/) + [Sass (Dart Sass)](https://sass-lang.com/)
+- **Gestión de Estado:** [Pinia](https://pinia.vuejs.org/)
+- **Enrutamiento:** [Vue Router](https://router.vuejs.org/)
 
 ---
 
@@ -42,11 +42,12 @@ Sigue estos pasos para ejecutar el proyecto en tu entorno de desarrollo:
 
 ### 1. Requisitos Previos
 
-* **Node.js** `>= 18.x`
-* **npm** `>= 9.x`
+- **Node.js** `>= 18.x`
+- **npm** `>= 9.x`
 
 ### 2. Clonar el Repositorio
 
 ```bash
 git clone [https://github.com/DragnelDev/app-register.git](https://github.com/DragnelDev/app-register.git)
 cd knomidoc-frontend
+```

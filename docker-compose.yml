@@ -1,0 +1,76 @@
+# KnomiDoc: PostgreSQL + API (NestJS) + web (Vue/nginx)
+# Uso:  cp .env.example .env   →   editar claves   →   docker compose up -d --build
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD en .env}
+      POSTGRES_DB: ${POSTGRES_DB:-knomidoc}
+      TZ: America/La_Paz
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-knomidoc}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend-knomidoc
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      TZ: America/La_Paz
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB:-knomidoc}
+      DB_SYNCHRONIZE: "true"
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:3000}
+      JWT_TOKEN: ${JWT_TOKEN:?defina JWT_TOKEN en .env}
+      JWT_TOKEN_EXPIRATION: ${JWT_TOKEN_EXPIRATION:-8h}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@knomidoc.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Cambiar2026*}
+      DEFAULT_PASSWORD: ${DEFAULT_PASSWORD:-Knomi2026*}
+      EMAIL_VERIFICACION_OBLIGATORIA: ${EMAIL_VERIFICACION_OBLIGATORIA:-false}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_SECURE: ${MAIL_SECURE:-false}
+      MAIL_USER: ${MAIL_USER:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-"KnomiDoc" <no-reply@knomidoc.com>}
+      ENTIDAD_NOMBRE: ${ENTIDAD_NOMBRE}
+      ENTIDAD_SIGLA: ${ENTIDAD_SIGLA:-GAMSL}
+      ENTIDAD_CIUDAD: ${ENTIDAD_CIUDAD:-San Lucas}
+      ENTIDAD_UNIDAD: ${ENTIDAD_UNIDAD:-UNIDAD DE ARCHIVO}
+      CITE_PREFIJO: ${CITE_PREFIJO:-GAMSL/ARCH}
+      C31_STORAGE_DIR: /app/storage/c31
+    volumes:
+      - c31_storage:/app/storage/c31
+      - uploads:/app/uploads
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+
+  frontend:
+    build:
+      context: ./frontend-knomidoc
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3000/api/v1}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+
+volumes:
+  pgdata:
+  c31_storage:
+  uploads:
