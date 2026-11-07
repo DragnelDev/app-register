@@ -32,7 +32,7 @@ function alEscribir() {
   }
   const n = parseMontoBo(t)
   if (n === null) {
-    error.value = 'Formato no válido. Ej: 12.345,67'
+    error.value = 'Formato no válido. Ej: 12.345,67 o 12,345.67'
     model.value = ''
   } else model.value = n
 }

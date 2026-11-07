@@ -4,6 +4,7 @@ import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FuncionarioSelect from '@/components/shared/FuncionarioSelect.vue'
 import ComprobanteC31Picker from '@/components/shared/ComprobanteC31Picker.vue'
+import SeleccionRapidaModal from '@/components/shared/SeleccionRapidaModal.vue'
 import ComprobantesC31SelectedTable from '@/components/shared/ComprobantesC31SelectedTable.vue'
 import { required, maxLength, runValidators, codigoDocumento } from '@/utils/validators'
 import { nombreFuncionario, type Funcionario } from '@/types/funcionarios.types'
@@ -58,6 +59,10 @@ function validateAll(): boolean {
   return !errors.numeroNotaSolicitud && !errors.funcionarioId && !errors.items
 }
 
+const matrizAbierta = ref(false)
+function agregarLote(lote: ComprobanteC31[]) {
+  lote.forEach((c) => addComprobante(c))
+}
 const excludeIds = computed(() => selectedComprobantes.value.map((c) => c.id))
 
 function addComprobante(comprobante: ComprobanteC31) {
@@ -137,7 +142,19 @@ function enviar(aprobar: boolean) {
       <h3 class="mb-2 text-sm font-semibold text-ink-800 dark:text-ink-100">
         Comprobantes C31 a prestar (búsqueda y selección)
       </h3>
-      <ComprobanteC31Picker :exclude-ids="excludeIds" solo-disponibles @select="addComprobante" />
+      <div class="flex gap-2">
+        <div class="min-w-0 flex-1">
+          <ComprobanteC31Picker :exclude-ids="excludeIds" solo-disponibles @select="addComprobante" />
+        </div>
+        <button
+          type="button"
+          class="shrink-0 rounded-md border border-ink-200 bg-white px-3 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50 dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
+          @click="matrizAbierta = true"
+        >
+          <i class="fa-solid fa-table-cells" aria-hidden="true" /> Selección rápida
+        </button>
+      </div>
+      <SeleccionRapidaModal v-model="matrizAbierta" :exclude-ids="excludeIds" @confirm="agregarLote" />
       <div class="mt-3">
         <ComprobantesC31SelectedTable :items="selectedComprobantes" @remove="removeComprobante" />
       </div>

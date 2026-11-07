@@ -18,6 +18,7 @@ import {
 } from '@/utils/validators'
 import { bs } from '@/utils/estados'
 import { rotuloC31, type ComprobanteC31 } from '@/types/c31.types'
+import MatrizPreventivos from '@/components/shared/MatrizPreventivos.vue'
 import type { ActaEntrega, ActaEntregaCreatePayload } from '@/types/actas-entrega.types'
 
 const props = defineProps<{
@@ -46,6 +47,7 @@ const busqueda = ref('')
 const cargando = ref(false)
 const errorCarga = ref('')
 const intentado = ref(false)
+const vista = ref<'lista' | 'matriz'>('lista')
 
 const soloLectura = computed(() => Boolean(props.acta && props.acta.estado !== 'BORRADOR'))
 
@@ -236,6 +238,24 @@ const ver = (e: string) => (intentado.value ? e : '')
               Solo aparecen los “En revisión / firmado” que aún no están en un acta.
             </p>
           </div>
+          <div class="flex gap-1 text-xs">
+            <button
+              type="button"
+              class="rounded-md px-2.5 py-1.5"
+              :class="vista === 'lista' ? 'bg-seal-600 text-white' : 'bg-ink-100 dark:bg-white/10 dark:text-ink-100'"
+              @click="vista = 'lista'"
+            >
+              Lista
+            </button>
+            <button
+              type="button"
+              class="rounded-md px-2.5 py-1.5"
+              :class="vista === 'matriz' ? 'bg-seal-600 text-white' : 'bg-ink-100 dark:bg-white/10 dark:text-ink-100'"
+              @click="vista = 'matriz'"
+            >
+              Selección rápida
+            </button>
+          </div>
           <input
             v-if="!soloLectura"
             v-model="busqueda"
@@ -246,7 +266,13 @@ const ver = (e: string) => (intentado.value ? e : '')
         </div>
 
         <p v-if="errorCarga" class="mb-2 text-sm text-red-600">{{ errorCarga }}</p>
-        <div class="max-h-72 overflow-auto rounded-md border border-ink-100 dark:border-white/10">
+        <MatrizPreventivos
+          v-if="vista === 'matriz'"
+          v-model="seleccion"
+          :items="candidatos"
+          :solo-lectura="soloLectura"
+        />
+        <div v-else class="max-h-72 overflow-auto rounded-md border border-ink-100 dark:border-white/10">
           <table class="w-full border-collapse text-sm">
             <thead
               class="sticky top-0 border-b border-ink-100 bg-ink-50 dark:border-white/10 dark:bg-ink-950"

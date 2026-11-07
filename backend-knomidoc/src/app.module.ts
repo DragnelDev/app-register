@@ -18,6 +18,7 @@ import { UploadsModule } from './uploads/uploads.module';
 import { AuthModule } from './auth/auth.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { NotasAuditoriaModule } from './notas-auditoria/notas-auditoria.module';
 import { ActasEntregaModule } from './actas-entrega/actas-entrega.module';
 import { APP_GUARD } from '@nestjs/core';
 import { EmailVerificadoGuard } from './auth/guards/email-verificado.guard';
@@ -44,12 +45,14 @@ import { FuncionariosModule } from './funcionarios/funcionarios.module';
       database: process.env.DB_NAME,
       entities: [__dirname + '/**/entities/*{.ts,.js}'],
       autoLoadEntities: true,
-      synchronize: true,
+      // Sin migraciones formales: el esquema se sincroniza. En producción estable use DB_SYNCHRONIZE=false
+      synchronize: process.env.DB_SYNCHRONIZE !== 'false',
     }),
     UsuariosModule,
     FuncionariosModule,
     BeneficiariosModule,
     ActasEntregaModule,
+    NotasAuditoriaModule,
     ComprobantesC31Module,
     CarpetasModule,
     C31PreventivosModule,

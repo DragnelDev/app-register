@@ -5,8 +5,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import FuncionarioSelect from '@/components/shared/FuncionarioSelect.vue'
 import HuellaPanel from '@/components/shared/HuellaPanel.vue'
 import type { Funcionario } from '@/types/funcionarios.types'
-import type { CondicionDevolucion } from '@/types/prestamos.types'
-import type { MetodoVerificacion } from '@/types/common.types'
+import type { CondicionDevolucion, MetodoVerificacion } from '@/types/prestamos.types'
 
 const props = defineProps<{
   modelValue: boolean

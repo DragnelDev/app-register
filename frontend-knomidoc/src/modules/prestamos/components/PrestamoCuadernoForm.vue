@@ -3,6 +3,7 @@ import { reactive, ref, computed } from 'vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import ComprobanteC31Picker from '@/components/shared/ComprobanteC31Picker.vue'
+import SeleccionRapidaModal from '@/components/shared/SeleccionRapidaModal.vue'
 import ComprobantesC31SelectedTable from '@/components/shared/ComprobantesC31SelectedTable.vue'
 import FuncionarioSelect from '@/components/shared/FuncionarioSelect.vue'
 import HuellaPanel from '@/components/shared/HuellaPanel.vue'
@@ -31,6 +32,10 @@ const form = reactive({
 })
 
 const seleccionados = ref<ComprobanteC31[]>([])
+const matrizAbierta = ref(false)
+function agregarLote(lote: ComprobanteC31[]) {
+  lote.forEach((c) => addComprobante(c))
+}
 const excludeIds = computed(() => seleccionados.value.map((c) => c.id))
 
 // La unidad se propone con la del funcionario (editable)
@@ -127,7 +132,19 @@ function handleSubmit() {
       <label class="mb-1.5 block text-sm font-medium text-ink-700 dark:text-ink-200">
         Comprobantes C31 a prestar <span class="text-seal-600">*</span>
       </label>
-      <ComprobanteC31Picker :exclude-ids="excludeIds" solo-disponibles @select="addComprobante" />
+      <div class="flex gap-2">
+        <div class="min-w-0 flex-1">
+          <ComprobanteC31Picker :exclude-ids="excludeIds" solo-disponibles @select="addComprobante" />
+        </div>
+        <button
+          type="button"
+          class="shrink-0 rounded-md border border-ink-200 bg-white px-3 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50 dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
+          @click="matrizAbierta = true"
+        >
+          <i class="fa-solid fa-table-cells" aria-hidden="true" /> Selección rápida
+        </button>
+      </div>
+      <SeleccionRapidaModal v-model="matrizAbierta" :exclude-ids="excludeIds" @confirm="agregarLote" />
       <p class="mt-1 text-xs text-ink-400">
         Puede buscar por N° o glosa, o elegir una gestión y agregar todos los comprobantes de ese
         año.

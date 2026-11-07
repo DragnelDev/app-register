@@ -36,12 +36,8 @@ const navGroups = computed<NavGroup[]>(() => [
     title: 'Principal',
     items: [
       { to: '/', label: 'Panel principal', icon: 'fa-chart-pie' },
-      {
-        to: '/actas-entrega',
-        label: 'Actas de entrega',
-        icon: 'fa-file-invoice',
-        roles: [...ARCHIVO_Y_CONSULTA, 'REMITENTE_C31'],
-      },
+      { to: '/actas-entrega', label: 'Actas de entrega', icon: 'fa-file-invoice', roles: [...ARCHIVO_Y_CONSULTA, 'REMITENTE_C31'] },
+      { to: '/notas-auditoria', label: 'Notas a Auditoría', icon: 'fa-file-signature', roles: ['ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS', 'CONSULTA_AVANZADA'] },
     ],
   },
   {
@@ -52,12 +48,7 @@ const navGroups = computed<NavGroup[]>(() => [
       { to: '/c31/sin-imputacion', label: 'C31 Sin Imputación', icon: 'fa-file-circle-xmark' },
       { to: '/c31/nuevo', label: 'Registrar Comprobante', icon: 'fa-circle-plus', roles: ARCHIVO },
       { to: '/pagos', label: 'Pagos', icon: 'fa-money-check-dollar' },
-      {
-        to: '/beneficiarios',
-        label: 'Beneficiarios',
-        icon: 'fa-address-book',
-        roles: [...ARCHIVO, 'ENCARGADO_PRESTAMOS', ...CONSULTA],
-      },
+      { to: '/beneficiarios', label: 'Beneficiarios', icon: 'fa-address-book', roles: [...ARCHIVO, 'ENCARGADO_PRESTAMOS', ...CONSULTA] },
       {
         to: '/c31/vinculos',
         label: 'Vínculos / Regularización',
@@ -160,17 +151,10 @@ watch(
 
   <nav
     class="sidebar"
-    :class="{ 'sidebar--open': abierto, 'sidebar--colapsado': colapsado }"
-    aria-label="Navegación principal"
-  >
+    :class="{ 'sidebar--open': abierto, 'sidebar--colapsado': colapsado }" aria-label="Navegación principal">
     <!-- Logo y nombre del sistema -->
     <div class="sidebar-header">
-      <!-- Imagen centrada desde assets/images -->
-      <img
-        src="@/assets/images/logo.png"
-        alt="KnomiDoc Logo"
-        class="mx-auto mb-3 h-12 w-auto object-contain"
-      />
+      <div class="logo-box">K</div>
       <div class="logo-text">KnomiDoc</div>
       <button
         type="button"
@@ -179,11 +163,7 @@ watch(
         :title="colapsado ? 'Expandir barra lateral' : 'Contraer barra lateral'"
         @click="alternarColapso"
       >
-        <i
-          class="fa-solid"
-          :class="colapsado ? 'fa-angles-right' : 'fa-angles-left'"
-          aria-hidden="true"
-        />
+        <i class="fa-solid" :class="colapsado ? 'fa-angles-right' : 'fa-angles-left'" aria-hidden="true" />
       </button>
     </div>
 
@@ -213,9 +193,7 @@ watch(
       </template>
     </div>
 
-    <div class="sidebar-footer">
-      <span class="menu-label">Gestión de comprobantes C31 v1.0</span>
-    </div>
+    <div class="sidebar-footer"><span class="menu-label">Gestión de comprobantes C31 v1.0</span></div>
   </nav>
 </template>
 

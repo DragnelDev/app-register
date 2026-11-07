@@ -52,6 +52,20 @@ export const routes: RouteRecordRaw[] = [
     meta: { roles: [...ARCHIVO_Y_CONSULTA, 'REMITENTE_C31'] as RolUsuario[] },
   },
 
+  {
+    path: '/notas-auditoria',
+    name: 'notas-auditoria',
+    component: () => import('@/modules/notas-auditoria/views/NotasAuditoriaView.vue'),
+    meta: {
+      roles: [
+        'ADMIN',
+        'OPERADOR_ARCHIVOS',
+        'AUXILIAR_ARCHIVOS',
+        'CONSULTA_AVANZADA',
+      ] as RolUsuario[],
+    },
+  },
+
   // ── Gestión SIGEP (gastos) ──
   {
     path: '/c31',
@@ -143,7 +157,12 @@ export const routes: RouteRecordRaw[] = [
     name: 'reportes',
     component: () => import('@/modules/reportes/views/ReportesFinancierosView.vue'),
     meta: {
-      roles: ['ADMIN', 'OPERADOR_ARCHIVOS', 'CONSULTA_AVANZADA', 'CONSULTA_EXTERNA'] as RolUsuario[],
+      roles: [
+        'ADMIN',
+        'OPERADOR_ARCHIVOS',
+        'CONSULTA_AVANZADA',
+        'CONSULTA_EXTERNA',
+      ] as RolUsuario[],
     },
   },
   {

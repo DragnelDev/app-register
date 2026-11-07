@@ -26,6 +26,18 @@ const bs = (n?: number | string | null) =>
         maximumFractionDigits: 2,
       });
 
+/**
+ * CITE del acta: GAMSL/ARCH/AE-N° 004/2026 a partir de AE-2026-004.
+ * El prefijo institucional se configura con CITE_PREFIJO.
+ */
+export function citeActa(numeroActa?: string | null): string {
+  const prefijo = process.env.CITE_PREFIJO ?? 'GAMSL/ARCH';
+  const m = /^AE-(\d{4})-(\d+)$/.exec(numeroActa ?? '');
+  return m
+    ? `${prefijo}/AE-N° ${m[2].padStart(3, '0')}/${m[1]}`
+    : (numeroActa ?? '—');
+}
+
 /** Acta de entrega de comprobantes C31 a Archivo, con firmas de quien entrega y de quien recibe. */
 export function actaPdf(acta: ActasEntrega): Promise<Buffer> {
   const entidad =
@@ -51,11 +63,21 @@ export function actaPdf(acta: ActasEntrega): Promise<Buffer> {
     width: ancho,
     align: 'center',
   });
-  doc.fontSize(10).text(`N° ${acta.numeroActa}`, {
+  doc.fontSize(10).text(`CITE: ${citeActa(acta.numeroActa)}`, {
     width: ancho,
     align: 'center',
   });
   doc.moveDown(0.8);
+  doc
+    .font('Helvetica')
+    .fontSize(9.5)
+    .text(
+      `En la unidad de ${acta.unidadEmisora ?? 'origen'}, el ${fmtDia(acta.fechaRecepcion)}, se procedió a la entrega de la documentación detallada a continuación al responsable de Archivos, con el siguiente detalle:`,
+      izq,
+      doc.y,
+      { width: ancho, align: 'justify' },
+    );
+  doc.moveDown(0.6);
 
   const dato = (t: string, v: string) => {
     doc
@@ -154,6 +176,16 @@ export function actaPdf(acta: ActasEntrega): Promise<Buffer> {
       { width: ancho },
     );
 
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(9)
+    .text('Nota: ', izq, doc.y + 8, { continued: true, width: ancho });
+  doc
+    .font('Helvetica')
+    .text(
+      'La entrega se realizó con la documentación completa de cada uno de los comprobantes.',
+    );
+
   // Las firmas se escriben dentro del margen inferior: se anula para no crear una hoja extra
   const ALTO_FIRMAS = 90;
   if (doc.y + ALTO_FIRMAS > doc.page.height - 30) doc.addPage();
@@ -189,8 +221,18 @@ export function actaPdf(acta: ActasEntrega): Promise<Buffer> {
       lineBreak: false,
     });
   };
-  firma(izq, 'ENTREGUÉ CONFORME', acta.responsableEntrega ?? '', acta.unidadEmisora ?? '');
-  firma(izq + mitad, 'RECIBÍ CONFORME', acta.responsableRecepcion ?? '', 'Archivo');
+  firma(
+    izq,
+    'ENTREGUÉ CONFORME',
+    acta.responsableEntrega ?? '',
+    acta.unidadEmisora ?? '',
+  );
+  firma(
+    izq + mitad,
+    'RECIBÍ CONFORME',
+    acta.responsableRecepcion ?? '',
+    'Archivo',
+  );
 
   const rango = doc.bufferedPageRange();
   for (let i = 0; i < rango.count; i++) {
@@ -201,7 +243,7 @@ export function actaPdf(acta: ActasEntrega): Promise<Buffer> {
       .fontSize(7.5)
       .fillColor('#6b7280')
       .text(
-        `${acta.numeroActa} · Página ${i + 1} de ${rango.count}`,
+        `${citeActa(acta.numeroActa)} · Página ${i + 1} de ${rango.count}`,
         izq,
         doc.page.height - 28,
         { width: ancho, align: 'right', lineBreak: false },
