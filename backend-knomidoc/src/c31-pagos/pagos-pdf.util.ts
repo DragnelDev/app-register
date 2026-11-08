@@ -84,12 +84,10 @@ export function listadoPagosPdf(
       .fontSize(11)
       .fillColor('#000')
       .text(entidad(), izq, 40, { width: ancho, align: 'center' });
-    doc
-      .fontSize(10)
-      .text('LISTADO DE PAGOS — COMPROBANTES C-31', {
-        width: ancho,
-        align: 'center',
-      });
+    doc.fontSize(10).text('LISTADO DE PAGOS — COMPROBANTES C-31', {
+      width: ancho,
+      align: 'center',
+    });
     doc
       .font('Helvetica')
       .fontSize(8)

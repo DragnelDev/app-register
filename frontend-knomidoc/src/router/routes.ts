@@ -4,7 +4,8 @@ import type { RolUsuario } from '@/types/common.types'
 const ARCHIVO: RolUsuario[] = ['ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS']
 const PRESTAMOS: RolUsuario[] = ['ADMIN', 'ENCARGADO_PRESTAMOS']
 // Los perfiles de consulta ven las listas (sin botones de registro) de actas y préstamos
-const CONSULTA: RolUsuario[] = ['CONSULTA_AVANZADA', 'SOLO_LECTURA', 'CONSULTA_EXTERNA']
+// SOLO_LECTURA / CONSULTA_EXTERNA solo consultan comprobantes y su ubicación: no entran a estas listas
+const CONSULTA: RolUsuario[] = ['CONSULTA_AVANZADA']
 const ARCHIVO_Y_CONSULTA: RolUsuario[] = [...ARCHIVO, ...CONSULTA]
 const PRESTAMOS_Y_CONSULTA: RolUsuario[] = [...PRESTAMOS, ...CONSULTA]
 
@@ -151,12 +152,7 @@ export const routes: RouteRecordRaw[] = [
     name: 'reportes',
     component: () => import('@/modules/reportes/views/ReportesFinancierosView.vue'),
     meta: {
-      roles: [
-        'ADMIN',
-        'OPERADOR_ARCHIVOS',
-        'CONSULTA_AVANZADA',
-        'CONSULTA_EXTERNA',
-      ] as RolUsuario[],
+      roles: ['ADMIN', 'OPERADOR_ARCHIVOS', 'CONSULTA_AVANZADA'] as RolUsuario[],
     },
   },
   {

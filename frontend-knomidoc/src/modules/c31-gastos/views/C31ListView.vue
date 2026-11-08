@@ -12,10 +12,10 @@ import C31FilterBar from '../components/C31FilterBar.vue'
 import C31DetailModal from '../components/C31DetailModal.vue'
 import { useC31Store } from '@/stores/c31.store'
 import { useAuthStore } from '@/stores/auth.store'
-import { extractApiErrorMessage } from '@/utils/http-error'
 import type { ComprobanteC31, C31FilterState } from '@/types/c31.types'
 import { esDigitalizado, rotuloC31 } from '@/types/c31.types'
 import { useGestionStore } from '@/stores/gestion.store'
+import { extractApiErrorMessage } from '@/utils/http-error.ts'
 
 const gestionStore = useGestionStore()
 
@@ -187,7 +187,13 @@ onMounted(() => {
         >
           📥 Importar Excel
         </BaseButton>
-        <BaseButton variant="secondary" size="sm" :loading="generandoPdf" @click="descargarPdf">
+        <BaseButton
+          v-if="!auth.esSoloUbicacion"
+          variant="secondary"
+          size="sm"
+          :loading="generandoPdf"
+          @click="descargarPdf"
+        >
           📄 Descargar PDF
         </BaseButton>
         <BaseButton

@@ -41,6 +41,9 @@ export const useAuthStore = defineStore('auth', {
     /** Perfiles con los que puede trabajar (el activo es `rol`) */
     perfiles: (state) => state.usuario?.roles ?? (state.usuario ? [state.usuario.rol] : []),
     esRemitente: (state) => state.usuario?.rol === 'REMITENTE_C31',
+    /** Consulta básica: solo ve el comprobante y dónde está (nada más) */
+    esSoloUbicacion: (state) =>
+      ['SOLO_LECTURA', 'CONSULTA_EXTERNA'].includes(state.usuario?.rol ?? ''),
     /** Perfil de solo consulta (no modifica nada) */
     esSoloConsulta: (state) =>
       ['SOLO_LECTURA', 'CONSULTA_AVANZADA', 'CONSULTA_EXTERNA'].includes(state.usuario?.rol ?? ''),
@@ -55,7 +58,12 @@ export const useAuthStore = defineStore('auth', {
     puedeAnularActas: (state) =>
       ['ADMIN', 'OPERADOR_ARCHIVOS', 'REMITENTE_C31'].includes(state.usuario?.rol ?? ''),
     /** Ruta inicial según el perfil activo */
-    rutaInicial: (state) => (state.usuario?.rol === 'REMITENTE_C31' ? '/actas-entrega' : '/'),
+    rutaInicial: (state) =>
+      state.usuario?.rol === 'REMITENTE_C31'
+        ? '/actas-entrega'
+        : ['SOLO_LECTURA', 'CONSULTA_EXTERNA'].includes(state.usuario?.rol ?? '')
+          ? '/c31/con-imputacion'
+          : '/',
     /** Puede registrar comprobantes C31 y armar actas de entrega */
     puedeRegistrarC31: (state) =>
       ['ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS'].includes(state.usuario?.rol ?? ''),

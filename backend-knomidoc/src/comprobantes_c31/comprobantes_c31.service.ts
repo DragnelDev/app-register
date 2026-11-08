@@ -126,6 +126,21 @@ const ESTADOS_REMITENTE: readonly EstadoFisicoC31[] = [
 const esRemitente = (u?: Usuario) =>
   (u?.rolActivo ?? u?.rol) === 'REMITENTE_C31';
 
+/** El remitente no define folio ni ubicación física: eso lo hace Archivo. */
+function exigirSinLogistica(
+  dto: { numeroFolio?: string | null; ubicacionFisica?: string | null },
+  usuario?: Usuario,
+) {
+  if (
+    esRemitente(usuario) &&
+    ((dto.numeroFolio ?? '') !== '' || (dto.ubicacionFisica ?? '') !== '')
+  ) {
+    throw new ForbiddenException(
+      'Su perfil no puede registrar el N° de folio ni la ubicación física',
+    );
+  }
+}
+
 /** Texto de una celda de Excel (soporta texto enriquecido, fórmulas y fechas). */
 function textoDeCelda(valor: unknown): string {
   if (valor === null || valor === undefined) return '';
@@ -278,6 +293,7 @@ export class ComprobantesC31Service {
     dto: CreateComprobantesC31Dto,
     usuario: Usuario,
   ): Promise<ComprobantesC31> {
+    exigirSinLogistica(dto, usuario);
     const { preventivos, devengados } = this.numerosDelDto(dto);
     const tipoC31 = this.derivarTipo(preventivos, devengados);
     validarRangoFecha(dto.fechaElaboracion);
@@ -634,6 +650,7 @@ export class ComprobantesC31Service {
       );
     }
     this.exigirEstadoRemitente([comprobante], usuario);
+    exigirSinLogistica(dto, usuario);
     // Un comprobante ya archivado solo se modifica dejando constancia del motivo
     const motivoModificacion = dto.motivoModificacion?.trim();
     const eraArchivado = comprobante.estadoFisico === EstadoFisicoC31.ARCHIVADO;

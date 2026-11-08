@@ -27,7 +27,9 @@ interface NavGroup {
 
 const ARCHIVO = ['ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS']
 const PRESTAMOS = ['ADMIN', 'ENCARGADO_PRESTAMOS']
-const CONSULTA = ['CONSULTA_AVANZADA', 'SOLO_LECTURA', 'CONSULTA_EXTERNA']
+const CONSULTA = ['CONSULTA_AVANZADA']
+// Solo lectura: únicamente comprobantes y su ubicación
+const SOLO_UBICACION = ['SOLO_LECTURA', 'CONSULTA_EXTERNA']
 const ARCHIVO_Y_CONSULTA = [...ARCHIVO, ...CONSULTA]
 const PRESTAMOS_Y_CONSULTA = [...PRESTAMOS, ...CONSULTA]
 
@@ -35,7 +37,18 @@ const navGroups = computed<NavGroup[]>(() => [
   {
     title: 'Principal',
     items: [
-      { to: '/', label: 'Panel principal', icon: 'fa-chart-pie' },
+      {
+        to: '/',
+        label: 'Panel principal',
+        icon: 'fa-chart-pie',
+        roles: [
+          'ADMIN',
+          'OPERADOR_ARCHIVOS',
+          'AUXILIAR_ARCHIVOS',
+          'ENCARGADO_PRESTAMOS',
+          'CONSULTA_AVANZADA',
+        ],
+      },
       {
         to: '/actas-entrega',
         label: 'Actas de entrega',
@@ -52,13 +65,13 @@ const navGroups = computed<NavGroup[]>(() => [
         to: '/c31/con-imputacion',
         label: 'C31 Con Imputación',
         icon: 'fa-file-circle-check',
-        roles: [...ARCHIVO_Y_CONSULTA, 'ENCARGADO_PRESTAMOS', 'REMITENTE_C31'],
+        roles: [...ARCHIVO_Y_CONSULTA, 'ENCARGADO_PRESTAMOS', 'REMITENTE_C31', ...SOLO_UBICACION],
       },
       {
         to: '/c31/sin-imputacion',
         label: 'C31 Sin Imputación',
         icon: 'fa-file-circle-xmark',
-        roles: [...ARCHIVO_Y_CONSULTA, 'ENCARGADO_PRESTAMOS', 'REMITENTE_C31'],
+        roles: [...ARCHIVO_Y_CONSULTA, 'ENCARGADO_PRESTAMOS', 'REMITENTE_C31', ...SOLO_UBICACION],
       },
       {
         to: '/c31/nuevo',
@@ -126,7 +139,7 @@ const navGroups = computed<NavGroup[]>(() => [
         to: '/reportes',
         label: 'Reportes Financieros',
         icon: 'fa-chart-line',
-        roles: ['ADMIN', 'OPERADOR_ARCHIVOS', 'CONSULTA_AVANZADA', 'CONSULTA_EXTERNA'],
+        roles: ['ADMIN', 'OPERADOR_ARCHIVOS', 'CONSULTA_AVANZADA'],
       },
       {
         to: '/auditoria',
@@ -152,7 +165,9 @@ const visibleGroups = computed(() =>
       items: group.items.filter(
         // Los ítems sin roles son para cualquier perfil, salvo el remitente (solo ve lo suyo)
         (item) =>
-          item.roles ? Boolean(auth.rol && item.roles.includes(auth.rol)) : !auth.esRemitente,
+          item.roles
+            ? Boolean(auth.rol && item.roles.includes(auth.rol))
+            : !auth.esRemitente && !auth.esSoloUbicacion,
       ),
     }))
     .filter((group) => group.items.length > 0),
@@ -180,12 +195,7 @@ watch(
   >
     <!-- Logo y nombre del sistema -->
     <div class="sidebar-header">
-      <!-- Imagen centrada desde assets/images -->
-      <img
-        src="@/assets/images/logo.png"
-        alt="KnomiDoc Logo"
-        class="mx-auto mb-3 h-12 w-auto object-contain"
-      />
+      <div class="logo-box">K</div>
       <div class="logo-text">KnomiDoc</div>
       <button
         type="button"

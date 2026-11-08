@@ -14,6 +14,7 @@ import {
   CreateParametroGestionDto,
   UpdateParametroGestionDto,
 } from './dto/parametro-gestion.dto';
+import { AbiertoASoloLectura } from '../auth/decorators/abierto-a-solo-lectura.decorator';
 import { AbiertoATodosLosPerfiles } from '../auth/decorators/abierto-a-todos.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -35,12 +36,14 @@ export class ParametrosGestionController {
   }
 
   @AbiertoATodosLosPerfiles()
+  @AbiertoASoloLectura()
   @Get()
   findAll() {
     return this.service.findAll();
   }
 
   @AbiertoATodosLosPerfiles()
+  @AbiertoASoloLectura()
   @Get('activa')
   findActiva() {
     return this.service.findActiva();

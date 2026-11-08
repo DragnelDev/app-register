@@ -130,10 +130,13 @@ const TODAS_LAS_PESTANAS = [
   { id: 'adjuntos', label: 'Digitalización' },
 ] as const
 // El remitente solo ve sus datos y la vinculación (unión)
+// Solo lectura: únicamente los datos (incluye folio y ubicación física)
 const tabs = computed(() =>
-  auth.esRemitente
-    ? TODAS_LAS_PESTANAS.filter((t) => t.id === 'datos' || t.id === 'union')
-    : TODAS_LAS_PESTANAS,
+  auth.esSoloUbicacion
+    ? TODAS_LAS_PESTANAS.filter((t) => t.id === 'datos')
+    : auth.esRemitente
+      ? TODAS_LAS_PESTANAS.filter((t) => t.id === 'datos' || t.id === 'union')
+      : TODAS_LAS_PESTANAS,
 )
 </script>
 

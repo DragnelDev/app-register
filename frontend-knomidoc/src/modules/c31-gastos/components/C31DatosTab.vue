@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAuthStore } from '@/stores/auth.store'
 import { computed, reactive, ref, watch } from 'vue'
 import BeneficiarioSelect from '@/components/shared/BeneficiarioSelect.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -9,6 +10,7 @@ import { extractApiErrorMessage } from '@/utils/http-error'
 import { bs, fechaCorta } from '@/utils/estados'
 import { identificadorC31, type ComprobanteC31 } from '@/types/c31.types'
 
+const auth = useAuthStore()
 const props = defineProps<{ comprobante: ComprobanteC31; puedeEditar: boolean }>()
 const store = useC31Store()
 
@@ -89,8 +91,10 @@ async function guardar() {
       descripcion: form.descripcion.trim() || undefined,
       montoTotal: Number(form.montoTotal) > 0 ? Number(form.montoTotal) : undefined,
       fechaElaboracion: form.fechaElaboracion || undefined,
-      numeroFolio: form.numeroFolio.trim(),
-      ubicacionFisica: form.ubicacionFisica.trim(),
+      // El remitente no define folio ni ubicación física
+      ...(auth.esRemitente
+        ? {}
+        : { numeroFolio: form.numeroFolio.trim(), ubicacionFisica: form.ubicacionFisica.trim() }),
       observaciones: form.observaciones.trim(),
       beneficiarios: form.beneficiarios,
       motivoModificacion: esArchivado.value ? motivoModificacion.value.trim() : undefined,
@@ -232,11 +236,11 @@ const titulo = 'mb-1 font-semibold text-ink-700 dark:text-ink-200'
           <label :class="etiqueta">Fecha de elaboración</label>
           <FechaInput v-model="form.fechaElaboracion" />
         </div>
-        <div>
+        <div v-if="!auth.esRemitente">
           <label :class="etiqueta">N° de folio</label>
           <input v-model="form.numeroFolio" type="text" :class="campo" />
         </div>
-        <div>
+        <div v-if="!auth.esRemitente">
           <label :class="etiqueta">Ubicación física (estante / caja / carpeta)</label>
           <input v-model="form.ubicacionFisica" type="text" :class="campo" />
         </div>

@@ -48,10 +48,17 @@ const cargando = ref(false)
 const errorCarga = ref('')
 const intentado = ref(false)
 const vista = ref<'lista' | 'matriz'>('lista')
+// En borrador se puede filtrar para ver solo lo marcado; en actas cerradas siempre es así
+const soloMarcados = ref(false)
 
 const soloLectura = computed(() => Boolean(props.acta && props.acta.estado !== 'BORRADOR'))
 
 async function cargarCandidatos() {
+  // Acta ya recibida/anulada: solo se muestra lo que se envió, sin buscar otros pendientes
+  if (soloLectura.value) {
+    candidatos.value = [...(props.acta?.comprobantesC31 ?? [])]
+    return
+  }
   cargando.value = true
   errorCarga.value = ''
   try {
@@ -89,6 +96,8 @@ watch(
     form.fechaRecepcion = a?.fechaRecepcion?.slice(0, 10) ?? new Date().toISOString().slice(0, 10)
     form.observaciones = a?.observaciones ?? ''
     seleccion.value = new Set((a?.comprobantesC31 ?? []).map((c) => Number(c.id)))
+    soloMarcados.value = false
+    vista.value = 'lista'
     intentado.value = false
     busqueda.value = ''
     cargarCandidatos()
@@ -109,15 +118,19 @@ function alternar(c: ComprobanteC31) {
   s.has(id) ? s.delete(id) : s.add(id)
   seleccion.value = s
 }
+const visibles = computed(() =>
+  soloLectura.value || soloMarcados.value
+    ? candidatos.value.filter((c) => seleccion.value.has(Number(c.id)))
+    : candidatos.value,
+)
 const todosMarcados = computed(
-  () =>
-    candidatos.value.length > 0 && candidatos.value.every((c) => seleccion.value.has(Number(c.id))),
+  () => visibles.value.length > 0 && visibles.value.every((c) => seleccion.value.has(Number(c.id))),
 )
 function alternarTodos() {
   if (soloLectura.value) return
   seleccion.value = todosMarcados.value
     ? new Set()
-    : new Set([...seleccion.value, ...candidatos.value.map((c) => Number(c.id))])
+    : new Set([...seleccion.value, ...visibles.value.map((c) => Number(c.id))])
 }
 
 const totalSeleccionado = computed(() =>
@@ -232,7 +245,11 @@ const ver = (e: string) => (intentado.value ? e : '')
               Comprobantes a entregar
             </h3>
             <p class="text-xs text-ink-500">
-              Solo aparecen los “En revisión / firmado” que aún no están en un acta.
+              {{
+                soloLectura
+                  ? 'Comprobantes que se enviaron en esta acta.'
+                  : 'Solo aparecen los “En revisión / firmado” que aún no están en un acta.'
+              }}
             </p>
           </div>
           <div class="flex gap-1 text-xs">
@@ -261,6 +278,12 @@ const ver = (e: string) => (intentado.value ? e : '')
               Selección rápida
             </button>
           </div>
+          <label
+            v-if="!soloLectura"
+            class="flex items-center gap-1.5 text-xs text-ink-600 dark:text-ink-300"
+          >
+            <input v-model="soloMarcados" type="checkbox" /> Ver solo los marcados
+          </label>
           <input
             v-if="!soloLectura"
             v-model="busqueda"
@@ -274,7 +297,7 @@ const ver = (e: string) => (intentado.value ? e : '')
         <MatrizPreventivos
           v-if="vista === 'matriz'"
           v-model="seleccion"
-          :items="candidatos"
+          :items="visibles"
           :solo-lectura="soloLectura"
         />
         <div
@@ -290,7 +313,7 @@ const ver = (e: string) => (intentado.value ? e : '')
                   <input
                     type="checkbox"
                     :checked="todosMarcados"
-                    :disabled="soloLectura || !candidatos.length"
+                    :disabled="soloLectura || !visibles.length"
                     aria-label="Marcar todos"
                     @change="alternarTodos"
                   />
@@ -304,13 +327,17 @@ const ver = (e: string) => (intentado.value ? e : '')
               <tr v-if="cargando">
                 <td colspan="4" class="px-3 py-5 text-center text-ink-400">Cargando…</td>
               </tr>
-              <tr v-else-if="!candidatos.length">
+              <tr v-else-if="!visibles.length">
                 <td colspan="4" class="px-3 py-5 text-center text-ink-400">
-                  No hay comprobantes firmados pendientes de entrega.
+                  {{
+                    soloLectura || soloMarcados
+                      ? 'No hay comprobantes marcados.'
+                      : 'No hay comprobantes firmados pendientes de entrega.'
+                  }}
                 </td>
               </tr>
               <tr
-                v-for="c in candidatos"
+                v-for="c in visibles"
                 :key="c.id"
                 class="cursor-pointer hover:bg-ink-50 dark:hover:bg-white/5"
                 @click="alternar(c)"
@@ -334,7 +361,8 @@ const ver = (e: string) => (intentado.value ? e : '')
           </table>
         </div>
         <p class="mt-1 text-xs text-ink-600 dark:text-ink-300">
-          {{ seleccion.size }} marcado(s) · Total Bs {{ bs(totalSeleccionado) }}
+          {{ seleccion.size }} {{ soloLectura ? 'enviado(s)' : 'marcado(s)' }} · Total Bs
+          {{ bs(totalSeleccionado) }}
         </p>
         <p v-if="intentado && errores.comprobantes" class="mt-1 text-xs text-red-600">
           {{ errores.comprobantes }}

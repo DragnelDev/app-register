@@ -16,6 +16,7 @@ import { Usuario } from '../usuarios/entities/usuario.entity';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/auth-public.decorator';
 import { AbiertoATodosLosPerfiles } from './decorators/abierto-a-todos.decorator';
+import { AbiertoASoloLectura } from './decorators/abierto-a-solo-lectura.decorator';
 import { CambiarPerfilDto } from './dto/cambiar-perfil.dto';
 
 @ApiTags('auth')
@@ -69,6 +70,7 @@ export class AuthController {
 
   @SinVerificacionEmail()
   @AbiertoATodosLosPerfiles()
+  @AbiertoASoloLectura()
   @Get('me')
   me(@CurrentUser() usuario: Usuario) {
     // El rol que se muestra es el perfil activo de esta sesión
@@ -82,6 +84,7 @@ export class AuthController {
   /** Cambia el perfil activo sin cerrar sesión. */
   @SinVerificacionEmail()
   @AbiertoATodosLosPerfiles()
+  @AbiertoASoloLectura()
   @Post('perfil')
   @HttpCode(HttpStatus.OK)
   cambiarPerfil(

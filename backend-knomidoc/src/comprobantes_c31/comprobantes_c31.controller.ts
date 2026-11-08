@@ -25,6 +25,7 @@ import { UnirComprobantesC31Dto } from './dto/unir-comprobantes_c31.dto';
 import { CambiarEstadoC31Dto } from './dto/cambiar-estado-comprobantes_c31.dto';
 import { C31SeguimientoService } from './c31-seguimiento.service';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { AbiertoASoloLectura } from '../auth/decorators/abierto-a-solo-lectura.decorator';
 import { AbiertoATodosLosPerfiles } from '../auth/decorators/abierto-a-todos.decorator';
 import { Usuario } from '../usuarios/entities/usuario.entity';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -55,6 +56,7 @@ export class ComprobantesC31Controller {
   }
 
   @AbiertoATodosLosPerfiles()
+  @AbiertoASoloLectura()
   @Get()
   findAll(
     @Query() query: FilterComprobantesC31Dto,
@@ -65,6 +67,7 @@ export class ComprobantesC31Controller {
 
   // Las rutas fijas van antes de ':id' para que no se interpreten como un id
   @AbiertoATodosLosPerfiles()
+  @AbiertoASoloLectura()
   @Get('gestiones')
   findGestiones() {
     return this.comprobantesC31Service.findGestiones();
@@ -113,6 +116,7 @@ export class ComprobantesC31Controller {
   }
 
   @AbiertoATodosLosPerfiles()
+  @AbiertoASoloLectura()
   @Get(':id')
   findOne(
     @Param('id', ParseIntPipe) id: number,
@@ -135,6 +139,7 @@ export class ComprobantesC31Controller {
   }
 
   @AbiertoATodosLosPerfiles()
+  @AbiertoASoloLectura()
   @Get(':id/grupo')
   grupo(@Param('id', ParseIntPipe) id: number) {
     return this.comprobantesC31Service.grupoDe(id);
