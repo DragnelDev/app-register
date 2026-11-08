@@ -25,10 +25,7 @@ import { IsIn, IsOptional } from 'class-validator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Usuario } from '../usuarios/entities/usuario.entity';
-import {
-  C31AdjuntosService,
-  MAX_ADJUNTO_BYTES,
-} from './c31-adjuntos.service';
+import { C31AdjuntosService, MAX_ADJUNTO_BYTES } from './c31-adjuntos.service';
 import {
   TIPOS_ADJUNTO_C31,
   TipoAdjuntoC31,

@@ -193,7 +193,9 @@ onMounted(() => {
           Interna).
         </p>
       </div>
-      <BaseButton v-if="!auth.esSoloConsulta" @click="modalOpen = true">+ Registrar solicitud</BaseButton>
+      <BaseButton v-if="!auth.esSoloConsulta" @click="modalOpen = true"
+        >+ Registrar solicitud</BaseButton
+      >
     </div>
 
     <p
@@ -221,15 +223,33 @@ onMounted(() => {
     <form class="card flex flex-wrap items-end gap-3 p-4" @submit.prevent="filtrar">
       <div class="min-w-[200px] flex-1">
         <label :class="etiqueta" for="n-q">Buscar</label>
-        <input id="n-q" v-model="f.search" type="search" placeholder="N° de nota, CITE, referencia, funcionario o CI…" :class="[campo, 'w-full']" />
+        <input
+          id="n-q"
+          v-model="f.search"
+          type="search"
+          placeholder="N° de nota, CITE, referencia, funcionario o CI…"
+          :class="[campo, 'w-full']"
+        />
       </div>
       <div class="w-44">
         <label :class="etiqueta" for="n-num">N° de nota / CITE</label>
-        <input id="n-num" v-model="f.numeroNota" type="text" placeholder="NP-0012/2026" :class="[campo, 'w-full']" />
+        <input
+          id="n-num"
+          v-model="f.numeroNota"
+          type="text"
+          placeholder="NP-0012/2026"
+          :class="[campo, 'w-full']"
+        />
       </div>
       <div class="w-52">
         <label :class="etiqueta" for="n-inst">Unidad solicitante</label>
-        <input id="n-inst" v-model="f.institucion" type="text" placeholder="Ej: Auditoría" :class="[campo, 'w-full']" />
+        <input
+          id="n-inst"
+          v-model="f.institucion"
+          type="text"
+          placeholder="Ej: Auditoría"
+          :class="[campo, 'w-full']"
+        />
       </div>
       <div>
         <label :class="etiqueta" for="n-est">Estado</label>
@@ -259,8 +279,12 @@ onMounted(() => {
         <input v-model="f.vencidas" type="checkbox" true-value="true" false-value="" />
         Solo vencidas
       </label>
-      <BaseButton type="submit" size="sm"><i class="fa-solid fa-filter mr-1" aria-hidden="true" /> Filtrar</BaseButton>
-      <BaseButton type="button" variant="secondary" size="sm" @click="limpiarFiltros">Limpiar</BaseButton>
+      <BaseButton type="submit" size="sm"
+        ><i class="fa-solid fa-filter mr-1" aria-hidden="true" /> Filtrar</BaseButton
+      >
+      <BaseButton type="button" variant="secondary" size="sm" @click="limpiarFiltros"
+        >Limpiar</BaseButton
+      >
     </form>
 
     <BaseDataTable
@@ -271,35 +295,44 @@ onMounted(() => {
     >
       <template #cell-comprobanteId="{ row }">{{ nombreComprobante(row) }}</template>
       <template #cell-funcionarioResponsable="{ row }">
-        {{ row.funcionario ? `${row.funcionario.nombres} ${row.funcionario.apellidos}` : (row.funcionarioResponsable ?? '—') }}
+        {{
+          row.funcionario
+            ? `${row.funcionario.nombres} ${row.funcionario.apellidos}`
+            : (row.funcionarioResponsable ?? '—')
+        }}
       </template>
-      <template #cell-institucionSolicitante="{ row }">{{ row.institucionSolicitante ?? '—' }}</template>
+      <template #cell-institucionSolicitante="{ row }">{{
+        row.institucionSolicitante ?? '—'
+      }}</template>
       <template #cell-estadoPrestamo="{ row }"><BaseBadge :estado="row.estadoPrestamo" /></template>
       <template #actions="{ row }">
         <div class="flex justify-end gap-1">
           <template v-if="row.estadoPrestamo === 'BORRADOR'">
-            <IconButton v-if="!auth.esSoloConsulta"
+            <IconButton
+              v-if="!auth.esSoloConsulta"
               icon="fa-pen-to-square"
               label="Editar y previsualizar nota"
               variant="primary"
               @click="editarNota(row.numeroNotaSolicitud)"
             />
-            <IconButton v-if="!auth.esSoloConsulta"
+            <IconButton
+              v-if="!auth.esSoloConsulta"
               icon="fa-circle-check"
               label="Aprobar y entregar"
               variant="success"
               :loading="aprobando === row.numeroNotaSolicitud"
               @click="aprobar(row.numeroNotaSolicitud)"
             />
-            <IconButton v-if="!auth.esSoloConsulta"
+            <IconButton
+              v-if="!auth.esSoloConsulta"
               icon="fa-trash"
               label="Descartar borrador"
               variant="danger"
               @click="descartar(row.numeroNotaSolicitud)"
             />
           </template>
-          <IconButton v-if="auth.puedeExportar"
-            v-else
+          <IconButton
+            v-else-if="auth.puedeExportar"
             icon="fa-print"
             label="Imprimir nota (PDF)"
             variant="primary"
@@ -310,7 +343,8 @@ onMounted(() => {
             label="Ver seguimiento del comprobante"
             @click="verSeguimiento(row)"
           />
-          <IconButton v-if="(row.estadoPrestamo === 'ENTREGADO') && !auth.esSoloConsulta"
+          <IconButton
+            v-if="row.estadoPrestamo === 'ENTREGADO' && !auth.esSoloConsulta"
             icon="fa-rotate-left"
             label="Devolver nota completa"
             variant="success"
