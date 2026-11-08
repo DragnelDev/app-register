@@ -22,6 +22,26 @@ export interface NotaAuditoria {
   cierre: string
   gestion?: number | null
   notasPrestamo?: string[]
+  estado?: 'BORRADOR' | 'EMITIDA'
+  fechaEmision?: string | null
+  historial?: { fecha: string; usuario?: string | null; motivo: string; campos: string[] }[]
+}
+export type BucketNota = 'entrega' | 'anteriores' | 'pendientes'
+export interface ItemClasificado {
+  comprobanteId: number
+  prev: string
+  dev: string
+  rotulo: string
+  numeros: string[]
+  estado: string
+  bucket: BucketNota
+  motivo: string
+}
+export interface Clasificacion {
+  gestion: number
+  total: number
+  items: ItemClasificado[]
+  noRegistrados: string[]
 }
 export interface NotaPrestamoResumen {
   numero: string
@@ -37,7 +57,9 @@ export interface NotaDesdePrestamos {
   referencia: string
   secciones: SeccionNota[]
 }
-export type NotaAuditoriaPayload = Partial<Omit<NotaAuditoria, 'id'>>
+export type NotaAuditoriaPayload = Partial<Omit<NotaAuditoria, 'id'>> & {
+  motivoModificacion?: string
+}
 
 const R = '/notas-auditoria'
 export const notasAuditoriaService = {
@@ -53,6 +75,9 @@ export const notasAuditoriaService = {
         params: { notas: numeros.join('|') },
       })
       .then((r) => r.data),
+  clasificar: (p: { texto?: string; comprobanteIds?: number[]; gestion?: number }) =>
+    apiClient.post<Clasificacion>(`${R}/clasificar`, p).then((r) => r.data),
+  emitir: (id: number) => apiClient.patch<NotaAuditoria>(`${R}/${id}/emitir`).then((r) => r.data),
   create: (p: NotaAuditoriaPayload) => apiClient.post<NotaAuditoria>(R, p).then((r) => r.data),
   update: (id: number, p: NotaAuditoriaPayload) =>
     apiClient.patch<NotaAuditoria>(`${R}/${id}`, p).then((r) => r.data),

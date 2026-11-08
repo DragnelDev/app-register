@@ -65,7 +65,14 @@ router.beforeEach(async (to) => {
   // Solo lectura: únicamente consulta comprobantes y su ubicación (más su perfil)
   if (
     auth.esSoloUbicacion &&
-    !(to.path.startsWith('/c31/con-imputacion') || to.path.startsWith('/c31/sin-imputacion') || to.path === '/c31' || to.path === '/perfil' || to.name === 'seleccionar-perfil' || to.name === 'verificar-email')
+    !(
+      to.path.startsWith('/c31/con-imputacion') ||
+      to.path.startsWith('/c31/sin-imputacion') ||
+      to.path === '/c31' ||
+      to.path === '/perfil' ||
+      to.name === 'seleccionar-perfil' ||
+      to.name === 'verificar-email'
+    )
   ) {
     return { path: auth.rutaInicial }
   }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import { ROLES_INFO, rolLabel } from '@/constants/roles'
@@ -11,7 +11,10 @@ const router = useRouter()
 const eligiendo = ref<string | null>(null)
 const error = ref('')
 
+const recordar = ref(true)
+
 async function elegir(rol: RolUsuario) {
+  if (recordar.value) auth.guardarPerfilPredeterminado(rol)
   eligiendo.value = rol
   error.value = ''
   try {
@@ -27,6 +30,12 @@ async function elegir(rol: RolUsuario) {
     eligiendo.value = null
   }
 }
+
+// Con un perfil predeterminado se entra directo, sin pasar por esta pantalla
+onMounted(() => {
+  const defecto = auth.perfilPredeterminado()
+  if (defecto && auth.perfiles.includes(defecto as RolUsuario)) void elegir(defecto as RolUsuario)
+})
 
 function salir() {
   auth.logout()
@@ -75,6 +84,11 @@ function salir() {
           </button>
         </li>
       </ul>
+
+      <label class="mt-5 flex items-center gap-2 text-sm text-ink-600 dark:text-ink-300">
+        <input v-model="recordar" type="checkbox" />
+        Entrar siempre con este perfil (podrá cambiarlo desde la barra superior)
+      </label>
 
       <button
         type="button"

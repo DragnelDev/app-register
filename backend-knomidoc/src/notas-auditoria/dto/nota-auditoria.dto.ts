@@ -46,6 +46,8 @@ export class CreateNotaAuditoriaDto {
 }
 
 export class UpdateNotaAuditoriaDto {
+  /** Obligatorio (mín. 5 caracteres) cuando la nota ya fue emitida. */
+  @IsOptional() @IsString() @MaxLength(500) motivoModificacion?: string;
   @IsOptional() @IsString() @MaxLength(80) cite?: string;
   @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) fecha?: string;
   @IsOptional()
@@ -70,4 +72,13 @@ export class UpdateNotaAuditoriaDto {
   @IsOptional() @IsString() @MaxLength(5000) cierre?: string;
   @IsOptional() @IsInt() gestion?: number;
   @IsOptional() @IsArray() @IsString({ each: true }) notasPrestamo?: string[];
+}
+
+/** Clasificación previa a armar la nota (no guarda nada). */
+export class ClasificarDto {
+  /** N° pedidos por Auditoría, pegados: "1-120, 130, DEV 45" */
+  @IsOptional() @IsString() @MaxLength(20000) texto?: string;
+  /** Comprobantes marcados en la selección rápida */
+  @IsOptional() @IsArray() @IsInt({ each: true }) comprobanteIds?: number[];
+  @IsOptional() @IsInt() gestion?: number;
 }

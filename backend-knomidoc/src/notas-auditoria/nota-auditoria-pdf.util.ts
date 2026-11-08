@@ -96,10 +96,12 @@ export function notaAuditoriaPdf(n: NotaAuditoria): Promise<Buffer> {
       .fontSize(10)
       .text(`•  ${s.titulo}`, izq + 8, doc.y, { width: ancho - 8 });
     if (s.texto?.trim())
-      doc.font('Helvetica').text(s.texto, izq + 24, doc.y + 2, {
-        width: ancho - 24,
-        align: 'justify',
-      });
+      doc
+        .font('Helvetica')
+        .text(s.texto, izq + 24, doc.y + 2, {
+          width: ancho - 24,
+          align: 'justify',
+        });
     doc.moveDown(0.4);
 
     // Cuadro "Nº | Nº Prev." repetido en bloques de columnas (como la hoja de cálculo)

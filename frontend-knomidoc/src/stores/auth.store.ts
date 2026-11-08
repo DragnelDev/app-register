@@ -104,6 +104,24 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
+    /** Perfil con el que este usuario entra por defecto (se guarda en este equipo). */
+    perfilPredeterminado(): string | null {
+      try {
+        return localStorage.getItem(`knomidoc_perfil_defecto_${this.usuario?.id ?? ''}`)
+      } catch {
+        return null
+      }
+    },
+    guardarPerfilPredeterminado(rol: string | null) {
+      try {
+        const k = `knomidoc_perfil_defecto_${this.usuario?.id ?? ''}`
+        if (rol) localStorage.setItem(k, rol)
+        else localStorage.removeItem(k)
+      } catch {
+        /* sin almacenamiento: no se recuerda */
+      }
+    },
+
     /** Cambia de perfil sin cerrar sesión: el servidor emite un token con ese rol. */
     async cambiarPerfil(rol: string) {
       const r = await authService.cambiarPerfil(rol)
@@ -120,6 +138,8 @@ export const useAuthStore = defineStore('auth', {
       }
       this.perfilPendiente = false
       sessionStorage.removeItem(PERFIL_PENDIENTE_KEY)
+      // Si ya tenía uno predeterminado, el perfil elegido pasa a serlo
+      if (this.perfilPredeterminado()) this.guardarPerfilPredeterminado(r.rol)
     },
 
     async fetchProfile() {

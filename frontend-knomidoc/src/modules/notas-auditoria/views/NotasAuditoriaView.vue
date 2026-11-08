@@ -6,8 +6,11 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import SeleccionRapidaModal from '@/components/shared/SeleccionRapidaModal.vue'
+import { cantidadEnTexto } from '@/utils/numero-letras'
 import {
   notasAuditoriaService,
+  type BucketNota,
+  type Clasificacion,
   type NotaAuditoria,
   type NotaPrestamoResumen,
   type SeccionNota,
@@ -20,7 +23,9 @@ import { preventivosC31, type ComprobanteC31 } from '@/types/c31.types'
 defineProps<{ embedded?: boolean }>()
 const auth = useAuthStore()
 const gestion = useGestionStore()
-const puedeEscribir = computed(() => auth.rol === 'ADMIN' || auth.rol === 'OPERADOR_ARCHIVOS')
+const puedeEscribir = computed(() =>
+  ['ADMIN', 'OPERADOR_ARCHIVOS', 'ENCARGADO_PRESTAMOS'].includes(String(auth.rol)),
+)
 
 const items = ref<NotaAuditoria[]>([])
 const cargando = ref(false)
@@ -58,6 +63,10 @@ const guardando = ref(false)
 const errorForm = ref('')
 const editId = ref<number | null>(null)
 const conVia = ref(true)
+// Nota ya emitida: cada cambio exige un motivo y queda en el historial
+const emitidaEnEdicion = ref(false)
+const motivo = ref('')
+const historialEdicion = ref<NonNullable<NotaAuditoria['historial']>>([])
 
 interface Seccion {
   titulo: string
@@ -101,6 +110,11 @@ const plantillaSecciones = (): Seccion[] => [
 
 function nueva() {
   editId.value = null
+  emitidaEnEdicion.value = false
+  motivo.value = ''
+  historialEdicion.value = []
+  limpiarClasificacion()
+  textoSolicitado.value = ''
   f.cite = ''
   f.fecha = new Date().toLocaleDateString('en-CA')
   f.dest.nombre = ''
@@ -119,6 +133,11 @@ function nueva() {
 
 function editar(n: NotaAuditoria) {
   editId.value = n.id
+  emitidaEnEdicion.value = n.estado === 'EMITIDA'
+  motivo.value = ''
+  historialEdicion.value = n.historial ?? []
+  limpiarClasificacion()
+  textoSolicitado.value = ''
   f.cite = n.cite
   f.fecha = n.fecha.slice(0, 10)
   Object.assign(f.dest, n.destinatario)
@@ -153,6 +172,11 @@ async function guardar() {
     errorForm.value = 'Complete destinatario, remitente y referencia.'
     return
   }
+  if (emitidaEnEdicion.value && motivo.value.trim().length < 5) {
+    errorForm.value =
+      'La nota ya fue emitida: escriba el motivo de la modificación (mínimo 5 caracteres).'
+    return
+  }
   const secciones: SeccionNota[] = f.secciones.map((s) => ({
     titulo: s.titulo,
     texto: s.texto,
@@ -170,6 +194,7 @@ async function guardar() {
     secciones,
     notasPrestamo: notasElegidas.value,
     gestion: gestion.seleccionada || undefined,
+    ...(emitidaEnEdicion.value ? { motivoModificacion: motivo.value.trim() } : {}),
   }
   guardando.value = true
   errorForm.value = ''
@@ -186,6 +211,23 @@ async function guardar() {
     guardando.value = false
   }
 }
+
+async function emitir(n: NotaAuditoria) {
+  if (
+    !confirm(
+      `¿Emitir la nota ${n.cite}? Después solo podrá modificarse indicando el motivo, y quedará en el historial.`,
+    )
+  )
+    return
+  try {
+    await notasAuditoriaService.emitir(n.id)
+    await cargar()
+  } catch (e) {
+    error.value = extractApiErrorMessage(e, 'No se pudo emitir la nota.')
+  }
+}
+
+const historialVer = ref<NotaAuditoria | null>(null)
 
 async function eliminar(n: NotaAuditoria) {
   if (!confirm(`¿Eliminar la nota ${n.cite}?`)) return
@@ -232,6 +274,101 @@ async function armarDesdeNotas() {
   } finally {
     armando.value = false
   }
+}
+
+// ── Lo que pide Auditoría: pegar/seleccionar y clasificar por estado ──
+const textoSolicitado = ref('')
+const matrizSolicitados = ref(false)
+const clasif = ref<Clasificacion | null>(null)
+const clasificando = ref(false)
+const errorClasif = ref('')
+const incluirNoRegistrados = ref(true)
+
+function limpiarClasificacion() {
+  clasif.value = null
+  errorClasif.value = ''
+}
+
+function agregarSolicitados(lote: ComprobanteC31[]) {
+  const nums = lote.flatMap((c) => {
+    const p = preventivosC31(c)
+    return p.length ? p : (c.devengados ?? []).map((d) => `DEV ${d.numeroDevengado}`)
+  })
+  textoSolicitado.value = [textoSolicitado.value.trim(), ...nums].filter(Boolean).join(', ')
+}
+
+async function clasificar() {
+  if (!textoSolicitado.value.trim()) {
+    errorClasif.value = 'Pegue los N° que pide Auditoría o márquelos en la selección rápida.'
+    return
+  }
+  clasificando.value = true
+  errorClasif.value = ''
+  try {
+    clasif.value = await notasAuditoriaService.clasificar({
+      texto: textoSolicitado.value,
+      gestion: gestion.seleccionada || undefined,
+    })
+  } catch (e) {
+    errorClasif.value = extractApiErrorMessage(e, 'No se pudo clasificar.')
+  } finally {
+    clasificando.value = false
+  }
+}
+
+const NOMBRE_BUCKET: Record<BucketNota, string> = {
+  entrega: 'Entrega ahora',
+  pendientes: 'Pendientes (ajenos a la unidad)',
+  anteriores: 'Entregados anteriormente',
+}
+const ORDEN_BUCKETS: BucketNota[] = ['entrega', 'pendientes', 'anteriores']
+const delBucket = (b: BucketNota) => clasif.value?.items.filter((i) => i.bucket === b) ?? []
+const cantidadBucket = (b: BucketNota) =>
+  delBucket(b).length +
+  (b === 'pendientes' && incluirNoRegistrados.value ? (clasif.value?.noRegistrados.length ?? 0) : 0)
+
+function aplicarClasificacion() {
+  const c = clasif.value
+  if (!c) return
+  const nEntrega = cantidadBucket('entrega')
+  const nPend = cantidadBucket('pendientes')
+  const nAnt = cantidadBucket('anteriores')
+  const lista = (b: BucketNota) => [
+    ...delBucket(b).map((i) => i.rotulo),
+    ...(b === 'pendientes' && incluirNoRegistrados.value ? c.noRegistrados : []),
+  ]
+  const secs: Seccion[] = []
+  if (nEntrega)
+    secs.push({
+      titulo: `Entrega de comprobantes (${nEntrega} en total)`,
+      texto:
+        nEntrega === 1
+          ? 'En esta oportunidad, se hace la entrega física de un (1) comprobante C-31, debidamente foliado y engrampado.'
+          : `En esta oportunidad, se hace la entrega física de ${cantidadEnTexto(nEntrega)} comprobantes C-31, los cuales se presentan debidamente foliados y engrampados.`,
+      itemsTexto: lista('entrega').join(', '),
+    })
+  if (nPend) {
+    const restantes = nEntrega + nAnt > 0
+    secs.push({
+      titulo: `Comprobantes pendientes ajenos a la unidad (${nPend} en total)`,
+      texto:
+        nPend === 1
+          ? `${restantes ? 'El comprobante restante' : 'El comprobante'} se encuentra actualmente en trámite o bajo custodia de otras oficinas del G.A.M.S.L. ajenas a esta Unidad, por lo que no es posible su entrega por mi parte.`
+          : `Los ${cantidadEnTexto(nPend)} comprobantes${restantes ? ' restantes' : ''} se encuentran actualmente en trámite o bajo custodia de otras oficinas del G.A.M.S.L. ajenas a esta Unidad, por lo que no es posible su entrega por mi parte.`,
+      itemsTexto: lista('pendientes').join(', '),
+    })
+  }
+  if (nAnt)
+    secs.push({
+      titulo: `Comprobantes entregados anteriormente (${nAnt} en total)`,
+      texto:
+        nAnt === 1
+          ? 'En relación con los comprobantes solicitados, hago constar que un (1) comprobante ya fue entregado anteriormente, debidamente foliado, engrampado y registrado en los cuadernos de cargo de la Unidad de Archivos.'
+          : `En relación con los comprobantes solicitados, hago constar que ${cantidadEnTexto(nAnt)} comprobantes ya fueron entregados anteriormente, debidamente foliados, engrampados y registrados en los cuadernos de cargo de la Unidad de Archivos.`,
+      itemsTexto: lista('anteriores').join(', '),
+    })
+  f.secciones = secs
+  avisoVinculo.value = ''
 }
 
 // ── Insertar comprobantes desde la matriz ──
@@ -284,6 +421,7 @@ const campo =
           <tr>
             <th class="px-3 py-2">CITE</th>
             <th class="px-3 py-2">Fecha</th>
+            <th class="px-3 py-2">Estado</th>
             <th class="px-3 py-2">Referencia</th>
             <th class="px-3 py-2">Notas de préstamo</th>
             <th class="px-3 py-2 text-right">Acciones</th>
@@ -291,14 +429,32 @@ const campo =
         </thead>
         <tbody class="divide-y divide-ink-100 dark:divide-white/10">
           <tr v-if="cargando">
-            <td colspan="5" class="px-3 py-5 text-center text-ink-400">Cargando…</td>
+            <td colspan="6" class="px-3 py-5 text-center text-ink-400">Cargando…</td>
           </tr>
           <tr v-else-if="!items.length">
-            <td colspan="5" class="px-3 py-5 text-center text-ink-400">Sin notas registradas.</td>
+            <td colspan="6" class="px-3 py-5 text-center text-ink-400">Sin notas registradas.</td>
           </tr>
           <tr v-for="n in items" :key="n.id">
             <td class="px-3 py-2 font-mono text-xs">{{ n.cite }}</td>
             <td class="px-3 py-2">{{ fechaCorta(n.fecha) }}</td>
+            <td class="px-3 py-2">
+              <span
+                class="rounded-full px-2 py-0.5 text-xs font-medium"
+                :class="
+                  n.estado === 'EMITIDA'
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200'
+                    : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200'
+                "
+                >{{ n.estado === 'EMITIDA' ? 'Emitida' : 'Borrador' }}</span
+              >
+              <button
+                v-if="n.historial?.length"
+                class="ml-1 text-xs text-seal-600 hover:underline"
+                @click="historialVer = n"
+              >
+                {{ n.historial.length }} cambio(s)
+              </button>
+            </td>
             <td class="px-3 py-2">{{ n.referencia }}</td>
             <td class="px-3 py-2 text-xs">{{ (n.notasPrestamo ?? []).join(', ') || '—' }}</td>
             <td class="space-x-2 px-3 py-2 text-right">
@@ -308,11 +464,18 @@ const campo =
               >
                 PDF
               </button>
+              <button
+                v-if="puedeEscribir && n.estado !== 'EMITIDA'"
+                class="text-emerald-700 hover:underline"
+                @click="emitir(n)"
+              >
+                Emitir
+              </button>
               <button v-if="puedeEscribir" class="text-seal-600 hover:underline" @click="editar(n)">
-                Editar
+                {{ n.estado === 'EMITIDA' ? 'Modificar' : 'Editar' }}
               </button>
               <button
-                v-if="puedeEscribir"
+                v-if="puedeEscribir && (n.estado !== 'EMITIDA' || auth.rol === 'ADMIN')"
                 class="text-red-600 hover:underline"
                 @click="eliminar(n)"
               >
@@ -330,6 +493,29 @@ const campo =
       size="lg"
     >
       <div class="space-y-3 text-sm">
+        <div
+          v-if="emitidaEnEdicion"
+          class="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3 dark:border-amber-500/40 dark:bg-amber-500/10"
+        >
+          <p class="font-medium text-amber-900 dark:text-amber-200">Esta nota ya fue emitida</p>
+          <p class="text-xs text-amber-800 dark:text-amber-300">
+            Para modificarla indique el motivo; quedará registrado con su nombre y fecha.
+          </p>
+          <textarea
+            v-model="motivo"
+            rows="2"
+            :class="campo"
+            placeholder="Motivo de la modificación (obligatorio)"
+          />
+          <ul
+            v-if="historialEdicion.length"
+            class="space-y-0.5 text-xs text-amber-900 dark:text-amber-200"
+          >
+            <li v-for="(h, k) in historialEdicion" :key="k">
+              {{ fechaCorta(h.fecha) }} · {{ h.usuario || '—' }}: {{ h.motivo }}
+            </li>
+          </ul>
+        </div>
         <div class="grid gap-3 sm:grid-cols-2">
           <label
             >CITE (vacío = automático)<input
@@ -393,6 +579,83 @@ const campo =
           </div>
           <p v-if="avisoVinculo" class="text-xs text-amber-600">{{ avisoVinculo }}</p>
         </div>
+        <div class="space-y-2 rounded-md border border-seal-200 p-3 dark:border-seal-500/30">
+          <p class="font-medium">Comprobantes que pide Auditoría</p>
+          <p class="text-xs text-ink-500">
+            Pegue los N° (ej. <span class="font-mono">1-120, 130, DEV 45</span>) o márquelos en la
+            selección rápida. Se clasifican por su estado actual; no se guarda nada hasta que usted
+            lo confirme y verifique con lo físico.
+          </p>
+          <textarea
+            v-model="textoSolicitado"
+            rows="2"
+            :class="campo"
+            placeholder="1-120, 130, 145-150"
+          />
+          <div class="flex flex-wrap items-center gap-2">
+            <BaseButton size="sm" variant="secondary" @click="matrizSolicitados = true"
+              >Selección rápida</BaseButton
+            >
+            <BaseButton size="sm" :loading="clasificando" @click="clasificar"
+              >Clasificar por estado</BaseButton
+            >
+            <span v-if="clasif" class="text-xs text-ink-500">
+              {{ clasif.total }} comprobante(s) · gestión {{ clasif.gestion }}
+            </span>
+          </div>
+          <p v-if="errorClasif" class="text-xs text-red-600">{{ errorClasif }}</p>
+          <template v-if="clasif">
+            <div class="grid gap-2 sm:grid-cols-3">
+              <div
+                v-for="b in ORDEN_BUCKETS"
+                :key="b"
+                class="rounded-md border border-ink-100 p-2 dark:border-white/10"
+              >
+                <p class="text-xs font-semibold">
+                  {{ NOMBRE_BUCKET[b] }}
+                  <span class="text-seal-600">({{ cantidadBucket(b) }})</span>
+                </p>
+                <ul class="mt-1 max-h-40 space-y-1 overflow-auto">
+                  <li
+                    v-for="it in delBucket(b)"
+                    :key="it.comprobanteId"
+                    class="flex items-center justify-between gap-1 text-xs"
+                  >
+                    <span class="min-w-0 truncate" :title="it.motivo"
+                      ><span class="font-mono">{{ it.rotulo }}</span>
+                      <span class="text-ink-400">· {{ it.estado }}</span></span
+                    >
+                    <select
+                      v-model="it.bucket"
+                      class="shrink-0 rounded border border-ink-200 bg-white px-1 py-0.5 text-[11px] dark:border-white/10 dark:bg-ink-950"
+                      title="Mover a otra sección"
+                    >
+                      <option v-for="o in ORDEN_BUCKETS" :key="o" :value="o">
+                        {{ NOMBRE_BUCKET[o].split(' (')[0] }}
+                      </option>
+                    </select>
+                  </li>
+                  <li
+                    v-if="b === 'pendientes' && incluirNoRegistrados && clasif.noRegistrados.length"
+                    class="text-xs text-ink-500"
+                  >
+                    + {{ clasif.noRegistrados.length }} no registrado(s):
+                    {{ clasif.noRegistrados.slice(0, 12).join(', ')
+                    }}{{ clasif.noRegistrados.length > 12 ? '…' : '' }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <label v-if="clasif.noRegistrados.length" class="flex items-center gap-2 text-xs">
+              <input v-model="incluirNoRegistrados" type="checkbox" />
+              Contar los {{ clasif.noRegistrados.length }} N° que no están registrados en el sistema
+              como pendientes
+            </label>
+            <BaseButton size="sm" @click="aplicarClasificacion"
+              >Armar las secciones de la nota con esto</BaseButton
+            >
+          </template>
+        </div>
         <label class="block"
           >REF.<textarea
             v-model="f.referencia"
@@ -448,9 +711,31 @@ const campo =
       </div>
       <template #footer>
         <BaseButton variant="secondary" @click="abierto = false">Cancelar</BaseButton>
-        <BaseButton :loading="guardando" @click="guardar">Guardar y ver PDF</BaseButton>
+        <BaseButton :loading="guardando" @click="guardar">{{
+          emitidaEnEdicion ? 'Guardar cambio y ver PDF' : 'Guardar y ver PDF'
+        }}</BaseButton>
       </template>
     </BaseModal>
     <SeleccionRapidaModal v-model="matriz" todos @confirm="insertar" />
+    <SeleccionRapidaModal v-model="matrizSolicitados" todos @confirm="agregarSolicitados" />
+    <BaseModal
+      :model-value="historialVer !== null"
+      title="Cambios de la nota"
+      @update:model-value="historialVer = null"
+    >
+      <ul class="space-y-2 text-sm">
+        <li
+          v-for="(h, k) in historialVer?.historial ?? []"
+          :key="k"
+          class="rounded-md border border-ink-100 p-2 dark:border-white/10"
+        >
+          <p class="text-xs text-ink-500">{{ fechaCorta(h.fecha) }} · {{ h.usuario || '—' }}</p>
+          <p>{{ h.motivo }}</p>
+          <p v-if="h.campos.length" class="text-xs text-ink-400">
+            Campos: {{ h.campos.join(', ') }}
+          </p>
+        </li>
+      </ul>
+    </BaseModal>
   </div>
 </template>

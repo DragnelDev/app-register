@@ -8,6 +8,14 @@ export interface SeccionNotaAuditoria {
   items: string[];
 }
 
+export interface HistorialNotaAuditoria {
+  fecha: string;
+  usuarioId?: number | null;
+  usuario?: string | null;
+  motivo: string;
+  campos: string[];
+}
+
 export interface PersonaNota {
   nombre: string;
   cargo: string;
@@ -52,6 +60,17 @@ export class NotaAuditoria extends BaseAuditoriaEntity {
 
   @Column({ type: 'integer', nullable: true })
   gestion?: number | null;
+
+  /** BORRADOR: libre. EMITIDA: ya se imprimió/firmó; solo se cambia con motivo. */
+  @Column({ type: 'varchar', length: 12, default: 'BORRADOR' })
+  estado: 'BORRADOR' | 'EMITIDA' | undefined;
+
+  @Column({ name: 'fecha_emision', type: 'timestamp', nullable: true })
+  fechaEmision?: Date | null;
+
+  /** Cambios hechos después de emitirla: quién, cuándo y por qué. */
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  historial: HistorialNotaAuditoria[] | undefined;
 
   /** N° de las notas de préstamo (préstamos por nota) con las que se vinculó. */
   @Column({ name: 'notas_prestamo', type: 'jsonb', default: () => "'[]'" })

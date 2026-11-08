@@ -16,6 +16,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Usuario } from '../usuarios/entities/usuario.entity';
 import { NotasAuditoriaService } from './notas-auditoria.service';
 import {
+  ClasificarDto,
   CreateNotaAuditoriaDto,
   UpdateNotaAuditoriaDto,
 } from './dto/nota-auditoria.dto';
@@ -24,9 +25,15 @@ const LECTURA = [
   'ADMIN',
   'OPERADOR_ARCHIVOS',
   'AUXILIAR_ARCHIVOS',
+  'ENCARGADO_PRESTAMOS',
   'CONSULTA_AVANZADA',
 ] as const;
-const ESCRITURA = ['ADMIN', 'OPERADOR_ARCHIVOS'] as const;
+// Archivo y Préstamos preparan la respuesta (el encargado de préstamos conoce las notas)
+const ESCRITURA = [
+  'ADMIN',
+  'OPERADOR_ARCHIVOS',
+  'ENCARGADO_PRESTAMOS',
+] as const;
 
 @ApiTags('notas-auditoria')
 @ApiBearerAuth()
@@ -58,6 +65,18 @@ export class NotasAuditoriaController {
   }
 
   @Roles(...LECTURA)
+  @Post('clasificar')
+  clasificar(@Body() dto: ClasificarDto) {
+    return this.service.clasificar(dto);
+  }
+
+  @Roles(...ESCRITURA)
+  @Patch(':id/emitir')
+  emitir(@Param('id', ParseIntPipe) id: number) {
+    return this.service.emitir(id);
+  }
+
+  @Roles(...LECTURA)
   @Get(':id/pdf')
   async pdf(@Param('id', ParseIntPipe) id: number) {
     const buf = await this.service.pdf(id);
@@ -84,13 +103,14 @@ export class NotasAuditoriaController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateNotaAuditoriaDto,
+    @CurrentUser() u: Usuario,
   ) {
-    return this.service.update(id, dto);
+    return this.service.update(id, dto, u);
   }
 
   @Roles(...ESCRITURA)
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.service.remove(id);
+  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() u: Usuario) {
+    return this.service.remove(id, u);
   }
 }

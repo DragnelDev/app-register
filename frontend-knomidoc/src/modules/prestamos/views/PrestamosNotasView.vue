@@ -28,9 +28,13 @@ const router = useRouter()
 const route = useRoute()
 // Pestaña "Respuesta a Auditoría": la nota formal con CITE y PDF vive junto a los préstamos por nota
 const puedeVerAuditoria = computed(() =>
-  ['ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS', 'CONSULTA_AVANZADA'].includes(
-    String(auth.rol),
-  ),
+  [
+    'ADMIN',
+    'OPERADOR_ARCHIVOS',
+    'AUXILIAR_ARCHIVOS',
+    'ENCARGADO_PRESTAMOS',
+    'CONSULTA_AVANZADA',
+  ].includes(String(auth.rol)),
 )
 async function responderAuditoria(nota: string) {
   await router.replace({ query: { tab: 'auditoria', nota } })
@@ -58,18 +62,15 @@ async function handleSubmit(payload: PrestamoNotaCreatePayload) {
   saving.value = true
   try {
     errorNota.value = ''
-    const prestamos = await prestamosService.createNota(payload)
+    await prestamosService.createNota(payload)
     modalOpen.value = false
-    await store.fetchNotas()
-    const numeroNota = prestamos[0]?.numeroNotaSolicitud
-    if (!numeroNota) {
-      errorNota.value = 'El préstamo se registró, pero el servidor no devolvió el número de nota.'
-      return
-    }
-    avisoNota.value = numeroNota
+    avisoNota.value = String(payload.numeroNotaSolicitud)
     avisoAprobada.value = Boolean(payload.aprobar)
+    await store.fetchNotas()
     // Un borrador recién creado se abre directo para revisarlo y previsualizarlo
-    if (!payload.aprobar) editarNota(numeroNota)
+    if (!payload.aprobar && payload.numeroNotaSolicitud !== undefined) {
+      editarNota(payload.numeroNotaSolicitud)
+    }
   } catch (err) {
     errorNota.value = extractApiErrorMessage(err, 'No se pudo registrar el préstamo.')
     modalOpen.value = false

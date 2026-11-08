@@ -1,10 +1,14 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
+import { ComprobantesC31 } from '../comprobantes_c31/entities/comprobantes_c31.entity';
+import { C31Preventivo } from '../c31-preventivos/entities/c31-preventivo.entity';
+import { C31Devengado } from '../c31-devengados/entities/c31-devengado.entity';
 import {
   PrestamosNota,
   EstadoPrestamoNota,
@@ -16,6 +20,7 @@ import {
 } from '../common/utils/identificador-c31.util';
 import { NotaAuditoria } from './entities/nota-auditoria.entity';
 import {
+  ClasificarDto,
   CreateNotaAuditoriaDto,
   UpdateNotaAuditoriaDto,
 } from './dto/nota-auditoria.dto';
@@ -32,6 +37,7 @@ export class NotasAuditoriaService {
     private readonly repo: Repository<NotaAuditoria>,
     @InjectRepository(PrestamosNota)
     private readonly prestamos: Repository<PrestamosNota>,
+    private readonly dataSource: DataSource,
   ) {}
 
   /** CITE correlativo por gestión: GAMSL/ARCH/AUD/OF-N° 004/2026 */
@@ -188,20 +194,208 @@ export class NotasAuditoriaService {
     return n;
   }
 
-  async update(id: number, dto: UpdateNotaAuditoriaDto) {
+  async update(id: number, dto: UpdateNotaAuditoriaDto, usuario?: Usuario) {
     const n = await this.findOne(id);
+    const { motivoModificacion, ...cambios } = dto;
     if (
-      dto.cite &&
-      dto.cite !== n.cite &&
-      (await this.repo.existsBy({ cite: dto.cite }))
+      cambios.cite &&
+      cambios.cite !== n.cite &&
+      (await this.repo.existsBy({ cite: cambios.cite }))
     )
-      throw new ConflictException(`Ya existe una nota con el CITE ${dto.cite}`);
-    Object.assign(n, dto);
+      throw new ConflictException(
+        `Ya existe una nota con el CITE ${cambios.cite}`,
+      );
+    if (n.estado === 'EMITIDA') {
+      const motivo = motivoModificacion?.trim() ?? '';
+      if (motivo.length < 5)
+        throw new BadRequestException(
+          'La nota ya fue emitida: indique el motivo de la modificación (mínimo 5 caracteres)',
+        );
+      const campos = Object.keys(cambios).filter(
+        (k) =>
+          JSON.stringify((n as unknown as Record<string, unknown>)[k]) !==
+          JSON.stringify((cambios as Record<string, unknown>)[k]),
+      );
+      n.historial = [
+        ...(n.historial ?? []),
+        {
+          fecha: new Date().toISOString(),
+          usuarioId: usuario?.id ?? null,
+          usuario: usuario?.nombreCompleto ?? null,
+          motivo,
+          campos,
+        },
+      ];
+    }
+    Object.assign(n, cambios);
     return this.repo.save(n);
   }
 
-  async remove(id: number) {
-    await this.repo.softRemove(await this.findOne(id));
+  /** La nota se emite al imprimirla/firmarla: desde aquí solo se cambia con motivo. */
+  async emitir(id: number) {
+    const n = await this.findOne(id);
+    if (n.estado === 'EMITIDA') return n;
+    n.estado = 'EMITIDA';
+    n.fechaEmision = new Date();
+    return this.repo.save(n);
+  }
+
+  async remove(id: number, usuario?: Usuario) {
+    const n = await this.findOne(id);
+    if (
+      n.estado === 'EMITIDA' &&
+      (usuario?.rolActivo ?? usuario?.rol) !== 'ADMIN'
+    )
+      throw new ConflictException(
+        'Una nota emitida no se elimina; solo el administrador puede hacerlo',
+      );
+    await this.repo.softRemove(n);
+  }
+
+  /**
+   * Clasifica lo que pide Auditoría según el estado de cada comprobante. No guarda
+   * nada: es una ayuda para armar la nota antes de verificar con lo físico.
+   *  - entrega: Archivado correctamente (o En archivo, con aviso) y sin entrega previa.
+   *  - anteriores: ya entregados antes por nota formal, o prestados.
+   *  - pendientes: aún no están en el archivo (en trámite, firmado, observado, anulado).
+   *  - noRegistrados: N° que no existen en el sistema (se tratan como pendientes).
+   */
+  async clasificar(dto: ClasificarDto) {
+    const gestion = dto.gestion ?? new Date().getFullYear();
+    const prev = new Set<number>();
+    const dev = new Set<number>();
+    let total = 0;
+    for (const crudo of (dto.texto ?? '').split(/[\n,;]+/)) {
+      let t = crudo.trim();
+      if (!t) continue;
+      const esDev = /^(dev|d)\b\.?\s*/i.test(t) || /^devengado\b/i.test(t);
+      t = t.replace(/^(devengado|dev|preventivo|prev|d|p)\b\.?\s*/i, '');
+      const m = /^(\d+)\s*(?:-\s*(\d+))?$/.exec(t);
+      if (!m)
+        throw new BadRequestException(
+          `No se entiende «${crudo.trim()}». Use números o rangos: 1-120, 130`,
+        );
+      const a = Number(m[1]);
+      const z = m[2] ? Number(m[2]) : a;
+      const [lo, hi] = a <= z ? [a, z] : [z, a];
+      if (hi - lo > 5000)
+        throw new BadRequestException(`El rango ${t} es demasiado grande`);
+      total += hi - lo + 1;
+      if (total > 20000)
+        throw new BadRequestException(
+          'Demasiados números en una sola consulta',
+        );
+      for (let i = lo; i <= hi; i++) (esDev ? dev : prev).add(i);
+    }
+
+    const m = this.dataSource.manager;
+    const ids = new Set<number>(dto.comprobanteIds ?? []);
+    const buscar = async (
+      ent: typeof C31Preventivo | typeof C31Devengado,
+      campo: string,
+      nums: Set<number>,
+    ) => {
+      const lista = [...nums].map(String);
+      for (let i = 0; i < lista.length; i += 2000) {
+        const filas = await m
+          .createQueryBuilder(ent, 'x')
+          .innerJoin('x.comprobante', 'c')
+          .select('c.id', 'id')
+          .where(`x.${campo} IN (:...n)`, { n: lista.slice(i, i + 2000) })
+          .andWhere('c.gestion = :g', { g: gestion })
+          .getRawMany<{ id: number }>();
+        filas.forEach((f) => ids.add(Number(f.id)));
+      }
+    };
+    if (prev.size) await buscar(C31Preventivo, 'numeroPreventivo', prev);
+    if (dev.size) await buscar(C31Devengado, 'numeroDevengado', dev);
+
+    const comps = ids.size
+      ? await m.find(ComprobantesC31, {
+          where: { id: In([...ids]) },
+          relations: { preventivos: true, devengados: true },
+        })
+      : [];
+    const previas = comps.length
+      ? await this.prestamos.find({
+          where: {
+            comprobanteId: In(comps.map((c) => c.id as number)),
+            estadoPrestamo: In([
+              EstadoPrestamoNota.ENTREGADO,
+              EstadoPrestamoNota.DEVUELTO,
+            ]),
+          },
+          select: { comprobanteId: true },
+        })
+      : [];
+    const conEntregaPrevia = new Set(previas.map((p) => p.comprobanteId));
+
+    // N° pedidos que no existen en el sistema
+    const hallados = { prev: new Set<number>(), dev: new Set<number>() };
+    for (const c of comps) {
+      preventivosDe(c).forEach((x) => hallados.prev.add(Number(x)));
+      devengadosDe(c).forEach((x) => hallados.dev.add(Number(x)));
+    }
+    const faltan = (pedidos: Set<number>, hay: Set<number>, pref: string) =>
+      [...pedidos]
+        .filter((n) => !hay.has(n))
+        .sort((a, b) => a - b)
+        .map((n) => `${pref}${n}`);
+    const noRegistrados = [
+      ...faltan(prev, hallados.prev, ''),
+      ...faltan(dev, hallados.dev, 'DEV '),
+    ];
+
+    type Bucket = 'entrega' | 'anteriores' | 'pendientes';
+    const items = comps
+      .map((c) => {
+        const estado = c.estadoFisico as string;
+        let bucket: Bucket;
+        let motivo: string;
+        if (estado === EstadoFisicoC31.ARCHIVADO) {
+          bucket = conEntregaPrevia.has(c.id as number)
+            ? 'anteriores'
+            : 'entrega';
+          motivo =
+            bucket === 'anteriores'
+              ? 'Archivado; ya se entregó antes por nota'
+              : 'Archivado correctamente';
+        } else if (estado === EstadoFisicoC31.EN_ARCHIVO) {
+          bucket = 'entrega';
+          motivo = 'En archivo (falta confirmar “archivado correctamente”)';
+        } else if (estado === EstadoFisicoC31.PRESTADO) {
+          bucket = 'anteriores';
+          motivo = 'Prestado (ya salió del archivo)';
+        } else {
+          bucket = 'pendientes';
+          motivo = `Aún no está en el archivo (${estado})`;
+        }
+        const prevs = preventivosDe(c);
+        const devs = devengadosDe(c);
+        return {
+          comprobanteId: c.id as number,
+          prev: prevs.join('-'),
+          dev: devs.join('-'),
+          rotulo:
+            prevs.join('-') ||
+            (devs.length ? `DEV ${devs.join('-')}` : `C31 #${c.id}`),
+          numeros: [...prevs, ...devs.map((d) => `DEV ${d}`)],
+          estado,
+          bucket,
+          motivo,
+        };
+      })
+      .sort(
+        (a, b) =>
+          (parseInt(a.prev) || 1e9) - (parseInt(b.prev) || 1e9) ||
+          a.rotulo.localeCompare(b.rotulo),
+      );
+    return {
+      gestion,
+      total: items.length,
+      items,
+      noRegistrados,
+    };
   }
 
   async pdf(id: number) {

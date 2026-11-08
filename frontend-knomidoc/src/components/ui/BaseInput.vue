@@ -86,7 +86,7 @@ function cambiarHora(v: string) {
         :disabled="disabled"
         :aria-invalid="Boolean(error)"
         :aria-describedby="error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined"
-        class="w-full rounded-md border bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-300 disabled:bg-ink-50 disabled:text-ink-400 dark:border-white/10 dark:bg-ink-950 dark:text-ink-100 dark:placeholder:text-ink-500"
+        class="w-full rounded-md border bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-300 disabled:bg-ink-50 disabled:text-ink-500 dark:border-white/10 dark:disabled:bg-white/5 dark:disabled:text-ink-300 dark:bg-ink-950 dark:text-ink-100 dark:placeholder:text-ink-500"
         :class="[
           type === 'password' ? 'pr-10' : '',
           error
