@@ -9,7 +9,11 @@ import { extractApiErrorMessage } from '@/utils/http-error'
 import type { ComprobanteC31 } from '@/types/c31.types'
 
 /** Selección rápida de varios comprobantes de una gestión para prestarlos. */
-const props = defineProps<{ modelValue: boolean; excludeIds?: (string | number)[]; todos?: boolean }>()
+const props = defineProps<{
+  modelValue: boolean
+  excludeIds?: (string | number)[]
+  todos?: boolean
+}>()
 const emit = defineEmits<{
   'update:modelValue': [boolean]
   confirm: [comprobantes: ComprobanteC31[]]
@@ -67,7 +71,8 @@ function estadoDe(c: ComprobanteC31): EstadoCelda {
   if (excluidos.value.has(String(c.id))) return 'bloqueado'
   if (props.todos) return 'disponible'
   if (c.estadoFisico === 'PRESTADO') return 'prestado'
-  if (c.estadoFisico === 'EN_ARCHIVO' || c.estadoFisico === 'ARCHIVADO') return 'disponible'
+  // Solo se prestan comprobantes archivados correctamente
+  if (c.estadoFisico === 'ARCHIVADO') return 'disponible'
   return 'bloqueado'
 }
 
@@ -102,8 +107,12 @@ function confirmar() {
       <MatrizPreventivos v-else v-model="seleccion" :items="items" :estado-de="estadoDe" />
     </div>
     <template #footer>
-      <span class="mr-auto text-sm text-ink-600 dark:text-ink-300">{{ seleccion.size }} seleccionado(s)</span>
-      <BaseButton variant="secondary" @click="emit('update:modelValue', false)">Cancelar</BaseButton>
+      <span class="mr-auto text-sm text-ink-600 dark:text-ink-300"
+        >{{ seleccion.size }} seleccionado(s)</span
+      >
+      <BaseButton variant="secondary" @click="emit('update:modelValue', false)"
+        >Cancelar</BaseButton
+      >
       <BaseButton :disabled="!seleccion.size" @click="confirmar">Agregar a la lista</BaseButton>
     </template>
   </BaseModal>

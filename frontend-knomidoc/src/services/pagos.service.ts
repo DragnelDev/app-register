@@ -48,6 +48,29 @@ export const pagosService = {
   remove(id: number) {
     return apiClient.delete<Pago>(`${RESOURCE}/${id}`).then((r) => r.data)
   },
+  /** Abre un PDF autenticado en otra pestaña (listado con filtros o constancia individual). */
+  async abrirPdf(ruta: string, params: object = {}) {
+    const ventana = window.open('', '_blank')
+    try {
+      const r = await apiClient.get(`${RESOURCE}/${ruta}`, {
+        params: limpiar(params),
+        responseType: 'blob',
+      })
+      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }))
+      if (ventana) ventana.location.href = url
+      else window.location.href = url
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch (e) {
+      ventana?.close()
+      throw e
+    }
+  },
+  listadoPdf(params: PagoFiltros = {}) {
+    return this.abrirPdf('pdf', params)
+  },
+  constanciaPdf(id: number) {
+    return this.abrirPdf(`${id}/pdf`)
+  },
   async exportExcel(params: PagoFiltros = {}) {
     const response = await apiClient.get(`${RESOURCE}/export`, {
       params: limpiar(params),

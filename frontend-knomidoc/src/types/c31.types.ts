@@ -63,6 +63,8 @@ export interface ComprobanteC31 {
 
   /** Mismo valor en los comprobantes unidos (PREV + PREV, PREV + DEV). */
   grupoUnionId?: string | null
+  /** "PREV 8 - DEV 7": rótulo del grupo cuando el comprobante está unido */
+  rotuloGrupo?: string | null
   preventivos?: C31Preventivo[]
   devengados?: C31Devengado[]
   beneficiarios: C31Beneficiario[]
@@ -70,6 +72,7 @@ export interface ComprobanteC31 {
 }
 
 type ConIdentificadores = {
+  rotuloGrupo?: string | null
   preventivos?: C31Preventivo[] | null
   devengados?: C31Devengado[] | null
 }
@@ -107,6 +110,7 @@ export function identificadorC31(c: ConIdentificadores): string | undefined {
  * (PREV 1 ≠ DEV 1). Ej.: "PREV 3", "DEV 45", "PREV 12 · DEV 45".
  */
 export function rotuloC31(c: ConIdentificadores): string | undefined {
+  if (c.rotuloGrupo) return c.rotuloGrupo
   const prev = numeroPreventivoC31(c)
   const dev = numeroDevengadoC31(c)
   const partes = [prev && `PREV ${prev}`, dev && `DEV ${dev}`].filter(Boolean)

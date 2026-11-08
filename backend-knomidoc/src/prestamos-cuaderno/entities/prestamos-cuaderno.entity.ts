@@ -95,6 +95,42 @@ export class PrestamosCuaderno {
   })
   evidenciaVerificacionUrl?: string | null;
 
+  /**
+   * Foto/imagen de la evidencia (cuaderno firmado) de la salida y de la devolución.
+   * Se guarda en carpeta privada y se sirve solo con sesión; es una por lote.
+   */
+  @Column({
+    name: 'evidencia_salida',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  evidenciaSalida?: string | null;
+
+  @Column({
+    name: 'evidencia_salida_mime',
+    type: 'varchar',
+    length: 40,
+    nullable: true,
+  })
+  evidenciaSalidaMime?: string | null;
+
+  @Column({
+    name: 'evidencia_devolucion',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  evidenciaDevolucion?: string | null;
+
+  @Column({
+    name: 'evidencia_devolucion_mime',
+    type: 'varchar',
+    length: 40,
+    nullable: true,
+  })
+  evidenciaDevolucionMime?: string | null;
+
   @Column({ type: 'text', nullable: true })
   observaciones?: string | null;
 
@@ -122,7 +158,11 @@ export class PrestamosCuaderno {
   @JoinColumn({ name: 'devuelto_por_funcionario_id' })
   devueltoPorFuncionario?: Funcionario;
 
-  @Column({ name: 'devuelto_por_funcionario_id', type: 'integer', nullable: true })
+  @Column({
+    name: 'devuelto_por_funcionario_id',
+    type: 'integer',
+    nullable: true,
+  })
   devueltoPorFuncionarioId?: number | null;
 
   /** Cómo se verificó a quien devuelve (firma o huella). */

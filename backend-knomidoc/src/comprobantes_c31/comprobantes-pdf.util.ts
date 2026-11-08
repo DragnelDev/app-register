@@ -49,7 +49,8 @@ function pie(doc: PDFKit.PDFDocument, texto: string) {
         doc.page.margins.left,
         doc.page.height - 26,
         {
-          width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+          width:
+            doc.page.width - doc.page.margins.left - doc.page.margins.right,
           align: 'right',
           lineBreak: false,
         },
@@ -86,18 +87,33 @@ export function listadoC31Pdf(
   ].map((c) => ({ ...c, px: c.w * ancho }));
 
   const encabezado = () => {
-    doc.font('Helvetica-Bold').fontSize(11).fillColor('#000')
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(11)
+      .fillColor('#000')
       .text(entidad(), izq, 40, { width: ancho, align: 'center' });
-    doc.fontSize(10).text('LISTADO DE COMPROBANTES C-31', { width: ancho, align: 'center' });
-    doc.font('Helvetica').fontSize(8).fillColor('#374151')
-      .text(opciones.filtros || 'Sin filtros', izq, doc.y + 2, { width: ancho, align: 'center' });
+    doc
+      .fontSize(10)
+      .text('LISTADO DE COMPROBANTES C-31', { width: ancho, align: 'center' });
+    doc
+      .font('Helvetica')
+      .fontSize(8)
+      .fillColor('#374151')
+      .text(opciones.filtros || 'Sin filtros', izq, doc.y + 2, {
+        width: ancho,
+        align: 'center',
+      });
     doc.moveDown(0.6);
     const y = doc.y;
     doc.rect(izq, y, ancho, 16).fill('#e5e7eb');
     doc.fillColor('#000').font('Helvetica-Bold').fontSize(8);
     let x = izq;
     for (const c of cols) {
-      doc.text(c.t, x + 3, y + 4, { width: c.px - 6, align: c.right ? 'right' : 'left', lineBreak: false });
+      doc.text(c.t, x + 3, y + 4, {
+        width: c.px - 6,
+        align: c.right ? 'right' : 'left',
+        lineBreak: false,
+      });
       x += c.px;
     }
     doc.y = y + 18;
@@ -106,7 +122,9 @@ export function listadoC31Pdf(
 
   let suma = 0;
   items.forEach((c, i) => {
-    const beneficiarios = (c.beneficiarios ?? []).map((b) => b.nombreBeneficiario).join(', ');
+    const beneficiarios = (c.beneficiarios ?? [])
+      .map((b) => b.nombreBeneficiario)
+      .join(', ');
     const celdas = [
       String(i + 1),
       rotuloC31(c, '—'),
@@ -115,13 +133,17 @@ export function listadoC31Pdf(
       bs(c.montoTotal),
       dia(c.fechaElaboracion),
       estado(c.estadoFisico),
-      [c.numeroFolio && `F. ${c.numeroFolio}`, c.ubicacionFisica].filter(Boolean).join(' · '),
+      [c.numeroFolio && `F. ${c.numeroFolio}`, c.ubicacionFisica]
+        .filter(Boolean)
+        .join(' · '),
     ];
     doc.font('Helvetica').fontSize(7.5);
     const alto = Math.min(
       46,
       Math.max(
-        ...celdas.map((t, k) => doc.heightOfString(t, { width: cols[k]!.px - 6 })),
+        ...celdas.map((t, k) =>
+          doc.heightOfString(t, { width: cols[k]!.px - 6 }),
+        ),
       ) + 6,
     );
     if (doc.y + alto > limite()) {
@@ -140,17 +162,28 @@ export function listadoC31Pdf(
       });
       x += col.px;
     });
-    doc.moveTo(izq, y + alto).lineTo(izq + ancho, y + alto)
-      .strokeColor('#d1d5db').lineWidth(0.4).stroke();
+    doc
+      .moveTo(izq, y + alto)
+      .lineTo(izq + ancho, y + alto)
+      .strokeColor('#d1d5db')
+      .lineWidth(0.4)
+      .stroke();
     doc.y = y + alto;
-    if (c.estadoFisico !== EstadoFisicoC31.ANULADO) suma += Number(c.montoTotal ?? 0);
+    if (c.estadoFisico !== EstadoFisicoC31.ANULADO)
+      suma += Number(c.montoTotal ?? 0);
   });
 
   if (doc.y + 24 > limite()) doc.addPage();
-  doc.font('Helvetica-Bold').fontSize(9).fillColor('#000').text(
-    `${items.length} comprobante(s)${opciones.total > items.length ? ` de ${opciones.total}` : ''} · Total (sin anulados): Bs ${bs(suma)}`,
-    izq, doc.y + 8, { width: ancho, align: 'right' },
-  );
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(9)
+    .fillColor('#000')
+    .text(
+      `${items.length} comprobante(s)${opciones.total > items.length ? ` de ${opciones.total}` : ''} · Total (sin anulados): Bs ${bs(suma)}`,
+      izq,
+      doc.y + 8,
+      { width: ancho, align: 'right' },
+    );
   pie(doc, `Listado C-31 · ${dia(new Date())}`);
   return terminar(doc);
 }
@@ -170,28 +203,52 @@ export function fichaC31Pdf(c: ComprobantesC31): Promise<Buffer> {
     if (doc.y + h > limite()) doc.addPage();
   };
 
-  doc.font('Helvetica-Bold').fontSize(11).text(entidad(), izq, 50, { width: ancho, align: 'center' });
-  doc.fontSize(10).text('FICHA DE COMPROBANTE C-31', { width: ancho, align: 'center' });
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(11)
+    .text(entidad(), izq, 50, { width: ancho, align: 'center' });
+  doc
+    .fontSize(10)
+    .text('FICHA DE COMPROBANTE C-31', { width: ancho, align: 'center' });
   doc.moveDown(0.8);
 
   const fila = (etq: string, val: string) => {
     asegurar(16);
     const y = doc.y;
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#374151').text(etq, izq, y, { width: 120, lineBreak: false });
-    doc.font('Helvetica').fillColor('#000').text(val || '—', izq + 125, y, { width: ancho - 125 });
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(9)
+      .fillColor('#374151')
+      .text(etq, izq, y, { width: 120, lineBreak: false });
+    doc
+      .font('Helvetica')
+      .fillColor('#000')
+      .text(val || '—', izq + 125, y, { width: ancho - 125 });
     doc.moveDown(0.3);
   };
   const titulo = (t: string) => {
     asegurar(40);
     doc.moveDown(0.5);
-    doc.font('Helvetica-Bold').fontSize(10).fillColor('#000').text(t, izq, doc.y);
-    doc.moveTo(izq, doc.y + 1).lineTo(izq + ancho, doc.y + 1).strokeColor('#9ca3af').lineWidth(0.6).stroke();
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(10)
+      .fillColor('#000')
+      .text(t, izq, doc.y);
+    doc
+      .moveTo(izq, doc.y + 1)
+      .lineTo(izq + ancho, doc.y + 1)
+      .strokeColor('#9ca3af')
+      .lineWidth(0.6)
+      .stroke();
     doc.moveDown(0.5);
   };
 
   titulo('Datos generales');
   fila('C-31', rotuloC31(c, '—'));
-  fila('Tipo', c.tipoC31 === 'SIN_IMPUTACION' ? 'Sin imputación' : 'Con imputación');
+  fila(
+    'Tipo',
+    c.tipoC31 === 'SIN_IMPUTACION' ? 'Sin imputación' : 'Con imputación',
+  );
   fila('Gestión', String(c.gestion ?? ''));
   fila('Fecha de elaboración', dia(c.fechaElaboracion));
   fila('Monto total', `Bs ${bs(c.montoTotal)}`);
@@ -211,7 +268,9 @@ export function fichaC31Pdf(c: ComprobantesC31): Promise<Buffer> {
   const pagos = (c.pagos ?? []).filter((p) => p.estadoPago !== 'ANULADO');
   if (!pagos.length) fila('', 'Sin pagos registrados');
   for (const p of pagos) {
-    const ben = (c.beneficiarios ?? []).find((b) => b.id === p.beneficiarioId)?.nombreBeneficiario;
+    const ben = (c.beneficiarios ?? []).find(
+      (b) => b.id === p.beneficiarioId,
+    )?.nombreBeneficiario;
     fila(
       String(p.tipoPago ?? ''),
       `${p.numeroDocumento ?? 's/n'} · Bs ${bs(p.monto)}${p.fechaPago ? ` · ${dia(p.fechaPago)}` : ''}${ben ? ` · ${ben}` : ''}`,
@@ -221,7 +280,10 @@ export function fichaC31Pdf(c: ComprobantesC31): Promise<Buffer> {
   titulo('Archivo físico');
   fila('N° de folio', c.numeroFolio ?? '');
   fila('Ubicación', c.ubicacionFisica ?? '');
-  fila('Digitalizado', c.archivoAdjuntoUrl ? `Sí (${dia(c.fechaDigitalizacion)})` : 'No');
+  fila(
+    'Digitalizado',
+    c.archivoAdjuntoUrl ? `Sí (${dia(c.fechaDigitalizacion)})` : 'No',
+  );
 
   pie(doc, `Ficha C-31 · ${dia(new Date())}`);
   return terminar(doc);

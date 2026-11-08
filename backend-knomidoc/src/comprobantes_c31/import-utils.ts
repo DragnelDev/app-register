@@ -85,7 +85,9 @@ export function parseMonto(valor: unknown): number | null {
  */
 export function parseFechaCelda(valor: unknown): string | null {
   if (valor instanceof Date) {
-    return Number.isNaN(valor.getTime()) ? null : valor.toISOString().slice(0, 10);
+    return Number.isNaN(valor.getTime())
+      ? null
+      : valor.toISOString().slice(0, 10);
   }
   if (typeof valor === 'number') {
     // Número de serie de Excel (días desde 1899-12-30)

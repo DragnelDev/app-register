@@ -144,11 +144,9 @@ const ultimosComprobantes = computed(() => c31Store.items.slice(0, 6))
         >
           <div class="min-w-0">
             <p class="truncate font-medium text-ink-800 dark:text-ink-100">
-              <span
-                v-if="rotuloC31(comprobante)"
-                class="mr-2 font-mono text-xs text-ink-500"
-                >{{ rotuloC31(comprobante) }}</span
-              >
+              <span v-if="rotuloC31(comprobante)" class="mr-2 font-mono text-xs text-ink-500">{{
+                rotuloC31(comprobante)
+              }}</span>
               {{ comprobante.descripcion }}
             </p>
             <p class="text-xs text-ink-600 dark:text-ink-400">

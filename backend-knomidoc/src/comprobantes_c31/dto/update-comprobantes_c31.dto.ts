@@ -11,7 +11,9 @@ export class UpdateComprobantesC31Dto extends PartialType(
   CreateComprobantesC31Dto,
 ) {
   /** Obligatorio al modificar un comprobante ya archivado: queda en la bitácora. */
-  @ApiPropertyOptional({ description: 'Motivo de la modificación (comprobante archivado)' })
+  @ApiPropertyOptional({
+    description: 'Motivo de la modificación (comprobante archivado)',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(500)

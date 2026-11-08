@@ -31,7 +31,9 @@ async function handleSubmit() {
 
 <template>
   <div class="flex min-h-screen items-center justify-center bg-ink-950 px-4">
-    <div class="w-full max-w-sm rounded-lg bg-white p-8 shadow-xl dark:border dark:border-white/10 dark:bg-ink-900">
+    <div
+      class="w-full max-w-sm rounded-lg bg-white p-8 shadow-xl dark:border dark:border-white/10 dark:bg-ink-900"
+    >
       <div class="mb-6 text-center">
         <h1 class="font-display text-2xl font-semibold text-ink-900 dark:text-white">KnomiDoc</h1>
         <!-- Imagen centrada desde assets/images -->
@@ -66,7 +68,10 @@ async function handleSubmit() {
         </BaseButton>
 
         <p class="text-center text-sm">
-          <RouterLink to="/forgot-password" class="font-medium text-ink-700 dark:text-ink-200 hover:underline">
+          <RouterLink
+            to="/forgot-password"
+            class="font-medium text-ink-700 dark:text-ink-200 hover:underline"
+          >
             ¿Olvidaste tu contraseña?
           </RouterLink>
         </p>

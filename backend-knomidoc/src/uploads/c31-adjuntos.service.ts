@@ -4,18 +4,17 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { createReadStream, existsSync } from 'fs';
-import { mkdir, unlink, writeFile } from 'fs/promises';
-import { join, resolve } from 'path';
+import { mkdir, rename, unlink, writeFile } from 'fs/promises';
+import { dirname, join, resolve } from 'path';
 import type { Express } from 'express';
-import {
-  C31Adjunto,
-  TipoAdjuntoC31,
-} from './entities/c31-adjunto.entity';
+import { C31Adjunto, TipoAdjuntoC31 } from './entities/c31-adjunto.entity';
 import { ComprobantesC31 } from '../comprobantes_c31/entities/comprobantes_c31.entity';
 import { Usuario } from '../usuarios/entities/usuario.entity';
+import { rotuloC31 } from '../common/utils/identificador-c31.util';
+import { adjuntarRotuloGrupo } from '../common/utils/rotulo-grupo.util';
 
 /**
  * Carpeta PRIVADA de los escaneos (fuera de /uploads, que se sirve sin login).
@@ -39,6 +38,15 @@ function coincideFirma(buffer: Buffer, mime: string): boolean {
   const def = TIPOS_PERMITIDOS[mime];
   if (!def) return false;
   return def.firma.some((f) => f.every((byte, i) => buffer[i] === byte));
+}
+
+/** "PREV 8 - DEV 7" → "PREV-8_DEV-7"; "PREV 11 / 12" → "PREV-11+12". */
+export function etiquetaArchivo(rotulo: string): string {
+  return rotulo
+    .replace(/\s*[·-]\s*/g, '_')
+    .replace(/\s*\/\s*/g, '+')
+    .replace(/\s+/g, '-')
+    .replace(/[^A-Za-z0-9_+-]/g, '');
 }
 
 export const urlArchivo = (comprobanteId: number, adjuntoId: number) =>
@@ -94,7 +102,7 @@ export class C31AdjuntosService {
     await writeFile(join(C31_STORAGE_DIR, nombreArchivo), archivo.buffer);
 
     try {
-      return await this.dataSource.transaction(async (manager) => {
+      const guardado = await this.dataSource.transaction(async (manager) => {
         const adjunto = await manager.save(
           C31Adjunto,
           manager.create(C31Adjunto, {
@@ -119,9 +127,59 @@ export class C31AdjuntosService {
         }
         return adjunto;
       });
+      if (tipo === TipoAdjuntoC31.C31)
+        await this.ordenarNombres(comprobanteId).catch(() => undefined);
+      return (
+        (await this.repo.findOne({ where: { id: guardado.id } })) ?? guardado
+      );
     } catch (e) {
       await unlink(join(C31_STORAGE_DIR, nombreArchivo)).catch(() => undefined);
       throw e;
+    }
+  }
+
+  /**
+   * Los escaneos del C31 se guardan como
+   *   <gestión>/<PREV-11>/<gestión>_PREV-11_parte-1-de-2.pdf
+   * (unidos: <gestión>/PREV-8_DEV-7/2026_PREV-8_DEV-7_parte-1-de-1.pdf).
+   * Las partes se cuentan entre todos los comprobantes unidos del grupo.
+   */
+  private async ordenarNombres(comprobanteId: number): Promise<void> {
+    const m = this.dataSource.manager;
+    const c = await m.findOne(ComprobantesC31, {
+      where: { id: comprobanteId },
+      relations: { preventivos: true, devengados: true },
+    });
+    if (!c) return;
+    await adjuntarRotuloGrupo(m, c);
+    const etiqueta =
+      etiquetaArchivo(rotuloC31(c, `C31-${c.id}`)) || `C31-${c.id}`;
+    const ids = c.grupoUnionId
+      ? (
+          await m.find(ComprobantesC31, {
+            where: { grupoUnionId: c.grupoUnionId },
+            select: { id: true },
+          })
+        ).map((x) => x.id as number)
+      : [comprobanteId];
+    const lista = await this.repo.find({
+      where: { comprobanteId: In(ids), tipo: TipoAdjuntoC31.C31 },
+      order: { id: 'ASC' },
+    });
+    const total = lista.length;
+    for (const [i, a] of lista.entries()) {
+      const actual = a.nombreArchivo as string;
+      const ext = actual.slice(actual.lastIndexOf('.'));
+      const nuevoNombre = `${c.gestion}_${etiqueta}_parte-${i + 1}-de-${total}${ext}`;
+      const relativo = join(String(c.gestion), etiqueta, nuevoNombre);
+      if (relativo !== actual) {
+        const destino = join(C31_STORAGE_DIR, relativo);
+        await mkdir(dirname(destino), { recursive: true });
+        await rename(join(C31_STORAGE_DIR, actual), destino);
+        a.nombreArchivo = relativo;
+      }
+      a.nombreOriginal = nuevoNombre;
+      await this.repo.save(a);
     }
   }
 
@@ -163,8 +221,10 @@ export class C31AdjuntosService {
         });
       }
     });
-    await unlink(
-      join(C31_STORAGE_DIR, adjunto.nombreArchivo as string),
-    ).catch(() => undefined);
+    await unlink(join(C31_STORAGE_DIR, adjunto.nombreArchivo as string)).catch(
+      () => undefined,
+    );
+    if (adjunto.tipo === TipoAdjuntoC31.C31)
+      await this.ordenarNombres(comprobanteId).catch(() => undefined);
   }
 }

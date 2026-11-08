@@ -146,6 +146,20 @@ function verPagosDe(b: PagoPorBeneficiario) {
   pestana.value = 'pagos'
   aplicar()
 }
+async function pdfListado() {
+  try {
+    await pagosService.listadoPdf(filtros)
+  } catch (err) {
+    error.value = extractApiErrorMessage(err, 'No se pudo generar el PDF.')
+  }
+}
+async function pdfConstancia(p: Pago) {
+  try {
+    await pagosService.constanciaPdf(p.id)
+  } catch (err) {
+    error.value = extractApiErrorMessage(err, 'No se pudo generar la constancia.')
+  }
+}
 async function exportar() {
   try {
     await pagosService.exportExcel(filtros)
@@ -194,7 +208,12 @@ onMounted(async () => {
         </p>
       </div>
       <div class="flex gap-2">
-        <BaseButton v-if="auth.puedeExportar" variant="secondary" @click="exportar">Exportar Excel</BaseButton>
+        <BaseButton v-if="auth.puedeExportar" variant="secondary" @click="pdfListado"
+          >Descargar PDF</BaseButton
+        >
+        <BaseButton v-if="auth.puedeExportar" variant="secondary" @click="exportar"
+          >Exportar Excel</BaseButton
+        >
         <BaseButton v-if="auth.puedeRegistrarC31" @click="nuevo">+ Registrar pago</BaseButton>
       </div>
     </div>
@@ -260,10 +279,7 @@ onMounted(async () => {
         <button
           type="button"
           class="ml-2 text-seal-600 hover:underline dark:text-seal-300"
-          @click="
-            filtros.beneficiario = '';
-            aplicar()
-          "
+          @click="((filtros.beneficiario = ''), aplicar())"
         >
           quitar
         </button>
@@ -321,9 +337,7 @@ onMounted(async () => {
           @click="verComprobante(row)"
         >
           {{
-            row.comprobante
-              ? (rotuloC31(row.comprobante) ?? row.comprobanteId)
-              : row.comprobanteId
+            row.comprobante ? (rotuloC31(row.comprobante) ?? row.comprobanteId) : row.comprobanteId
           }}
         </button>
       </template>
@@ -342,19 +356,23 @@ onMounted(async () => {
       <template #cell-fechaPago="{ row }">{{ fechaCorta(row.fechaPago) }}</template>
       <template #cell-estadoPago="{ row }"><BaseBadge :estado="row.estadoPago" /></template>
       <template #actions="{ row }">
-        <div
-          v-if="auth.puedeRegistrarC31 && row.estadoPago !== 'ANULADO'"
-          class="flex justify-end gap-1"
-        >
+        <div class="flex justify-end gap-1">
           <IconButton
-            v-if="row.estadoPago === 'PENDIENTE'"
-            icon="fa-circle-check"
-            label="Marcar como pagado"
-            variant="success"
-            @click="marcarPagado(row)"
+            icon="fa-file-pdf"
+            label="Constancia de pago (PDF)"
+            @click="pdfConstancia(row)"
           />
-          <IconButton icon="fa-pen-to-square" label="Editar pago" @click="editar(row)" />
-          <IconButton icon="fa-ban" label="Anular pago" variant="danger" @click="anular(row)" />
+          <template v-if="auth.puedeRegistrarC31 && row.estadoPago !== 'ANULADO'">
+            <IconButton
+              v-if="row.estadoPago === 'PENDIENTE'"
+              icon="fa-circle-check"
+              label="Marcar como pagado"
+              variant="success"
+              @click="marcarPagado(row)"
+            />
+            <IconButton icon="fa-pen-to-square" label="Editar pago" @click="editar(row)" />
+            <IconButton icon="fa-ban" label="Anular pago" variant="danger" @click="anular(row)" />
+          </template>
         </div>
       </template>
     </BaseDataTable>

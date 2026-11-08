@@ -83,7 +83,8 @@ watch(
     const a = props.acta
     form.numeroActa = a?.numeroActa ?? ''
     form.unidadEmisora = a?.unidadEmisora ?? 'Tesorería'
-    form.responsableEntrega = a?.responsableEntrega ?? (auth.esRemitente ? (auth.usuario?.nombreCompleto ?? '') : '')
+    form.responsableEntrega =
+      a?.responsableEntrega ?? (auth.esRemitente ? (auth.usuario?.nombreCompleto ?? '') : '')
     form.responsableRecepcion = a?.responsableRecepcion ?? ''
     form.fechaRecepcion = a?.fechaRecepcion?.slice(0, 10) ?? new Date().toISOString().slice(0, 10)
     form.observaciones = a?.observaciones ?? ''
@@ -126,11 +127,7 @@ const totalSeleccionado = computed(() =>
 )
 
 const errores = computed(() => ({
-  numeroActa:
-    runValidators(form.numeroActa, [
-      maxLength(50),
-      codigoDocumento(),
-    ]) ?? '',
+  numeroActa: runValidators(form.numeroActa, [maxLength(50), codigoDocumento()]) ?? '',
   responsableEntrega:
     runValidators(form.responsableEntrega, [
       required('Indique quién entrega'),
@@ -242,7 +239,11 @@ const ver = (e: string) => (intentado.value ? e : '')
             <button
               type="button"
               class="rounded-md px-2.5 py-1.5"
-              :class="vista === 'lista' ? 'bg-seal-600 text-white' : 'bg-ink-100 dark:bg-white/10 dark:text-ink-100'"
+              :class="
+                vista === 'lista'
+                  ? 'bg-seal-600 text-white'
+                  : 'bg-ink-100 dark:bg-white/10 dark:text-ink-100'
+              "
               @click="vista = 'lista'"
             >
               Lista
@@ -250,7 +251,11 @@ const ver = (e: string) => (intentado.value ? e : '')
             <button
               type="button"
               class="rounded-md px-2.5 py-1.5"
-              :class="vista === 'matriz' ? 'bg-seal-600 text-white' : 'bg-ink-100 dark:bg-white/10 dark:text-ink-100'"
+              :class="
+                vista === 'matriz'
+                  ? 'bg-seal-600 text-white'
+                  : 'bg-ink-100 dark:bg-white/10 dark:text-ink-100'
+              "
               @click="vista = 'matriz'"
             >
               Selección rápida
@@ -272,7 +277,10 @@ const ver = (e: string) => (intentado.value ? e : '')
           :items="candidatos"
           :solo-lectura="soloLectura"
         />
-        <div v-else class="max-h-72 overflow-auto rounded-md border border-ink-100 dark:border-white/10">
+        <div
+          v-else
+          class="max-h-72 overflow-auto rounded-md border border-ink-100 dark:border-white/10"
+        >
           <table class="w-full border-collapse text-sm">
             <thead
               class="sticky top-0 border-b border-ink-100 bg-ink-50 dark:border-white/10 dark:bg-ink-950"

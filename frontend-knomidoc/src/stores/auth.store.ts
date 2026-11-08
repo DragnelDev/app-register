@@ -103,7 +103,11 @@ export const useAuthStore = defineStore('auth', {
       localStorage.setItem(TOKEN_STORAGE_KEY, r.accessToken)
       sessionStorage.removeItem(TOKEN_STORAGE_KEY)
       if (this.usuario) {
-        this.usuario = { ...this.usuario, rol: r.rol as Usuario['rol'], roles: r.roles as Usuario['roles'] }
+        this.usuario = {
+          ...this.usuario,
+          rol: r.rol as Usuario['rol'],
+          roles: r.roles as Usuario['roles'],
+        }
         localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(this.usuario))
       }
       this.perfilPendiente = false

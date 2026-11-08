@@ -37,16 +37,22 @@ watch(
     if (!abierto) return
     error.value = ''
     const b = props.beneficiario
-    Object.assign(form, vacio(), b ? {
-      tipoPersona: b.tipoPersona,
-      nombre: b.nombre,
-      tipoDocumento: b.tipoDocumento,
-      numeroDocumento: b.numeroDocumento ?? '',
-      telefono: b.telefono ?? '',
-      email: b.email ?? '',
-      direccion: b.direccion ?? '',
-      estado: b.estado,
-    } : {})
+    Object.assign(
+      form,
+      vacio(),
+      b
+        ? {
+            tipoPersona: b.tipoPersona,
+            nombre: b.nombre,
+            tipoDocumento: b.tipoDocumento,
+            numeroDocumento: b.numeroDocumento ?? '',
+            telefono: b.telefono ?? '',
+            email: b.email ?? '',
+            direccion: b.direccion ?? '',
+            estado: b.estado,
+          }
+        : {},
+    )
   },
 )
 
@@ -93,7 +99,11 @@ function guardar() {
     :title="beneficiario ? 'Editar beneficiario' : 'Registrar beneficiario'"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <form id="form-beneficiario" class="grid grid-cols-1 gap-4 sm:grid-cols-2" @submit.prevent="guardar">
+    <form
+      id="form-beneficiario"
+      class="grid grid-cols-1 gap-4 sm:grid-cols-2"
+      @submit.prevent="guardar"
+    >
       <p
         v-if="error || serverError"
         class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 sm:col-span-2 dark:bg-red-950/40 dark:text-red-300"
@@ -140,7 +150,9 @@ function guardar() {
       />
     </form>
     <template #footer>
-      <BaseButton variant="secondary" @click="emit('update:modelValue', false)">Cancelar</BaseButton>
+      <BaseButton variant="secondary" @click="emit('update:modelValue', false)"
+        >Cancelar</BaseButton
+      >
       <BaseButton type="submit" form="form-beneficiario" :loading="saving">Guardar</BaseButton>
     </template>
   </BaseModal>

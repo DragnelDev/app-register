@@ -10,7 +10,13 @@ import {
   ParseIntPipe,
   Query,
   StreamableFile,
+  UploadedFile,
+  UseInterceptors,
+  ParseEnumPipe,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import type { Express } from 'express';
 import { PrestamosCuadernoService } from './prestamos-cuaderno.service';
 import { CreatePrestamosCuadernoDto } from './dto/create-prestamos-cuaderno.dto';
 import { UpdatePrestamosCuadernoDto } from './dto/update-prestamos-cuaderno.dto';
@@ -72,6 +78,37 @@ export class PrestamosCuadernoController {
     @CurrentUser() usuario: Usuario,
   ) {
     return this.prestamosCuadernoService.devolverLote(loteId, dto, usuario);
+  }
+
+  /** Sube o reemplaza la imagen de evidencia (salida o devolución) del lote del préstamo. */
+  @Roles('ADMIN', 'ENCARGADO_PRESTAMOS')
+  @Post(':id/evidencia/:momento')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+    }),
+  )
+  subirEvidencia(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('momento', new ParseEnumPipe(['salida', 'devolucion']))
+    momento: 'salida' | 'devolucion',
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.prestamosCuadernoService.subirEvidencia(id, momento, file);
+  }
+
+  @Get(':id/evidencia/:momento')
+  async verEvidencia(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('momento', new ParseEnumPipe(['salida', 'devolucion']))
+    momento: 'salida' | 'devolucion',
+  ) {
+    const { stream, mime } = await this.prestamosCuadernoService.abrirEvidencia(
+      id,
+      momento,
+    );
+    return new StreamableFile(stream, { type: mime, disposition: 'inline' });
   }
 
   @Get(':id')

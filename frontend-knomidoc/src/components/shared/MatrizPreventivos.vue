@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import type { ComprobanteC31 } from '@/types/c31.types'
 import { preventivosC31 } from '@/types/c31.types'
+import { ESTADO_C31_LABEL } from '@/utils/estados'
 
 /**
  * Matriz de selección rápida por N° de preventivo (casilleros de 50 en 5 columnas
@@ -76,7 +77,8 @@ function alternar(c: ComprobanteC31) {
 
 function claseCelda(n: number) {
   const c = porNumero.value.get(n)
-  if (!c) return 'border-ink-100 bg-ink-50 text-ink-300 dark:border-white/5 dark:bg-white/5 dark:text-ink-600 cursor-default'
+  if (!c)
+    return 'border-ink-100 bg-ink-50 text-ink-300 dark:border-white/5 dark:bg-white/5 dark:text-ink-600 cursor-default'
   const e = estado(c)
   if (e === 'prestado')
     return 'border-red-300 bg-red-100 text-red-800 cursor-not-allowed dark:border-red-500/40 dark:bg-red-500/20 dark:text-red-200'
@@ -92,7 +94,7 @@ function titulo(n: number) {
   if (!c) return `Prev ${n}: sin comprobante registrado`
   const e = estado(c)
   const nombres = (c.beneficiarios ?? []).map((b) => b.nombreBeneficiario).join(', ')
-  return `Prev ${n}${nombres ? ' · ' + nombres : ''}${e === 'prestado' ? ' (prestado)' : e === 'bloqueado' ? ' (no disponible)' : ''}`
+  return `Prev ${n}${nombres ? ' · ' + nombres : ''}${e === 'prestado' ? ' (ya prestado: no se puede seleccionar)' : e === 'bloqueado' ? ` (no disponible: estado ${ESTADO_C31_LABEL[c.estadoFisico as string] ?? c.estadoFisico}; solo se prestan los archivados)` : ''}`
 }
 
 // ── Atajos ──────────────────────────────────────────
@@ -163,7 +165,9 @@ function limpiar() {
           v-model="bloque"
           class="ml-1 rounded-md border border-ink-200 bg-white px-2 py-1 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
         >
-          <option v-for="b in bloques" :key="b" :value="b">{{ b * TAM + 1 }} – {{ (b + 1) * TAM }}</option>
+          <option v-for="b in bloques" :key="b" :value="b">
+            {{ b * TAM + 1 }} – {{ (b + 1) * TAM }}
+          </option>
         </select>
       </label>
       <input
@@ -175,19 +179,51 @@ function limpiar() {
         @keydown.enter.prevent="aplicarLista"
       />
       <template v-if="!soloLectura">
-        <button type="button" class="rounded-md bg-seal-600 px-3 py-1.5 text-xs font-medium text-white" @click="aplicarLista">Marcar</button>
-        <button type="button" class="rounded-md bg-ink-100 px-3 py-1.5 text-xs dark:bg-white/10 dark:text-ink-100" @click="seleccionarBloque">Todo el bloque</button>
-        <button type="button" class="rounded-md bg-ink-100 px-3 py-1.5 text-xs dark:bg-white/10 dark:text-ink-100" @click="seleccionarTodos">Todos</button>
-        <button type="button" class="rounded-md bg-ink-100 px-3 py-1.5 text-xs dark:bg-white/10 dark:text-ink-100" @click="limpiar">Limpiar</button>
+        <button
+          type="button"
+          class="rounded-md bg-seal-600 px-3 py-1.5 text-xs font-medium text-white"
+          @click="aplicarLista"
+        >
+          Marcar
+        </button>
+        <button
+          type="button"
+          class="rounded-md bg-ink-100 px-3 py-1.5 text-xs dark:bg-white/10 dark:text-ink-100"
+          @click="seleccionarBloque"
+        >
+          Todo el bloque
+        </button>
+        <button
+          type="button"
+          class="rounded-md bg-ink-100 px-3 py-1.5 text-xs dark:bg-white/10 dark:text-ink-100"
+          @click="seleccionarTodos"
+        >
+          Todos
+        </button>
+        <button
+          type="button"
+          class="rounded-md bg-ink-100 px-3 py-1.5 text-xs dark:bg-white/10 dark:text-ink-100"
+          @click="limpiar"
+        >
+          Limpiar
+        </button>
       </template>
     </div>
     <p v-if="aviso" class="text-xs text-amber-600">{{ aviso }}</p>
 
     <div class="flex flex-wrap items-center gap-4 text-xs text-ink-500">
-      <span class="flex items-center gap-1.5"><i class="h-3.5 w-3.5 rounded border border-ink-300 bg-white" /> Disponible</span>
-      <span class="flex items-center gap-1.5"><i class="h-3.5 w-3.5 rounded border border-blue-600 bg-blue-200" /> Seleccionado</span>
-      <span class="flex items-center gap-1.5"><i class="h-3.5 w-3.5 rounded border border-red-300 bg-red-100" /> Prestado</span>
-      <span class="flex items-center gap-1.5"><i class="h-3.5 w-3.5 rounded border border-ink-100 bg-ink-50" /> Sin registro</span>
+      <span class="flex items-center gap-1.5"
+        ><i class="h-3.5 w-3.5 rounded border border-ink-300 bg-white" /> Disponible</span
+      >
+      <span class="flex items-center gap-1.5"
+        ><i class="h-3.5 w-3.5 rounded border border-blue-600 bg-blue-200" /> Seleccionado</span
+      >
+      <span class="flex items-center gap-1.5"
+        ><i class="h-3.5 w-3.5 rounded border border-red-300 bg-red-100" /> Prestado</span
+      >
+      <span class="flex items-center gap-1.5"
+        ><i class="h-3.5 w-3.5 rounded border border-ink-100 bg-ink-50" /> Sin registro</span
+      >
     </div>
 
     <div class="grid grid-cols-5 gap-1.5">
@@ -214,7 +250,11 @@ function limpiar() {
           :key="c.id"
           type="button"
           class="rounded border px-2 py-1 text-xs"
-          :class="modelValue.has(Number(c.id)) ? 'border-blue-600 bg-blue-200 text-blue-900' : 'border-ink-300 bg-white text-ink-700 dark:bg-ink-950 dark:text-ink-100'"
+          :class="
+            modelValue.has(Number(c.id))
+              ? 'border-blue-600 bg-blue-200 text-blue-900'
+              : 'border-ink-300 bg-white text-ink-700 dark:bg-ink-950 dark:text-ink-100'
+          "
           :disabled="estado(c) !== 'disponible'"
           @click="alternar(c)"
         >

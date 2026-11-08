@@ -40,7 +40,14 @@ function filtrar() {
   cargar()
 }
 function limpiarFiltros() {
-  store.setFilters({ search: '', estado: '', unidad: '', cargo: '', conHuella: '', conPrestamosActivos: '' })
+  store.setFilters({
+    search: '',
+    estado: '',
+    unidad: '',
+    cargo: '',
+    conHuella: '',
+    conPrestamosActivos: '',
+  })
   cargar()
 }
 
@@ -93,7 +100,8 @@ async function actualizar(id: number, payload: Partial<FuncionarioPayload>) {
 
 async function alCambiarHuella() {
   await cargar()
-  if (editando.value) editando.value = store.items.find((x) => x.id === editando.value?.id) ?? editando.value
+  if (editando.value)
+    editando.value = store.items.find((x) => x.id === editando.value?.id) ?? editando.value
 }
 
 async function alternarEstado(f: Funcionario) {
@@ -117,9 +125,19 @@ async function eliminar(f: Funcionario) {
 }
 
 onMounted(() => {
-  store.setFilters({ search: '', estado: '', unidad: '', cargo: '', conHuella: '', conPrestamosActivos: '' })
+  store.setFilters({
+    search: '',
+    estado: '',
+    unidad: '',
+    cargo: '',
+    conHuella: '',
+    conPrestamosActivos: '',
+  })
   cargar()
-  funcionariosService.unidades().then((u) => (unidades.value = u)).catch(() => {})
+  funcionariosService
+    .unidades()
+    .then((u) => (unidades.value = u))
+    .catch(() => {})
 })
 </script>
 
@@ -139,10 +157,18 @@ onMounted(() => {
     <form class="card flex flex-wrap items-end gap-3 p-4" @submit.prevent="filtrar">
       <div class="min-w-[220px] flex-1">
         <label class="mb-1 block text-xs font-medium text-ink-500" for="f-buscar">Buscar</label>
-        <input id="f-buscar" v-model="store.search" type="search" placeholder="CI, nombre, apellido o unidad…" :class="[campo, 'w-full']" />
+        <input
+          id="f-buscar"
+          v-model="store.search"
+          type="search"
+          placeholder="CI, nombre, apellido o unidad…"
+          :class="[campo, 'w-full']"
+        />
       </div>
       <div class="w-56">
-        <label class="mb-1 block text-xs font-medium text-ink-500" for="f-unidad">Unidad / oficina</label>
+        <label class="mb-1 block text-xs font-medium text-ink-500" for="f-unidad"
+          >Unidad / oficina</label
+        >
         <select id="f-unidad" v-model="store.unidad" :class="[campo, 'w-full']">
           <option value="">Todas</option>
           <option v-for="u in unidades" :key="u" :value="u">{{ u }}</option>
@@ -150,7 +176,13 @@ onMounted(() => {
       </div>
       <div class="w-44">
         <label class="mb-1 block text-xs font-medium text-ink-500" for="f-cargo">Cargo</label>
-        <input id="f-cargo" v-model="store.cargo" type="text" placeholder="Ej: Jefe…" :class="[campo, 'w-full']" />
+        <input
+          id="f-cargo"
+          v-model="store.cargo"
+          type="text"
+          placeholder="Ej: Jefe…"
+          :class="[campo, 'w-full']"
+        />
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-ink-500" for="f-estado">Estado</label>
@@ -175,11 +207,18 @@ onMounted(() => {
           <option value="true">Con documentos prestados</option>
         </select>
       </div>
-      <BaseButton type="submit" size="sm"><i class="fa-solid fa-filter mr-1" aria-hidden="true" /> Filtrar</BaseButton>
-      <BaseButton type="button" variant="secondary" size="sm" @click="limpiarFiltros">Limpiar</BaseButton>
+      <BaseButton type="submit" size="sm"
+        ><i class="fa-solid fa-filter mr-1" aria-hidden="true" /> Filtrar</BaseButton
+      >
+      <BaseButton type="button" variant="secondary" size="sm" @click="limpiarFiltros"
+        >Limpiar</BaseButton
+      >
     </form>
 
-    <p v-if="listError" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">
+    <p
+      v-if="listError"
+      class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300"
+    >
       {{ listError }}
     </p>
 
@@ -190,7 +229,12 @@ onMounted(() => {
       :page="store.page"
       :total-pages="store.totalPages"
       empty-message="No hay funcionarios que coincidan."
-      @update:page="(p) => { store.page = p; cargar() }"
+      @update:page="
+        (p) => {
+          store.page = p
+          cargar()
+        }
+      "
       @row-click="editar"
     >
       <template #cell-apellidos="{ row }">{{ row.nombres }} {{ row.apellidos }}</template>

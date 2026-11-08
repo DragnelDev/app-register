@@ -61,6 +61,8 @@ import {
 
 import { fichaC31Pdf, listadoC31Pdf } from './comprobantes-pdf.util';
 
+import { adjuntarRotuloGrupo } from '../common/utils/rotulo-grupo.util';
+
 /** Escapa % _ \\ para que el texto del usuario se busque literalmente en un ILIKE. */
 const escaparLike = (texto: string): string =>
   texto.replace(/[\\%_]/g, (m) => `\\${m}`);
@@ -509,7 +511,9 @@ export class ComprobantesC31Service {
   async unir(ids: number[], usuario?: Usuario) {
     const unicos = [...new Set(ids)];
     if (unicos.length < 2) {
-      throw new BadRequestException('Seleccione al menos 2 comprobantes para unir');
+      throw new BadRequestException(
+        'Seleccione al menos 2 comprobantes para unir',
+      );
     }
     return this.dataSource.transaction(async (manager) => {
       const items = await manager.find(ComprobantesC31, {
@@ -633,7 +637,10 @@ export class ComprobantesC31Service {
     // Un comprobante ya archivado solo se modifica dejando constancia del motivo
     const motivoModificacion = dto.motivoModificacion?.trim();
     const eraArchivado = comprobante.estadoFisico === EstadoFisicoC31.ARCHIVADO;
-    if (eraArchivado && (!motivoModificacion || motivoModificacion.length < 5)) {
+    if (
+      eraArchivado &&
+      (!motivoModificacion || motivoModificacion.length < 5)
+    ) {
       throw new BadRequestException(
         'El comprobante está archivado: indique el motivo de la modificación (mínimo 5 caracteres)',
       );
@@ -646,7 +653,9 @@ export class ComprobantesC31Service {
     const enviaDev =
       dto.devengados !== undefined || dto.numeroDevengado !== undefined;
     const numeros = this.numerosDelDto(dto);
-    const prevFinal = enviaPrev ? numeros.preventivos : preventivosDe(comprobante);
+    const prevFinal = enviaPrev
+      ? numeros.preventivos
+      : preventivosDe(comprobante);
     const devFinal = enviaDev ? numeros.devengados : devengadosDe(comprobante);
     // Los registros existentes se conservan: solo se re-deriva el tipo si cambian los identificadores.
     const tipoFinal =
@@ -857,7 +866,10 @@ export class ComprobantesC31Service {
     for (const b of actuales) {
       if (b.beneficiarioId) continue;
       const id = catalogo.get(claveNombre(b.nombreBeneficiario ?? ''));
-      if (id) await manager.update(C31Beneficiario, b.id as number, { beneficiarioId: id });
+      if (id)
+        await manager.update(C31Beneficiario, b.id as number, {
+          beneficiarioId: id,
+        });
     }
   }
 
@@ -879,7 +891,10 @@ export class ComprobantesC31Service {
       const actual = comprobante.estadoFisico as EstadoFisicoC31;
       if (
         esRemitente(usuario) &&
-        !(ESTADOS_REMITENTE.includes(actual) && ESTADOS_REMITENTE.includes(nuevo))
+        !(
+          ESTADOS_REMITENTE.includes(actual) &&
+          ESTADOS_REMITENTE.includes(nuevo)
+        )
       ) {
         throw new ForbiddenException(
           'Su perfil solo puede pasar un comprobante entre "En trámite" y "En revisión / firmado"',
@@ -1042,6 +1057,7 @@ export class ComprobantesC31Service {
       })
       .filter(Boolean)
       .join(' · ');
+    await adjuntarRotuloGrupo(this.repo.manager, r.data);
     return listadoC31Pdf(r.data, { filtros, total: r.total });
   }
 
@@ -1053,6 +1069,7 @@ export class ComprobantesC31Service {
     });
     if (!c) throw new NotFoundException('El comprobante C31 no existe');
     this.exigirEstadoRemitente([c], usuario);
+    await adjuntarRotuloGrupo(this.repo.manager, c);
     return fichaC31Pdf(c);
   }
 
@@ -1134,7 +1151,11 @@ export class ComprobantesC31Service {
           .join(', '),
         descripcion: c.descripcion,
         monto: Number(c.montoTotal).toFixed(2),
-        fecha: String(c.fechaElaboracion ?? '').slice(0, 10).split('-').reverse().join('/'),
+        fecha: String(c.fechaElaboracion ?? '')
+          .slice(0, 10)
+          .split('-')
+          .reverse()
+          .join('/'),
         folio: c.numeroFolio ?? '',
         carpeta: c.ubicacionFisica ?? '',
       });
@@ -1306,7 +1327,9 @@ export class ComprobantesC31Service {
             beneficiarios: beneficiarios.map((nombreBeneficiario) =>
               manager.create(C31Beneficiario, {
                 nombreBeneficiario,
-                beneficiarioId: catalogoImport.get(claveNombre(nombreBeneficiario)),
+                beneficiarioId: catalogoImport.get(
+                  claveNombre(nombreBeneficiario),
+                ),
               }),
             ),
           });

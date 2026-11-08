@@ -78,12 +78,16 @@ export const fechaCorta = (v?: string | null) => {
     return y && m && d ? `${d}/${m}/${y}` : '—'
   }
   const f = new Date(v)
-  return Number.isNaN(f.getTime()) ? '—' : `${dos(f.getDate())}/${dos(f.getMonth() + 1)}/${f.getFullYear()}`
+  return Number.isNaN(f.getTime())
+    ? '—'
+    : `${dos(f.getDate())}/${dos(f.getMonth() + 1)}/${f.getFullYear()}`
 }
 
 /** dd/mm/aaaa hh:mm (24 h) */
 export const fechaHora = (v?: string | null) => {
   if (!v) return '—'
   const f = new Date(v)
-  return Number.isNaN(f.getTime()) ? '—' : `${fechaCorta(v)} ${dos(f.getHours())}:${dos(f.getMinutes())}`
+  return Number.isNaN(f.getTime())
+    ? '—'
+    : `${fechaCorta(v)} ${dos(f.getHours())}:${dos(f.getMinutes())}`
 }

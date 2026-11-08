@@ -13,7 +13,29 @@ import type { ComprobanteC31 } from '@/types/c31.types'
 import type { Funcionario } from '@/types/funcionarios.types'
 
 defineProps<{ saving?: boolean }>()
-const emit = defineEmits<{ submit: [payload: PrestamoCuadernoCreatePayload] }>()
+const emit = defineEmits<{
+  submit: [payload: PrestamoCuadernoCreatePayload & { evidencia?: File | null }]
+}>()
+const evidencia = ref<File | null>(null)
+const errorEvidencia = ref('')
+function elegirEvidencia(e: Event) {
+  const input = e.target as HTMLInputElement
+  const f = input.files?.[0] ?? null
+  errorEvidencia.value = ''
+  if (f && !/^image\/(jpeg|png|webp)$/.test(f.type)) {
+    errorEvidencia.value = 'Elija una imagen JPG, PNG o WEBP'
+    input.value = ''
+    evidencia.value = null
+    return
+  }
+  if (f && f.size > 10 * 1024 * 1024) {
+    errorEvidencia.value = 'La imagen supera los 10 MB'
+    input.value = ''
+    evidencia.value = null
+    return
+  }
+  evidencia.value = f
+}
 
 function nowLocal() {
   const d = new Date()
@@ -79,7 +101,8 @@ function validateAll(): boolean {
   if (form.metodoVerificacion === 'HUELLA_DIGITAL') {
     if (!funcionarioElegido.value?.huellaRegistradaEn)
       errorHuella.value = 'El funcionario no tiene huella registrada (se enrola en Funcionarios)'
-    else if (!huellaVerificada.value) errorHuella.value = 'Verifique la huella del funcionario antes de registrar'
+    else if (!huellaVerificada.value)
+      errorHuella.value = 'Verifique la huella del funcionario antes de registrar'
   }
   return !errorHuella.value && !errors.funcionarioId && !errors.areaUnidad && !errors.comprobante
 }
@@ -112,9 +135,11 @@ function handleSubmit() {
     fechaDevolucionEstimada: form.fechaDevolucionEstimada || undefined,
     metodoVerificacion: form.metodoVerificacion,
     evidenciaVerificacionUrl: form.evidenciaVerificacionUrl || undefined,
+    evidencia: evidencia.value,
     observaciones: form.observaciones || undefined,
   })
 
+  evidencia.value = null
   seleccionados.value = []
   form.funcionarioId = null
   form.areaUnidad = ''
@@ -134,7 +159,11 @@ function handleSubmit() {
       </label>
       <div class="flex gap-2">
         <div class="min-w-0 flex-1">
-          <ComprobanteC31Picker :exclude-ids="excludeIds" solo-disponibles @select="addComprobante" />
+          <ComprobanteC31Picker
+            :exclude-ids="excludeIds"
+            solo-disponibles
+            @select="addComprobante"
+          />
         </div>
         <button
           type="button"
@@ -144,7 +173,11 @@ function handleSubmit() {
           <i class="fa-solid fa-table-cells" aria-hidden="true" /> Selección rápida
         </button>
       </div>
-      <SeleccionRapidaModal v-model="matrizAbierta" :exclude-ids="excludeIds" @confirm="agregarLote" />
+      <SeleccionRapidaModal
+        v-model="matrizAbierta"
+        :exclude-ids="excludeIds"
+        @confirm="agregarLote"
+      />
       <p class="mt-1 text-xs text-ink-400">
         Puede buscar por N° o glosa, o elegir una gestión y agregar todos los comprobantes de ese
         año.
@@ -218,11 +251,18 @@ function handleSubmit() {
       <p v-if="errorHuella" class="mt-1 text-xs text-red-600">{{ errorHuella }}</p>
     </div>
 
-    <BaseInput
-      v-model="form.evidenciaVerificacionUrl"
-      label="Evidencia (URL, opcional)"
-      class="sm:col-span-2"
-    />
+    <div class="sm:col-span-2">
+      <label class="mb-1 block text-xs font-semibold text-ink-700 dark:text-ink-200">
+        Evidencia (foto del cuaderno firmado, opcional — se puede subir o cambiar después)
+      </label>
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        class="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-ink-100 file:px-3 file:py-1.5 file:text-xs file:font-medium"
+        @change="elegirEvidencia"
+      />
+      <p v-if="errorEvidencia" class="mt-1 text-xs text-red-600">{{ errorEvidencia }}</p>
+    </div>
     <BaseInput
       v-model="form.observaciones"
       label="Observaciones (opcional)"

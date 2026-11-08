@@ -18,7 +18,10 @@ import {
 } from '@/types/beneficiarios.types'
 
 const auth = useAuthStore()
-const puedeEscribir = computed(() => auth.rol === 'ADMIN' || auth.rol === 'OPERADOR_ARCHIVOS' || auth.rol === 'AUXILIAR_ARCHIVOS')
+const puedeEscribir = computed(
+  () =>
+    auth.rol === 'ADMIN' || auth.rol === 'OPERADOR_ARCHIVOS' || auth.rol === 'AUXILIAR_ARCHIVOS',
+)
 const puedeReporte = computed(() => auth.rol !== 'SOLO_LECTURA' && auth.rol !== 'CONSULTA_EXTERNA')
 
 const items = ref<Beneficiario[]>([])
@@ -171,7 +174,13 @@ onMounted(cargar)
     <form class="card grid grid-cols-2 gap-3 p-4 md:grid-cols-6" @submit.prevent="aplicar">
       <div class="col-span-2 md:col-span-2">
         <label class="mb-1 block text-xs font-medium text-ink-500" for="b-q">Buscar</label>
-        <input id="b-q" v-model="filtros.search" type="search" placeholder="Nombre, CI/NIT o teléfono…" :class="[campo, 'w-full']" />
+        <input
+          id="b-q"
+          v-model="filtros.search"
+          type="search"
+          placeholder="Nombre, CI/NIT o teléfono…"
+          :class="[campo, 'w-full']"
+        />
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-ink-500" for="b-tp">Tipo</label>
@@ -209,15 +218,32 @@ onMounted(cargar)
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-ink-500" for="b-g">Gestión</label>
-        <input id="b-g" v-model="filtros.gestion" type="number" min="2000" max="2100" placeholder="2026" :class="[campo, 'w-full']" />
+        <input
+          id="b-g"
+          v-model="filtros.gestion"
+          type="number"
+          min="2000"
+          max="2100"
+          placeholder="2026"
+          :class="[campo, 'w-full']"
+        />
       </div>
       <div class="flex items-end gap-2">
-        <BaseButton type="submit" size="sm"><i class="fa-solid fa-filter mr-1" aria-hidden="true" /> Filtrar</BaseButton>
-        <BaseButton type="button" variant="secondary" size="sm" @click="limpiar">Limpiar</BaseButton>
+        <BaseButton type="submit" size="sm"
+          ><i class="fa-solid fa-filter mr-1" aria-hidden="true" /> Filtrar</BaseButton
+        >
+        <BaseButton type="button" variant="secondary" size="sm" @click="limpiar"
+          >Limpiar</BaseButton
+        >
       </div>
     </form>
 
-    <p v-if="error" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{{ error }}</p>
+    <p
+      v-if="error"
+      class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300"
+    >
+      {{ error }}
+    </p>
 
     <BaseDataTable
       :columns="columns"
@@ -226,10 +252,17 @@ onMounted(cargar)
       :page="page"
       :total-pages="totalPages"
       empty-message="No hay beneficiarios que coincidan."
-      @update:page="(p) => { page = p; cargar() }"
+      @update:page="
+        (p) => {
+          page = p
+          cargar()
+        }
+      "
       @row-click="verFicha"
     >
-      <template #cell-tipoPersona="{ row }">{{ row.tipoPersona === 'JURIDICA' ? 'Jurídica' : 'Natural' }}</template>
+      <template #cell-tipoPersona="{ row }">{{
+        row.tipoPersona === 'JURIDICA' ? 'Jurídica' : 'Natural'
+      }}</template>
       <template #cell-numeroDocumento="{ row }">{{ documentoBeneficiario(row) }}</template>
       <template #cell-telefono="{ row }">{{ row.telefono || '—' }}</template>
       <template #cell-estado="{ row }">
@@ -240,8 +273,19 @@ onMounted(cargar)
       <template #actions="{ row }">
         <div class="flex justify-end gap-1">
           <IconButton icon="fa-folder-open" label="Ver ficha" @click="verFicha(row)" />
-          <IconButton v-if="puedeEscribir" icon="fa-pen-to-square" label="Editar" @click="editar(row)" />
-          <IconButton v-if="auth.isAdmin" icon="fa-trash" label="Eliminar" variant="danger" @click="eliminar(row)" />
+          <IconButton
+            v-if="puedeEscribir"
+            icon="fa-pen-to-square"
+            label="Editar"
+            @click="editar(row)"
+          />
+          <IconButton
+            v-if="auth.isAdmin"
+            icon="fa-trash"
+            label="Eliminar"
+            variant="danger"
+            @click="eliminar(row)"
+          />
         </div>
       </template>
     </BaseDataTable>
@@ -255,20 +299,35 @@ onMounted(cargar)
       @update="actualizar"
     />
 
-    <BaseModal v-model="fichaAbierta" :title="ficha?.beneficiario.nombre ?? 'Ficha del beneficiario'">
+    <BaseModal
+      v-model="fichaAbierta"
+      :title="ficha?.beneficiario.nombre ?? 'Ficha del beneficiario'"
+    >
       <p v-if="fichaCargando" class="text-sm text-ink-500">Cargando…</p>
       <div v-else-if="ficha" class="space-y-4 text-sm">
-        <p class="text-ink-500 dark:text-ink-400">{{ documentoBeneficiario(ficha.beneficiario) }}</p>
+        <p class="text-ink-500 dark:text-ink-400">
+          {{ documentoBeneficiario(ficha.beneficiario) }}
+        </p>
         <div class="grid grid-cols-3 gap-3">
-          <div class="rounded-lg bg-ink-50 p-3 dark:bg-white/5"><p class="text-xs text-ink-500">Comprobantes</p><p class="text-lg font-semibold">{{ ficha.resumen.comprobantes }}</p></div>
-          <div class="rounded-lg bg-ink-50 p-3 dark:bg-white/5"><p class="text-xs text-ink-500">Pagos</p><p class="text-lg font-semibold">{{ ficha.resumen.pagos }}</p></div>
-          <div class="rounded-lg bg-ink-50 p-3 dark:bg-white/5"><p class="text-xs text-ink-500">Total pagado</p><p class="text-lg font-semibold">{{ bs(ficha.resumen.totalPagado) }}</p></div>
+          <div class="rounded-lg bg-ink-50 p-3 dark:bg-white/5">
+            <p class="text-xs text-ink-500">Comprobantes</p>
+            <p class="text-lg font-semibold">{{ ficha.resumen.comprobantes }}</p>
+          </div>
+          <div class="rounded-lg bg-ink-50 p-3 dark:bg-white/5">
+            <p class="text-xs text-ink-500">Pagos</p>
+            <p class="text-lg font-semibold">{{ ficha.resumen.pagos }}</p>
+          </div>
+          <div class="rounded-lg bg-ink-50 p-3 dark:bg-white/5">
+            <p class="text-xs text-ink-500">Total pagado</p>
+            <p class="text-lg font-semibold">{{ bs(ficha.resumen.totalPagado) }}</p>
+          </div>
         </div>
         <div v-if="ficha.porGestion.length">
           <h4 class="mb-1 font-semibold">Por gestión</h4>
           <ul class="divide-y divide-ink-100 dark:divide-white/10">
             <li v-for="g in ficha.porGestion" :key="g.gestion" class="flex justify-between py-1">
-              <span>{{ g.gestion }} · {{ g.cantidad }} comprobante(s)</span><span>{{ bs(g.monto) }}</span>
+              <span>{{ g.gestion }} · {{ g.cantidad }} comprobante(s)</span
+              ><span>{{ bs(g.monto) }}</span>
             </li>
           </ul>
         </div>
@@ -276,7 +335,11 @@ onMounted(cargar)
           <h4 class="mb-1 font-semibold">Comprobantes</h4>
           <ul class="max-h-64 divide-y divide-ink-100 overflow-auto dark:divide-white/10">
             <li v-for="c in ficha.comprobantes" :key="c.id" class="py-1.5">
-              <RouterLink :to="`/c31?id=${c.id}`" class="font-medium text-seal-600 hover:underline">{{ idC31(c) }}</RouterLink>
+              <RouterLink
+                :to="`/c31?id=${c.id}`"
+                class="font-medium text-seal-600 hover:underline"
+                >{{ idC31(c) }}</RouterLink
+              >
               <span class="text-ink-500"> · {{ c.gestion }} · {{ bs(c.montoTotal) }}</span>
               <p class="line-clamp-2 text-xs text-ink-500 dark:text-ink-400">{{ c.descripcion }}</p>
             </li>

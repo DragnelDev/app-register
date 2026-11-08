@@ -1,9 +1,19 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { PrestamosNota, EstadoPrestamoNota } from '../prestamos-nota/entities/prestamos-nota.entity';
+import {
+  PrestamosNota,
+  EstadoPrestamoNota,
+} from '../prestamos-nota/entities/prestamos-nota.entity';
 import { EstadoFisicoC31 } from '../comprobantes_c31/entities/comprobantes_c31.entity';
-import { devengadosDe, preventivosDe } from '../common/utils/identificador-c31.util';
+import {
+  devengadosDe,
+  preventivosDe,
+} from '../common/utils/identificador-c31.util';
 import { NotaAuditoria } from './entities/nota-auditoria.entity';
 import {
   CreateNotaAuditoriaDto,
@@ -18,8 +28,10 @@ const hoy = () =>
 @Injectable()
 export class NotasAuditoriaService {
   constructor(
-    @InjectRepository(NotaAuditoria) private readonly repo: Repository<NotaAuditoria>,
-    @InjectRepository(PrestamosNota) private readonly prestamos: Repository<PrestamosNota>,
+    @InjectRepository(NotaAuditoria)
+    private readonly repo: Repository<NotaAuditoria>,
+    @InjectRepository(PrestamosNota)
+    private readonly prestamos: Repository<PrestamosNota>,
   ) {}
 
   /** CITE correlativo por gestión: GAMSL/ARCH/AUD/OF-N° 004/2026 */
@@ -56,8 +68,11 @@ export class NotasAuditoriaService {
         { s: `%${search.trim()}%` },
       );
     const filas = await qb.getRawMany<{
-      numero: string; fecha: string; institucion: string | null;
-      responsable: string | null; total: string;
+      numero: string;
+      fecha: string;
+      institucion: string | null;
+      responsable: string | null;
+      total: string;
     }>();
     return filas.map((f) => ({ ...f, total: Number(f.total) }));
   }
@@ -76,7 +91,8 @@ export class NotasAuditoriaService {
       where: { numeroNotaSolicitud: In(numeros) },
       relations: { comprobante: { preventivos: true, devengados: true } },
     });
-    if (!filas.length) throw new NotFoundException('No hay préstamos con esas notas');
+    if (!filas.length)
+      throw new NotFoundException('No hay préstamos con esas notas');
 
     const NO_EN_ARCHIVO: string[] = [
       EstadoFisicoC31.EN_TRAMITE,
@@ -92,28 +108,37 @@ export class NotasAuditoriaService {
       const prev = preventivosDe(c).join('-');
       const dev = devengadosDe(c).join('-');
       const rotulo = prev || (dev ? `DEV ${dev}` : `C31 #${c.id}`);
-      if (NO_EN_ARCHIVO.includes(c.estadoFisico as string) || f.estadoPrestamo === EstadoPrestamoNota.BORRADOR)
+      if (
+        NO_EN_ARCHIVO.includes(c.estadoFisico as string) ||
+        f.estadoPrestamo === EstadoPrestamoNota.BORRADOR
+      )
         pendientes.add(rotulo);
-      else if (f.estadoPrestamo === EstadoPrestamoNota.DEVUELTO) anteriores.add(rotulo);
+      else if (f.estadoPrestamo === EstadoPrestamoNota.DEVUELTO)
+        anteriores.add(rotulo);
       else entrega.add(rotulo);
     }
-    const orden = (a: string, b: string) => (parseInt(a.replace(/\D/g, '')) || 0) - (parseInt(b.replace(/\D/g, '')) || 0) || a.localeCompare(b);
+    const orden = (a: string, b: string) =>
+      (parseInt(a.replace(/\D/g, '')) || 0) -
+        (parseInt(b.replace(/\D/g, '')) || 0) || a.localeCompare(b);
     const lista = (s: Set<string>) => [...s].sort(orden);
     const primero = filas[0]!;
     const secciones = [
       {
         titulo: `Comprobantes entregados (${entrega.size})`,
-        texto: 'En esta oportunidad se hace la entrega física de los comprobantes C-31, debidamente foliados y engrampados, según el siguiente detalle:',
+        texto:
+          'En esta oportunidad se hace la entrega física de los comprobantes C-31, debidamente foliados y engrampados, según el siguiente detalle:',
         items: lista(entrega),
       },
       {
         titulo: `Comprobantes pendientes (${pendientes.size})`,
-        texto: 'Los siguientes comprobantes aún no se encuentran en la Unidad de Archivo (en trámite o bajo custodia de otras oficinas), por lo que no es posible su entrega:',
+        texto:
+          'Los siguientes comprobantes aún no se encuentran en la Unidad de Archivo (en trámite o bajo custodia de otras oficinas), por lo que no es posible su entrega:',
         items: lista(pendientes),
       },
       {
         titulo: `Comprobantes entregados anteriormente (${anteriores.size})`,
-        texto: 'Estos comprobantes ya fueron entregados anteriormente y devueltos al archivo, debidamente registrados en los cuadernos de cargo de la Unidad de Archivo:',
+        texto:
+          'Estos comprobantes ya fueron entregados anteriormente y devueltos al archivo, debidamente registrados en los cuadernos de cargo de la Unidad de Archivo:',
         items: lista(anteriores),
       },
     ].filter((s) => s.items.length > 0);
@@ -128,7 +153,8 @@ export class NotasAuditoriaService {
 
   async create(dto: CreateNotaAuditoriaDto, usuario: Usuario) {
     const fecha = dto.fecha ?? hoy();
-    const cite = dto.cite?.trim() || (await this.siguienteCite(Number(fecha.slice(0, 4))));
+    const cite =
+      dto.cite?.trim() || (await this.siguienteCite(Number(fecha.slice(0, 4))));
     if (await this.repo.existsBy({ cite }))
       throw new ConflictException(`Ya existe una nota con el CITE ${cite}`);
     return this.repo.save(
@@ -145,9 +171,14 @@ export class NotasAuditoriaService {
   }
 
   findAll(search?: string) {
-    const qb = this.repo.createQueryBuilder('n').orderBy('n.fecha', 'DESC').addOrderBy('n.id', 'DESC');
+    const qb = this.repo
+      .createQueryBuilder('n')
+      .orderBy('n.fecha', 'DESC')
+      .addOrderBy('n.id', 'DESC');
     if (search?.trim())
-      qb.where('(n.cite ILIKE :s OR n.referencia ILIKE :s)', { s: `%${search.trim()}%` });
+      qb.where('(n.cite ILIKE :s OR n.referencia ILIKE :s)', {
+        s: `%${search.trim()}%`,
+      });
     return qb.take(200).getMany();
   }
 
@@ -159,7 +190,11 @@ export class NotasAuditoriaService {
 
   async update(id: number, dto: UpdateNotaAuditoriaDto) {
     const n = await this.findOne(id);
-    if (dto.cite && dto.cite !== n.cite && (await this.repo.existsBy({ cite: dto.cite })))
+    if (
+      dto.cite &&
+      dto.cite !== n.cite &&
+      (await this.repo.existsBy({ cite: dto.cite }))
+    )
       throw new ConflictException(`Ya existe una nota con el CITE ${dto.cite}`);
     Object.assign(n, dto);
     return this.repo.save(n);

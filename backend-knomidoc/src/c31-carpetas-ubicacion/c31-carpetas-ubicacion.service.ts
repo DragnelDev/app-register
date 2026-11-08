@@ -22,13 +22,14 @@ export class C31CarpetasUbicacionService {
 
   async create(dto: CreateC31CarpetasUbicacionDto) {
     const comprobanteId = dto.comprobanteId;
-    if (comprobanteId === undefined) {
-      throw new BadRequestException('El comprobante es obligatorio');
-    }
     const carpetaId = dto.carpetaId;
-    if (carpetaId === undefined) {
-      throw new BadRequestException('La carpeta es obligatoria');
+
+    if (comprobanteId === undefined || carpetaId === undefined) {
+      throw new BadRequestException(
+        'Faltan datos obligatorios para ubicar la carpeta',
+      );
     }
+
     const totalActual = await this.repo.count({
       where: { comprobante: { id: comprobanteId } },
     });
@@ -38,10 +39,16 @@ export class C31CarpetasUbicacionService {
       );
     }
 
+    const comprobante = new ComprobantesC31();
+    comprobante.id = comprobanteId;
+
+    const carpeta = new Carpeta();
+    carpeta.id = carpetaId;
+
     const entidad = this.repo.create({
       numeroParte: dto.numeroParte,
-      comprobante: { id: comprobanteId } as any,
-      carpeta: { id: carpetaId } as any,
+      comprobante,
+      carpeta,
     });
     const guardado = await this.repo.save(entidad);
     await this.registrarMovimiento(

@@ -30,7 +30,13 @@ const auth = useAuthStore()
 const ubicacionRapida = ref<InstanceType<typeof UbicacionRapida>>()
 
 /** Tras crear un depósito/estante/carpeta se recargan las opciones y se selecciona el nuevo. */
-async function alCrearUbicacion({ tipo, id }: { tipo: 'deposito' | 'estante' | 'carpeta'; id: number }) {
+async function alCrearUbicacion({
+  tipo,
+  id,
+}: {
+  tipo: 'deposito' | 'estante' | 'carpeta'
+  id: number
+}) {
   if (tipo === 'deposito') {
     depositos.value = await depositosService.opciones()
     local.depositoId = id as never
@@ -87,9 +93,7 @@ onMounted(async () => {
 })
 
 // Los N° de preventivo se repiten entre gestiones: se avisa si se busca sin fijar una
-const avisoGestion = computed(
-  () => Boolean(local.numeroPreventivo?.trim()) && !local.gestion,
-)
+const avisoGestion = computed(() => Boolean(local.numeroPreventivo?.trim()) && !local.gestion)
 
 const hayFiltrosAvanzados = computed(
   () =>
@@ -141,11 +145,7 @@ const etiqueta = 'mb-1 block text-xs font-medium text-ink-500'
       <!-- 1. Gestión: filtro principal, aísla los resultados por año fiscal -->
       <div class="w-32">
         <label :class="etiqueta" for="c31-gestion">Gestión</label>
-        <select
-          id="c31-gestion"
-          v-model="local.gestion"
-          :class="[campo, 'font-semibold']"
-        >
+        <select id="c31-gestion" v-model="local.gestion" :class="[campo, 'font-semibold']">
           <option value="">Todas</option>
           <option v-for="g in gestiones" :key="g" :value="g">{{ g }}</option>
         </select>
@@ -253,12 +253,7 @@ const etiqueta = 'mb-1 block text-xs font-medium text-ink-500'
       </div>
       <div class="w-44">
         <label :class="etiqueta" for="c31-carp">Carpeta</label>
-        <select
-          id="c31-carp"
-          v-model="local.carpetaId"
-          :disabled="!carpetas.length"
-          :class="campo"
-        >
+        <select id="c31-carp" v-model="local.carpetaId" :disabled="!carpetas.length" :class="campo">
           <option value="">Todas</option>
           <option v-for="c in carpetas" :key="c.id" :value="c.id">{{ c.codigoCarpeta }}</option>
         </select>
@@ -300,7 +295,9 @@ const etiqueta = 'mb-1 block text-xs font-medium text-ink-500'
 
     <!-- Filtros adicionales (los que ya existían) -->
     <details :open="hayFiltrosAvanzados">
-      <summary class="cursor-pointer text-xs font-medium text-ink-500 hover:text-ink-800 dark:hover:text-ink-200">
+      <summary
+        class="cursor-pointer text-xs font-medium text-ink-500 hover:text-ink-800 dark:hover:text-ink-200"
+      >
         Más filtros (búsqueda libre, estado físico, fechas, digitalización)
       </summary>
       <div class="mt-3 flex flex-wrap items-end gap-3">

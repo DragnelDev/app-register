@@ -66,6 +66,11 @@ export class Funcionario extends BaseFechasEntity {
   huellaRegistradaEn?: Date | null;
 
   /** 'DEMO' o el identificador del lector real que la capturó. */
-  @Column({ name: 'huella_lector', type: 'varchar', length: 30, nullable: true })
+  @Column({
+    name: 'huella_lector',
+    type: 'varchar',
+    length: 30,
+    nullable: true,
+  })
   huellaLector?: string | null;
 }

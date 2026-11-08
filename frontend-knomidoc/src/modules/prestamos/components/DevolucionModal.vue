@@ -5,7 +5,8 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import FuncionarioSelect from '@/components/shared/FuncionarioSelect.vue'
 import HuellaPanel from '@/components/shared/HuellaPanel.vue'
 import type { Funcionario } from '@/types/funcionarios.types'
-import type { CondicionDevolucion, MetodoVerificacion } from '@/types/prestamos.types'
+import type { CondicionDevolucion } from '@/types/prestamos.types'
+import type { MetodoVerificacion } from '@/types/common.types'
 
 const props = defineProps<{
   modelValue: boolean
@@ -117,7 +118,9 @@ function confirmar() {
         <div class="flex flex-col gap-1 text-ink-800 dark:text-ink-100">
           <label class="flex items-center gap-2">
             <input v-model="quien" type="radio" value="MISMO" @change="huellaOk = false" />
-            El solicitante<span v-if="solicitante" class="text-ink-500"> ({{ solicitante.nombres }} {{ solicitante.apellidos }})</span>
+            El solicitante<span v-if="solicitante" class="text-ink-500">
+              ({{ solicitante.nombres }} {{ solicitante.apellidos }})</span
+            >
           </label>
           <label class="flex items-center gap-2">
             <input v-model="quien" type="radio" value="OTRO" @change="huellaOk = false" />
@@ -128,10 +131,19 @@ function confirmar() {
           v-if="quien === 'OTRO'"
           v-model="otroId"
           label="Funcionario que devuelve"
-          @select="(f: Funcionario | null) => { otro = f; huellaOk = false }"
+          @select="
+            (f: Funcionario | null) => {
+              otro = f
+              huellaOk = false
+            }
+          "
         />
         <div>
-          <label class="mb-1 block text-xs font-semibold text-ink-700 dark:text-ink-200" for="dev-met">Verificación</label>
+          <label
+            class="mb-1 block text-xs font-semibold text-ink-700 dark:text-ink-200"
+            for="dev-met"
+            >Verificación</label
+          >
           <select
             id="dev-met"
             v-model="metodo"
@@ -143,7 +155,9 @@ function confirmar() {
           </select>
         </div>
         <template v-if="metodo === 'HUELLA_DIGITAL'">
-          <p v-if="!quienDevuelve()" class="text-xs text-ink-500">Seleccione primero a quien devuelve.</p>
+          <p v-if="!quienDevuelve()" class="text-xs text-ink-500">
+            Seleccione primero a quien devuelve.
+          </p>
           <p
             v-else-if="!quienDevuelve()?.huellaRegistradaEn"
             class="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-400/10 dark:text-amber-200"

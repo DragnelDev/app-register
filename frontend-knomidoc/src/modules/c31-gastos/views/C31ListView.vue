@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatMontoBo } from '@/utils/monto'
+import { fechaCorta } from '@/utils/estados'
 import { c31Service } from '@/services/c31.service'
 import IconButton from '@/components/ui/IconButton.vue'
 import { computed, onMounted, ref } from 'vue'
@@ -10,6 +12,7 @@ import C31FilterBar from '../components/C31FilterBar.vue'
 import C31DetailModal from '../components/C31DetailModal.vue'
 import { useC31Store } from '@/stores/c31.store'
 import { useAuthStore } from '@/stores/auth.store'
+import { extractApiErrorMessage } from '@/utils/http-error'
 import type { ComprobanteC31, C31FilterState } from '@/types/c31.types'
 import { esDigitalizado, rotuloC31 } from '@/types/c31.types'
 import { useGestionStore } from '@/stores/gestion.store'
@@ -55,7 +58,10 @@ async function descargarPdf() {
   generandoPdf.value = true
   importFeedback.value = ''
   try {
-    await c31Service.listadoPdf({ ...store.filters, tipoC31: tipoFijo.value || store.filters.tipoC31 })
+    await c31Service.listadoPdf({
+      ...store.filters,
+      tipoC31: tipoFijo.value || store.filters.tipoC31,
+    })
   } catch (error) {
     importFeedback.value = extractApiErrorMessage(error, 'No se pudo generar el PDF.')
   } finally {
@@ -113,15 +119,23 @@ async function handleImportChange(event: Event) {
   }
 }
 
-const columns: DataTableColumn<ComprobanteC31>[] = [
-  { key: 'id', label: 'N° Prev / Dev' },
+// Con imputación se ve el N° PREV; Sin imputación, el N° DEV
+const etiquetaNumero = computed(() =>
+  tipoFijo.value === 'CON_IMPUTACION'
+    ? 'N° PREV'
+    : tipoFijo.value === 'SIN_IMPUTACION'
+      ? 'N° DEV'
+      : 'N° PREV / DEV',
+)
+const columns = computed<DataTableColumn<ComprobanteC31>[]>(() => [
+  { key: 'id', label: etiquetaNumero.value },
   { key: 'descripcion', label: 'Descripción', sortable: true },
   { key: 'montoTotal', label: 'Monto (Bs)', sortable: true },
   { key: 'fechaElaboracion', label: 'Fecha', sortable: true },
   { key: 'gestion', label: 'Gestión', sortable: true },
   { key: 'estadoFisico', label: 'Estado físico' },
   { key: 'archivoAdjuntoUrl', label: 'Digitalizado' },
-]
+])
 
 function openDetail(
   row: ComprobanteC31,
@@ -231,19 +245,42 @@ onMounted(() => {
       @row-click="(r) => openDetail(r)"
     >
       <template #cell-id="{ row }">
-        <span class="font-mono text-xs">{{ rotuloC31(row) ?? '—' }}</span>
+        <span class="whitespace-nowrap font-mono text-xs font-semibold">{{
+          rotuloC31(row) ?? '—'
+        }}</span>
+        <span
+          v-if="row.rotuloGrupo"
+          class="block whitespace-nowrap text-[10px] text-seal-600"
+          title="Comprobantes unidos"
+        >
+          <i class="fa-solid fa-link" aria-hidden="true" /> unido
+        </span>
       </template>
-      <template #cell-montoTotal="{ row }">{{ Number(row.montoTotal).toFixed(2) }}</template>
+      <template #cell-montoTotal="{ row }">
+        <span class="block whitespace-nowrap text-right tabular-nums">{{
+          formatMontoBo(Number(row.montoTotal))
+        }}</span>
+      </template>
+      <template #cell-fechaElaboracion="{ row }">
+        <span class="whitespace-nowrap">{{ fechaCorta(row.fechaElaboracion) }}</span>
+      </template>
       <template #cell-estadoFisico="{ row }"><BaseBadge :estado="row.estadoFisico" /></template>
       <template #cell-archivoAdjuntoUrl="{ row }">
         <button
           type="button"
           class="inline-flex items-center gap-1 text-xs font-medium"
-          :class="esDigitalizado(row) ? 'text-emerald-600 dark:text-emerald-300' : 'text-amber-600 dark:text-amber-300'"
+          :class="
+            esDigitalizado(row)
+              ? 'text-emerald-600 dark:text-emerald-300'
+              : 'text-amber-600 dark:text-amber-300'
+          "
           :title="esDigitalizado(row) ? 'Digitalizado: abrir archivos' : 'Pendiente de digitalizar'"
           @click.stop="openDetail(row, 'adjuntos')"
         >
-          <i :class="esDigitalizado(row) ? 'fa-solid fa-circle-check' : 'fa-solid fa-hourglass-half'" aria-hidden="true" />
+          <i
+            :class="esDigitalizado(row) ? 'fa-solid fa-circle-check' : 'fa-solid fa-hourglass-half'"
+            aria-hidden="true"
+          />
           {{ esDigitalizado(row) ? 'Sí' : 'Pendiente' }}
         </button>
       </template>

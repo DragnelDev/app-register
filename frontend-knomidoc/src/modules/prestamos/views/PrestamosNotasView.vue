@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import NotasAuditoriaView from '@/modules/notas-auditoria/views/NotasAuditoriaView.vue'
 import FechaInput from '@/components/shared/FechaInput.vue'
 import { useAuthStore } from '@/stores/auth.store'
 import DevolucionModal from '../components/DevolucionModal.vue'
@@ -24,6 +25,20 @@ import { useGestionStore } from '@/stores/gestion.store'
 
 const auth = useAuthStore()
 const router = useRouter()
+const route = useRoute()
+// Pestaña "Respuesta a Auditoría": la nota formal con CITE y PDF vive junto a los préstamos por nota
+const puedeVerAuditoria = computed(() =>
+  ['ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS', 'CONSULTA_AVANZADA'].includes(
+    String(auth.rol),
+  ),
+)
+async function responderAuditoria(nota: string) {
+  await router.replace({ query: { tab: 'auditoria', nota } })
+  pestana.value = 'auditoria'
+}
+const pestana = ref<'prestamos' | 'auditoria'>(
+  route.query.tab === 'auditoria' && puedeVerAuditoria.value ? 'auditoria' : 'prestamos',
+)
 const store = usePrestamosStore()
 const modalOpen = ref(false)
 const saving = ref(false)
@@ -43,13 +58,18 @@ async function handleSubmit(payload: PrestamoNotaCreatePayload) {
   saving.value = true
   try {
     errorNota.value = ''
-    await prestamosService.createNota(payload)
+    const prestamos = await prestamosService.createNota(payload)
     modalOpen.value = false
-    avisoNota.value = payload.numeroNotaSolicitud
-    avisoAprobada.value = Boolean(payload.aprobar)
     await store.fetchNotas()
+    const numeroNota = prestamos[0]?.numeroNotaSolicitud
+    if (!numeroNota) {
+      errorNota.value = 'El préstamo se registró, pero el servidor no devolvió el número de nota.'
+      return
+    }
+    avisoNota.value = numeroNota
+    avisoAprobada.value = Boolean(payload.aprobar)
     // Un borrador recién creado se abre directo para revisarlo y previsualizarlo
-    if (!payload.aprobar) editarNota(payload.numeroNotaSolicitud)
+    if (!payload.aprobar) editarNota(numeroNota)
   } catch (err) {
     errorNota.value = extractApiErrorMessage(err, 'No se pudo registrar el préstamo.')
     modalOpen.value = false
@@ -196,185 +216,214 @@ onMounted(() => {
           Interna).
         </p>
       </div>
-      <BaseButton v-if="!auth.esSoloConsulta" @click="modalOpen = true"
+      <BaseButton v-if="!auth.esSoloConsulta && pestana === 'prestamos'" @click="modalOpen = true"
         >+ Registrar solicitud</BaseButton
       >
     </div>
 
-    <p
-      v-if="errorNota"
-      class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300"
-    >
-      {{ errorNota }}
-    </p>
     <div
-      v-if="avisoNota"
-      class="flex flex-wrap items-center justify-between gap-2 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200"
-      role="status"
+      v-if="puedeVerAuditoria"
+      class="flex gap-1 border-b border-ink-100 dark:border-white/10"
+      role="tablist"
     >
-      <span>{{
-        avisoAprobada
-          ? 'Préstamo registrado. La nota de remisión está lista para imprimir y firmar.'
-          : 'Borrador guardado. Revíselo y apruébelo para que los comprobantes salgan del archivo.'
-      }}</span>
-      <BaseButton size="sm" @click="imprimir(avisoNota)"
-        ><i class="fa-solid fa-print" aria-hidden="true" /> Imprimir nota
-        {{ avisoNota }}</BaseButton
+      <button
+        v-for="t in [
+          { k: 'prestamos', l: 'Notas de préstamo' },
+          { k: 'auditoria', l: 'Respuesta a Auditoría' },
+        ]"
+        :key="t.k"
+        type="button"
+        role="tab"
+        :aria-selected="pestana === t.k"
+        class="-mb-px border-b-2 px-4 py-2 text-sm font-medium"
+        :class="
+          pestana === t.k
+            ? 'border-seal-600 text-seal-700 dark:text-seal-300'
+            : 'border-transparent text-ink-500 hover:text-ink-800'
+        "
+        @click="pestana = t.k as 'prestamos' | 'auditoria'"
       >
+        {{ t.l }}
+      </button>
     </div>
 
-    <form class="card flex flex-wrap items-end gap-3 p-4" @submit.prevent="filtrar">
-      <div class="min-w-[200px] flex-1">
-        <label :class="etiqueta" for="n-q">Buscar</label>
-        <input
-          id="n-q"
-          v-model="f.search"
-          type="search"
-          placeholder="N° de nota, CITE, referencia, funcionario o CI…"
-          :class="[campo, 'w-full']"
-        />
-      </div>
-      <div class="w-44">
-        <label :class="etiqueta" for="n-num">N° de nota / CITE</label>
-        <input
-          id="n-num"
-          v-model="f.numeroNota"
-          type="text"
-          placeholder="NP-0012/2026"
-          :class="[campo, 'w-full']"
-        />
-      </div>
-      <div class="w-52">
-        <label :class="etiqueta" for="n-inst">Unidad solicitante</label>
-        <input
-          id="n-inst"
-          v-model="f.institucion"
-          type="text"
-          placeholder="Ej: Auditoría"
-          :class="[campo, 'w-full']"
-        />
-      </div>
-      <div>
-        <label :class="etiqueta" for="n-est">Estado</label>
-        <select id="n-est" v-model="f.estadoPrestamo" :class="campo">
-          <option value="">Todos</option>
-          <option value="BORRADOR">Borrador</option>
-          <option value="ENTREGADO">Entregado (prestado)</option>
-          <option value="DEVUELTO">Devuelto</option>
-        </select>
-      </div>
-      <div>
-        <label :class="etiqueta" for="n-g">Gestión</label>
-        <select id="n-g" v-model="f.gestion" :class="campo">
-          <option value="">Todas</option>
-          <option v-for="g in gestiones" :key="g" :value="g">{{ g }}</option>
-        </select>
-      </div>
-      <div>
-        <label :class="etiqueta" for="n-d">Préstamo desde</label>
-        <FechaInput id="n-d" v-model="f.fechaDesde" />
-      </div>
-      <div>
-        <label :class="etiqueta" for="n-h">Hasta</label>
-        <FechaInput id="n-h" v-model="f.fechaHasta" />
-      </div>
-      <label class="flex items-center gap-2 pb-2 text-sm text-ink-700 dark:text-ink-200">
-        <input v-model="f.vencidas" type="checkbox" true-value="true" false-value="" />
-        Solo vencidas
-      </label>
-      <BaseButton type="submit" size="sm"
-        ><i class="fa-solid fa-filter mr-1" aria-hidden="true" /> Filtrar</BaseButton
+    <NotasAuditoriaView v-if="pestana === 'auditoria'" embedded />
+    <div v-show="pestana === 'prestamos'" class="space-y-4">
+      <p
+        v-if="errorNota"
+        class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300"
       >
-      <BaseButton type="button" variant="secondary" size="sm" @click="limpiarFiltros"
-        >Limpiar</BaseButton
+        {{ errorNota }}
+      </p>
+      <div
+        v-if="avisoNota"
+        class="flex flex-wrap items-center justify-between gap-2 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200"
+        role="status"
       >
-    </form>
+        <span>{{
+          avisoAprobada
+            ? 'Préstamo registrado. La nota de remisión está lista para imprimir y firmar.'
+            : 'Borrador guardado. Revíselo y apruébelo para que los comprobantes salgan del archivo.'
+        }}</span>
+        <BaseButton size="sm" @click="imprimir(avisoNota)"
+          ><i class="fa-solid fa-print" aria-hidden="true" /> Imprimir nota
+          {{ avisoNota }}</BaseButton
+        >
+      </div>
 
-    <BaseDataTable
-      :columns="columns"
-      :rows="store.notas"
-      :loading="store.loadingNotas"
-      empty-message="Aún no hay préstamos por nota registrados."
-    >
-      <template #cell-comprobanteId="{ row }">{{ nombreComprobante(row) }}</template>
-      <template #cell-funcionarioResponsable="{ row }">
-        {{
-          row.funcionario
-            ? `${row.funcionario.nombres} ${row.funcionario.apellidos}`
-            : (row.funcionarioResponsable ?? '—')
-        }}
-      </template>
-      <template #cell-institucionSolicitante="{ row }">{{
-        row.institucionSolicitante ?? '—'
-      }}</template>
-      <template #cell-estadoPrestamo="{ row }"><BaseBadge :estado="row.estadoPrestamo" /></template>
-      <template #actions="{ row }">
-        <div class="flex justify-end gap-1">
-          <template v-if="row.estadoPrestamo === 'BORRADOR'">
-            <IconButton
-              v-if="!auth.esSoloConsulta"
-              icon="fa-pen-to-square"
-              label="Editar y previsualizar nota"
-              variant="primary"
-              @click="editarNota(row.numeroNotaSolicitud)"
-            />
-            <IconButton
-              v-if="!auth.esSoloConsulta"
-              icon="fa-circle-check"
-              label="Aprobar y entregar"
-              variant="success"
-              :loading="aprobando === row.numeroNotaSolicitud"
-              @click="aprobar(row.numeroNotaSolicitud)"
-            />
-            <IconButton
-              v-if="!auth.esSoloConsulta"
-              icon="fa-trash"
-              label="Descartar borrador"
-              variant="danger"
-              @click="descartar(row.numeroNotaSolicitud)"
-            />
-          </template>
-          <IconButton
-            v-else-if="auth.puedeExportar"
-            icon="fa-print"
-            label="Imprimir nota (PDF)"
-            variant="primary"
-            @click="imprimir(row.numeroNotaSolicitud)"
-          />
-          <IconButton
-            v-if="auth.puedeRecibirActas"
-            icon="fa-file-signature"
-            label="Responder a Auditoría (nota vinculada)"
-            @click="
-              router.push({ path: '/notas-auditoria', query: { nota: row.numeroNotaSolicitud } })
-            "
-          />
-          <IconButton
-            icon="fa-clock-rotate-left"
-            label="Ver seguimiento del comprobante"
-            @click="verSeguimiento(row)"
-          />
-          <IconButton
-            v-if="row.estadoPrestamo === 'ENTREGADO' && !auth.esSoloConsulta"
-            icon="fa-rotate-left"
-            label="Devolver nota completa"
-            variant="success"
-            :loading="returningId === row.id"
-            @click="handleDevolver(row)"
+      <form class="card flex flex-wrap items-end gap-3 p-4" @submit.prevent="filtrar">
+        <div class="min-w-[200px] flex-1">
+          <label :class="etiqueta" for="n-q">Buscar</label>
+          <input
+            id="n-q"
+            v-model="f.search"
+            type="search"
+            placeholder="N° de nota, CITE, referencia, funcionario o CI…"
+            :class="[campo, 'w-full']"
           />
         </div>
-      </template>
-    </BaseDataTable>
+        <div class="w-44">
+          <label :class="etiqueta" for="n-num">N° de nota / CITE</label>
+          <input
+            id="n-num"
+            v-model="f.numeroNota"
+            type="text"
+            placeholder="NP-0012/2026"
+            :class="[campo, 'w-full']"
+          />
+        </div>
+        <div class="w-52">
+          <label :class="etiqueta" for="n-inst">Unidad solicitante</label>
+          <input
+            id="n-inst"
+            v-model="f.institucion"
+            type="text"
+            placeholder="Ej: Auditoría"
+            :class="[campo, 'w-full']"
+          />
+        </div>
+        <div>
+          <label :class="etiqueta" for="n-est">Estado</label>
+          <select id="n-est" v-model="f.estadoPrestamo" :class="campo">
+            <option value="">Todos</option>
+            <option value="BORRADOR">Borrador</option>
+            <option value="ENTREGADO">Entregado (prestado)</option>
+            <option value="DEVUELTO">Devuelto</option>
+          </select>
+        </div>
+        <div>
+          <label :class="etiqueta" for="n-g">Gestión</label>
+          <select id="n-g" v-model="f.gestion" :class="campo">
+            <option value="">Todas</option>
+            <option v-for="g in gestiones" :key="g" :value="g">{{ g }}</option>
+          </select>
+        </div>
+        <div>
+          <label :class="etiqueta" for="n-d">Préstamo desde</label>
+          <FechaInput id="n-d" v-model="f.fechaDesde" />
+        </div>
+        <div>
+          <label :class="etiqueta" for="n-h">Hasta</label>
+          <FechaInput id="n-h" v-model="f.fechaHasta" />
+        </div>
+        <label class="flex items-center gap-2 pb-2 text-sm text-ink-700 dark:text-ink-200">
+          <input v-model="f.vencidas" type="checkbox" true-value="true" false-value="" />
+          Solo vencidas
+        </label>
+        <BaseButton type="submit" size="sm"
+          ><i class="fa-solid fa-filter mr-1" aria-hidden="true" /> Filtrar</BaseButton
+        >
+        <BaseButton type="button" variant="secondary" size="sm" @click="limpiarFiltros"
+          >Limpiar</BaseButton
+        >
+      </form>
 
-    <BaseModal v-model="modalOpen" title="Registrar préstamo por nota" size="lg">
-      <PrestamoNotaForm :saving="saving" @submit="handleSubmit" />
-    </BaseModal>
-    <NotaEditModal v-model="editOpen" :filas="filasEnEdicion" @cambio="alCambiarNota" />
-    <C31DetailModal v-model="detalleOpen" :comprobante="detalleSel" tab="seguimiento" />
-    <DevolucionModal
-      v-model="devolucionOpen"
-      :saving="returningId !== null"
-      @confirm="confirmarDevolucion"
-    />
+      <BaseDataTable
+        :columns="columns"
+        :rows="store.notas"
+        :loading="store.loadingNotas"
+        empty-message="Aún no hay préstamos por nota registrados."
+      >
+        <template #cell-comprobanteId="{ row }">{{ nombreComprobante(row) }}</template>
+        <template #cell-funcionarioResponsable="{ row }">
+          {{
+            row.funcionario
+              ? `${row.funcionario.nombres} ${row.funcionario.apellidos}`
+              : (row.funcionarioResponsable ?? '—')
+          }}
+        </template>
+        <template #cell-institucionSolicitante="{ row }">{{
+          row.institucionSolicitante ?? '—'
+        }}</template>
+        <template #cell-estadoPrestamo="{ row }"
+          ><BaseBadge :estado="row.estadoPrestamo"
+        /></template>
+        <template #actions="{ row }">
+          <div class="flex justify-end gap-1">
+            <template v-if="row.estadoPrestamo === 'BORRADOR'">
+              <IconButton
+                v-if="!auth.esSoloConsulta"
+                icon="fa-pen-to-square"
+                label="Editar y previsualizar nota"
+                variant="primary"
+                @click="editarNota(row.numeroNotaSolicitud)"
+              />
+              <IconButton
+                v-if="!auth.esSoloConsulta"
+                icon="fa-circle-check"
+                label="Aprobar y entregar"
+                variant="success"
+                :loading="aprobando === row.numeroNotaSolicitud"
+                @click="aprobar(row.numeroNotaSolicitud)"
+              />
+              <IconButton
+                v-if="!auth.esSoloConsulta"
+                icon="fa-trash"
+                label="Descartar borrador"
+                variant="danger"
+                @click="descartar(row.numeroNotaSolicitud)"
+              />
+            </template>
+            <IconButton
+              v-else-if="auth.puedeExportar"
+              icon="fa-print"
+              label="Imprimir nota (PDF)"
+              variant="primary"
+              @click="imprimir(row.numeroNotaSolicitud)"
+            />
+            <IconButton
+              v-if="auth.puedeRecibirActas"
+              icon="fa-file-signature"
+              label="Responder a Auditoría (nota vinculada)"
+              @click="responderAuditoria(row.numeroNotaSolicitud)"
+            />
+            <IconButton
+              icon="fa-clock-rotate-left"
+              label="Ver seguimiento del comprobante"
+              @click="verSeguimiento(row)"
+            />
+            <IconButton
+              v-if="row.estadoPrestamo === 'ENTREGADO' && !auth.esSoloConsulta"
+              icon="fa-rotate-left"
+              label="Devolver nota completa"
+              variant="success"
+              :loading="returningId === row.id"
+              @click="handleDevolver(row)"
+            />
+          </div>
+        </template>
+      </BaseDataTable>
+
+      <BaseModal v-model="modalOpen" title="Registrar préstamo por nota" size="lg">
+        <PrestamoNotaForm :saving="saving" @submit="handleSubmit" />
+      </BaseModal>
+      <NotaEditModal v-model="editOpen" :filas="filasEnEdicion" @cambio="alCambiarNota" />
+      <C31DetailModal v-model="detalleOpen" :comprobante="detalleSel" tab="seguimiento" />
+      <DevolucionModal
+        v-model="devolucionOpen"
+        :saving="returningId !== null"
+        @confirm="confirmarDevolucion"
+      />
+    </div>
   </div>
 </template>

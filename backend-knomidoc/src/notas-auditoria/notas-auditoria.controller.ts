@@ -1,14 +1,31 @@
 import {
-  Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, StreamableFile,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+  StreamableFile,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Usuario } from '../usuarios/entities/usuario.entity';
 import { NotasAuditoriaService } from './notas-auditoria.service';
-import { CreateNotaAuditoriaDto, UpdateNotaAuditoriaDto } from './dto/nota-auditoria.dto';
+import {
+  CreateNotaAuditoriaDto,
+  UpdateNotaAuditoriaDto,
+} from './dto/nota-auditoria.dto';
 
-const LECTURA = ['ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS', 'CONSULTA_AVANZADA'] as const;
+const LECTURA = [
+  'ADMIN',
+  'OPERADOR_ARCHIVOS',
+  'AUXILIAR_ARCHIVOS',
+  'CONSULTA_AVANZADA',
+] as const;
 const ESCRITURA = ['ADMIN', 'OPERADOR_ARCHIVOS'] as const;
 
 @ApiTags('notas-auditoria')
@@ -33,7 +50,10 @@ export class NotasAuditoriaController {
   @Get('desde-prestamos')
   desdePrestamos(@Query('notas') notas: string) {
     return this.service.desdePrestamos(
-      (notas ?? '').split('|').map((n) => n.trim()).filter(Boolean),
+      (notas ?? '')
+        .split('|')
+        .map((n) => n.trim())
+        .filter(Boolean),
     );
   }
 
@@ -61,7 +81,10 @@ export class NotasAuditoriaController {
 
   @Roles(...ESCRITURA)
   @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateNotaAuditoriaDto) {
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateNotaAuditoriaDto,
+  ) {
     return this.service.update(id, dto);
   }
 

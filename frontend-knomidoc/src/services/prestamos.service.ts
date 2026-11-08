@@ -62,6 +62,20 @@ export const prestamosService = {
       .then((r) => r.data)
   },
 
+  /** Sube o reemplaza la imagen de evidencia del lote (salida o devolución). */
+  subirEvidenciaCuaderno(id: string | number, momento: 'salida' | 'devolucion', archivo: File) {
+    const fd = new FormData()
+    fd.append('file', archivo)
+    return apiClient.post(`/prestamos-cuaderno/${id}/evidencia/${momento}`, fd).then((r) => r.data)
+  },
+  /** Descarga la imagen (autenticada) como URL temporal para mostrarla. */
+  async urlEvidenciaCuaderno(id: string | number, momento: 'salida' | 'devolucion') {
+    const r = await apiClient.get(`/prestamos-cuaderno/${id}/evidencia/${momento}`, {
+      responseType: 'blob',
+    })
+    return URL.createObjectURL(r.data as Blob)
+  },
+
   /** Planilla PDF de préstamos por cuaderno con los mismos filtros del listado. */
   abrirReporteCuadernoPdf(filtros: Partial<CuadernoFilterState>) {
     return abrirPdf('/prestamos-cuaderno/reporte/pdf', paramsCuaderno(filtros))

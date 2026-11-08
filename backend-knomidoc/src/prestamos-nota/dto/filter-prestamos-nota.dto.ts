@@ -54,7 +54,9 @@ export class FilterPrestamosNotaDto extends PaginationQueryDto {
   @MaxLength(100)
   numeroNota?: string;
 
-  @ApiPropertyOptional({ description: 'Unidad / institución solicitante (contiene)' })
+  @ApiPropertyOptional({
+    description: 'Unidad / institución solicitante (contiene)',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(150)
@@ -63,14 +65,18 @@ export class FilterPrestamosNotaDto extends PaginationQueryDto {
   @ApiPropertyOptional({ description: 'Gestión del comprobante' })
   @IsOptional()
   @Transform(
-    ({ value }): unknown => (value === '' || value == null ? undefined : Number(value)),
+    ({ value }): unknown =>
+      value === '' || value == null ? undefined : Number(value),
     { toClassOnly: true },
   )
   @Type(() => Number)
   @IsInt()
   gestion?: number;
 
-  @ApiPropertyOptional({ example: '2026-01-01', description: 'Fecha de préstamo desde' })
+  @ApiPropertyOptional({
+    example: '2026-01-01',
+    description: 'Fecha de préstamo desde',
+  })
   @IsOptional()
   @Transform(({ value }): unknown => (value === '' ? undefined : value), {
     toClassOnly: true,
@@ -78,7 +84,10 @@ export class FilterPrestamosNotaDto extends PaginationQueryDto {
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
   fechaDesde?: string;
 
-  @ApiPropertyOptional({ example: '2026-12-31', description: 'Fecha de préstamo hasta' })
+  @ApiPropertyOptional({
+    example: '2026-12-31',
+    description: 'Fecha de préstamo hasta',
+  })
   @IsOptional()
   @Transform(({ value }): unknown => (value === '' ? undefined : value), {
     toClassOnly: true,
@@ -86,7 +95,9 @@ export class FilterPrestamosNotaDto extends PaginationQueryDto {
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
   fechaHasta?: string;
 
-  @ApiPropertyOptional({ description: 'true = solo entregadas con plazo vencido' })
+  @ApiPropertyOptional({
+    description: 'true = solo entregadas con plazo vencido',
+  })
   @IsOptional()
   @Transform(({ value }): unknown => (value === '' ? undefined : value), {
     toClassOnly: true,

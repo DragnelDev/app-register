@@ -1,7 +1,13 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { Type } from 'class-transformer';
-import { IsDateString, IsIn, IsInt, IsOptional, IsString } from 'class-validator';
+import {
+  IsDateString,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 const vacioAUndefined = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' && value.trim() === '' ? undefined : value;

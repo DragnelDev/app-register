@@ -13,14 +13,12 @@ import type { ComprobanteC31FormPayload } from '@/types/c31.types'
 const props = defineProps<{ saving?: boolean; serverError?: string }>()
 const emit = defineEmits<{ submit: [payload: ComprobanteC31FormPayload] }>()
 
-const hoy = new Date().toISOString().slice(0, 10)
-
 const form = reactive({
   tipoC31: 'CON_IMPUTACION' as 'CON_IMPUTACION' | 'SIN_IMPUTACION',
   numero: '',
   descripcion: '',
   montoTotal: '' as string | number,
-  fechaElaboracion: hoy,
+  fechaElaboracion: '',
 })
 const beneficiarios = ref<string[]>([])
 const nuevoBeneficiario = ref('')
@@ -233,17 +231,26 @@ const etiqueta = 'mb-1.5 block text-xs font-semibold text-ink-700 dark:text-ink-
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div>
         <label for="monto" :class="etiqueta"> Monto total (Bs.) </label>
-        <MontoInput id="monto" v-model="form.montoTotal" :invalid="intentado && !!errores.montoTotal" />
+        <MontoInput
+          id="monto"
+          v-model="form.montoTotal"
+          :invalid="intentado && !!errores.montoTotal"
+        />
         <p v-if="intentado && errores.montoTotal" class="mt-1 text-xs text-red-600">
           {{ errores.montoTotal }}
         </p>
         <p v-else class="mt-1 text-xs text-ink-400 dark:text-ink-500">
-          Total del documento (con impuestos); acepta 12.345,67. Los pagos a cada beneficiario se registran después.
+          Total del documento (con impuestos); acepta 12.345,67. Los pagos a cada beneficiario se
+          registran después.
         </p>
       </div>
       <div>
         <label for="fecha" :class="etiqueta"> Fecha de elaboración </label>
-        <FechaInput id="fecha" v-model="form.fechaElaboracion" :invalid="intentado && !!errores.fechaElaboracion" />
+        <FechaInput
+          id="fecha"
+          v-model="form.fechaElaboracion"
+          :invalid="intentado && !!errores.fechaElaboracion"
+        />
         <p v-if="intentado && errores.fechaElaboracion" class="mt-1 text-xs text-red-600">
           {{ errores.fechaElaboracion }}
         </p>

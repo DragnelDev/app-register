@@ -125,16 +125,24 @@ watch(() => props.comprobanteId, cargar)
               <td class="px-3 py-2 text-right font-medium">Bs {{ bs(p.monto) }}</td>
               <td class="px-3 py-2">{{ fechaCorta(p.fechaPago) }}</td>
               <td class="px-3 py-2"><BaseBadge :estado="p.estadoPago" /></td>
-              <td v-if="puedeEditar" class="px-3 py-2 text-right whitespace-nowrap">
+              <td class="px-3 py-2 text-right whitespace-nowrap">
                 <button
                   v-if="p.estadoPago !== 'ANULADO'"
+                  class="mr-3 text-ink-600 hover:underline dark:text-ink-300"
+                  title="Descargar constancia de pago (PDF)"
+                  @click="pagosService.constanciaPdf(p.id)"
+                >
+                  <i class="fa-solid fa-file-pdf" aria-hidden="true" /> PDF
+                </button>
+                <button
+                  v-if="puedeEditar && p.estadoPago !== 'ANULADO'"
                   class="text-seal-600 hover:underline dark:text-seal-300"
                   @click="editar(p)"
                 >
                   Editar
                 </button>
                 <button
-                  v-if="p.estadoPago !== 'ANULADO'"
+                  v-if="puedeEditar && p.estadoPago !== 'ANULADO'"
                   class="ml-3 text-red-600 hover:underline"
                   @click="anular(p)"
                 >

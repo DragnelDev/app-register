@@ -17,7 +17,10 @@ export class PersonaNotaDto {
 export class SeccionNotaDto {
   @IsString() @MaxLength(200) titulo!: string;
   @IsString() @MaxLength(3000) texto!: string;
-  @IsArray() @IsString({ each: true }) @MaxLength(60, { each: true }) items!: string[];
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(60, { each: true })
+  items!: string[];
 }
 
 export class CreateNotaAuditoriaDto {
@@ -25,11 +28,17 @@ export class CreateNotaAuditoriaDto {
   @IsOptional() @IsString() @MaxLength(80) cite?: string;
   @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) fecha?: string;
   @ValidateNested() @Type(() => PersonaNotaDto) destinatario!: PersonaNotaDto;
-  @IsOptional() @ValidateNested() @Type(() => PersonaNotaDto) via?: PersonaNotaDto | null;
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PersonaNotaDto)
+  via?: PersonaNotaDto | null;
   @ValidateNested() @Type(() => PersonaNotaDto) remitente!: PersonaNotaDto;
   @IsString() @MaxLength(1000) referencia!: string;
   @IsOptional() @IsString() @MaxLength(5000) introduccion?: string;
-  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => SeccionNotaDto)
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SeccionNotaDto)
   secciones?: SeccionNotaDto[];
   @IsOptional() @IsString() @MaxLength(5000) cierre?: string;
   @IsOptional() @IsInt() gestion?: number;
@@ -39,12 +48,24 @@ export class CreateNotaAuditoriaDto {
 export class UpdateNotaAuditoriaDto {
   @IsOptional() @IsString() @MaxLength(80) cite?: string;
   @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) fecha?: string;
-  @IsOptional() @ValidateNested() @Type(() => PersonaNotaDto) destinatario?: PersonaNotaDto;
-  @IsOptional() @ValidateNested() @Type(() => PersonaNotaDto) via?: PersonaNotaDto | null;
-  @IsOptional() @ValidateNested() @Type(() => PersonaNotaDto) remitente?: PersonaNotaDto;
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PersonaNotaDto)
+  destinatario?: PersonaNotaDto;
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PersonaNotaDto)
+  via?: PersonaNotaDto | null;
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PersonaNotaDto)
+  remitente?: PersonaNotaDto;
   @IsOptional() @IsString() @MaxLength(1000) referencia?: string;
   @IsOptional() @IsString() @MaxLength(5000) introduccion?: string;
-  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => SeccionNotaDto)
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SeccionNotaDto)
   secciones?: SeccionNotaDto[];
   @IsOptional() @IsString() @MaxLength(5000) cierre?: string;
   @IsOptional() @IsInt() gestion?: number;

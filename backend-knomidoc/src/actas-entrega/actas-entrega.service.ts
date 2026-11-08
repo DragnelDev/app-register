@@ -31,6 +31,7 @@ import {
 import { Usuario } from '../usuarios/entities/usuario.entity';
 import { validarRangoFecha } from '../common/utils/fechas.util';
 import { registrarCambioEstado } from '../c31-historial/c31-historial.helper';
+import { adjuntarRotuloGrupo } from '../common/utils/rotulo-grupo.util';
 
 const DETALLE = {
   comprobantesC31: { preventivos: true, devengados: true, beneficiarios: true },
@@ -107,8 +108,7 @@ export class ActasEntregaService {
     for (const id of ids) {
       const c = porId.get(id);
       if (!c) throw new NotFoundException(`El comprobante ${id} no existe`);
-      const nombre =
-rotuloC31(c, `#${id}`);
+      const nombre = rotuloC31(c, `#${id}`);
       if (c.estadoFisico !== EstadoFisicoC31.EN_REVISION) {
         throw new ConflictException(
           `El comprobante ${nombre} está "${ESTADO_FISICO_LABELS[c.estadoFisico as EstadoFisicoC31]}": solo se entregan comprobantes "En revisión / firmado"`,
@@ -237,6 +237,7 @@ rotuloC31(c, `#${id}`);
     await this.verificarPropietario(id, usuario);
     const acta = await this.repo.findOne({ where: { id }, relations: DETALLE });
     if (!acta) throw new NotFoundException('El acta de entrega no existe');
+    await adjuntarRotuloGrupo(this.dataSource.manager, acta);
     return acta;
   }
 

@@ -30,16 +30,18 @@ function alEscribir() {
     model.value = ''
     return
   }
+  // Escribiendo millones (1.000.000) hay estados intermedios que aún no son válidos:
+  // el error solo se muestra al salir del campo.
   const n = parseMontoBo(t)
-  if (n === null) {
-    error.value = 'Formato no válido. Ej: 12.345,67 o 12,345.67'
-    model.value = ''
-  } else model.value = n
+  model.value = n === null ? '' : n
 }
 
 function alSalir() {
-  const n = parseMontoBo(texto.value)
+  const t = texto.value.trim()
+  if (!t) return
+  const n = parseMontoBo(t)
   if (n !== null) texto.value = formatMontoBo(n)
+  else error.value = 'Formato no válido. Ej: 1.250.000,50 o 1,250,000.50'
 }
 </script>
 

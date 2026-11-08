@@ -42,12 +42,6 @@ const navGroups = computed<NavGroup[]>(() => [
         icon: 'fa-file-invoice',
         roles: [...ARCHIVO_Y_CONSULTA, 'REMITENTE_C31'],
       },
-      {
-        to: '/notas-auditoria',
-        label: 'Notas a Auditoría',
-        icon: 'fa-file-signature',
-        roles: ['ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS', 'CONSULTA_AVANZADA'],
-      },
     ],
   },
   {

@@ -33,7 +33,9 @@ export class UpdatePerfilDto {
   @Transform(trim)
   readonly nombreCompleto?: string;
 
-  @ApiPropertyOptional({ description: 'URL o data URL de la foto; "" la quita' })
+  @ApiPropertyOptional({
+    description: 'URL o data URL de la foto; "" la quita',
+  })
   @IsOptional()
   @ValidateIf((_o, v) => v !== '' && v !== null)
   @IsString()

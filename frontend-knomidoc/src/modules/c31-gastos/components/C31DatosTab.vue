@@ -307,10 +307,7 @@ const titulo = 'mb-1 font-semibold text-ink-700 dark:text-ink-200'
           variant="ghost"
           size="sm"
           :disabled="guardando"
-          @click="
-            editando = false;
-            cargar()
-          "
+          @click="((editando = false), cargar())"
           >Cancelar</BaseButton
         >
         <BaseButton type="submit" size="sm" :loading="guardando">Guardar cambios</BaseButton>

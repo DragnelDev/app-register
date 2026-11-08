@@ -37,7 +37,13 @@ const auth = useAuthStore()
 const ubicacionRapida = ref<InstanceType<typeof UbicacionRapida>>()
 
 /** Tras crear una carpeta (o su estante/depósito) se recargan las carpetas y se selecciona la nueva. */
-async function alCrearUbicacion({ tipo, id }: { tipo: 'deposito' | 'estante' | 'carpeta'; id: number }) {
+async function alCrearUbicacion({
+  tipo,
+  id,
+}: {
+  tipo: 'deposito' | 'estante' | 'carpeta'
+  id: number
+}) {
   if (tipo !== 'carpeta') {
     // Un depósito o estante recién creado no tiene carpetas: se encadena el siguiente alta
     if (tipo === 'deposito') ubicacionRapida.value?.abrir('estante', { depositoId: id })
@@ -303,10 +309,31 @@ onMounted(async () => {
               }))
             "
           />
-          <div v-if="auth.puedeGestionarArchivo" class="-mt-2 flex flex-wrap gap-3 text-xs font-medium">
-            <button type="button" class="text-seal-600 hover:underline dark:text-seal-300" @click="ubicacionRapida?.abrir('carpeta')">+ Nueva carpeta</button>
-            <button type="button" class="text-seal-600 hover:underline dark:text-seal-300" @click="ubicacionRapida?.abrir('estante')">+ Nuevo estante</button>
-            <button type="button" class="text-seal-600 hover:underline dark:text-seal-300" @click="ubicacionRapida?.abrir('deposito')">+ Nuevo depósito</button>
+          <div
+            v-if="auth.puedeGestionarArchivo"
+            class="-mt-2 flex flex-wrap gap-3 text-xs font-medium"
+          >
+            <button
+              type="button"
+              class="text-seal-600 hover:underline dark:text-seal-300"
+              @click="ubicacionRapida?.abrir('carpeta')"
+            >
+              + Nueva carpeta
+            </button>
+            <button
+              type="button"
+              class="text-seal-600 hover:underline dark:text-seal-300"
+              @click="ubicacionRapida?.abrir('estante')"
+            >
+              + Nuevo estante
+            </button>
+            <button
+              type="button"
+              class="text-seal-600 hover:underline dark:text-seal-300"
+              @click="ubicacionRapida?.abrir('deposito')"
+            >
+              + Nuevo depósito
+            </button>
           </div>
           <BaseInput
             v-model="numeroParte"
@@ -328,6 +355,6 @@ onMounted(async () => {
         <BaseButton type="submit" form="vinculo-form" :loading="saving">Guardar</BaseButton>
       </template>
     </BaseModal>
-  <UbicacionRapida ref="ubicacionRapida" @creado="alCrearUbicacion" />
+    <UbicacionRapida ref="ubicacionRapida" @creado="alCrearUbicacion" />
   </div>
 </template>

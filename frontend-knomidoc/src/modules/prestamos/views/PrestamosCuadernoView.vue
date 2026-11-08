@@ -13,6 +13,7 @@ import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTab
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
+import EvidenciaPrestamoModal from '../components/EvidenciaPrestamoModal.vue'
 import PrestamoCuadernoForm from '../components/PrestamoCuadernoForm.vue'
 import CuadernoFilterBar from '../components/CuadernoFilterBar.vue'
 import { usePrestamosStore, filtrosCuadernoVacios } from '@/stores/prestamos.store'
@@ -46,11 +47,28 @@ const columns: DataTableColumn<PrestamoCuaderno>[] = [
   { key: 'devuelto', label: 'Estado' },
 ]
 
-async function handleSubmit(payload: PrestamoCuadernoCreatePayload) {
+const evidenciaOpen = ref(false)
+const evidenciaDe = ref<PrestamoCuaderno | null>(null)
+function abrirEvidencia(row: PrestamoCuaderno) {
+  evidenciaDe.value = row
+  evidenciaOpen.value = true
+}
+
+async function handleSubmit(payload: PrestamoCuadernoCreatePayload & { evidencia?: File | null }) {
   saving.value = true
   try {
     errorCuaderno.value = ''
-    await prestamosService.createCuaderno(payload)
+    const { evidencia, ...datos } = payload
+    const creados = await prestamosService.createCuaderno(datos)
+    if (evidencia && creados[0]) {
+      try {
+        await prestamosService.subirEvidenciaCuaderno(creados[0].id, 'salida', evidencia)
+      } catch (e) {
+        errorCuaderno.value =
+          'El préstamo se registró, pero la imagen no se pudo subir: ' +
+          extractApiErrorMessage(e, 'intente de nuevo desde la tabla.')
+      }
+    }
     modalOpen.value = false
     await store.fetchCuaderno()
   } catch (err) {
@@ -91,7 +109,11 @@ function cantidadLote(row: PrestamoCuaderno) {
 
 const hoyIso = new Date().toISOString().slice(0, 10)
 function vencido(row: PrestamoCuaderno) {
-  return !row.devuelto && !!row.fechaDevolucionEstimada && row.fechaDevolucionEstimada.slice(0, 10) < hoyIso
+  return (
+    !row.devuelto &&
+    !!row.fechaDevolucionEstimada &&
+    row.fechaDevolucionEstimada.slice(0, 10) < hoyIso
+  )
 }
 
 const pestanas = [
@@ -166,7 +188,9 @@ onMounted(async () => {
           Préstamo individual y rápido de comprobantes ya en archivo.
         </p>
       </div>
-      <BaseButton v-if="!auth.esSoloConsulta" @click="modalOpen = true">+ Registrar préstamo</BaseButton>
+      <BaseButton v-if="!auth.esSoloConsulta" @click="modalOpen = true"
+        >+ Registrar préstamo</BaseButton
+      >
     </div>
 
     <p
@@ -251,7 +275,18 @@ onMounted(async () => {
             label="Ver seguimiento del comprobante"
             @click="verSeguimiento(row)"
           />
-          <IconButton v-if="(!row.devuelto) && !auth.esSoloConsulta"
+          <IconButton
+            icon="fa-image"
+            :label="
+              row.evidenciaSalida || row.evidenciaDevolucion
+                ? 'Ver / actualizar evidencia'
+                : 'Subir evidencia (imagen)'
+            "
+            :variant="row.evidenciaSalida || row.evidenciaDevolucion ? 'success' : undefined"
+            @click="abrirEvidencia(row)"
+          />
+          <IconButton
+            v-if="!row.devuelto && !auth.esSoloConsulta"
             icon="fa-rotate-left"
             :label="cantidadLote(row) > 1 ? 'Devolver lote completo' : 'Registrar devolución'"
             variant="success"
@@ -265,6 +300,12 @@ onMounted(async () => {
     <BaseModal v-model="modalOpen" size="lg" title="Registrar préstamo (cuaderno bitácora)">
       <PrestamoCuadernoForm :saving="saving" @submit="handleSubmit" />
     </BaseModal>
+    <EvidenciaPrestamoModal
+      v-model="evidenciaOpen"
+      :prestamo="evidenciaDe"
+      :puede-editar="!auth.esSoloConsulta"
+      @changed="store.fetchCuaderno()"
+    />
     <C31DetailModal v-model="detalleOpen" :comprobante="detalleSel" tab="seguimiento" />
     <DevolucionModal
       v-model="devolucionOpen"

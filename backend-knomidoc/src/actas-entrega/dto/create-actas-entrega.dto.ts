@@ -47,7 +47,8 @@ export class CreateActasEntregaDto {
 
   @ApiPropertyOptional({
     example: 'Ana Rodríguez (Archivo Central)',
-    description: 'Si se omite queda "Archivo Central" hasta que Archivo reciba el acta',
+    description:
+      'Si se omite queda "Archivo Central" hasta que Archivo reciba el acta',
   })
   @IsOptional()
   @IsNotEmpty({ message: 'Indique el responsable de recepción' })

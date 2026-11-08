@@ -43,8 +43,8 @@ function salir() {
         Seleccione su perfil
       </h1>
       <p class="mt-1 text-sm text-ink-500 dark:text-ink-300">
-        {{ auth.usuario?.nombreCompleto }}, su usuario tiene varios perfiles. Elija con cuál trabajará;
-        podrá cambiar después desde la barra superior.
+        {{ auth.usuario?.nombreCompleto }}, su usuario tiene varios perfiles. Elija con cuál
+        trabajará; podrá cambiar después desde la barra superior.
       </p>
 
       <p
@@ -65,7 +65,9 @@ function salir() {
           >
             <span class="block font-semibold text-ink-900 dark:text-white">
               {{ rolLabel(rol) }}
-              <span v-if="eligiendo === rol" class="ml-2 text-xs font-normal text-ink-400">Ingresando…</span>
+              <span v-if="eligiendo === rol" class="ml-2 text-xs font-normal text-ink-400"
+                >Ingresando…</span
+              >
             </span>
             <span class="mt-0.5 block text-sm text-ink-500 dark:text-ink-300">
               {{ ROLES_INFO[rol]?.descripcion }}

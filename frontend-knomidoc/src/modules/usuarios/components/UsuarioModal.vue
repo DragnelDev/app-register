@@ -208,7 +208,9 @@ function handleSubmit() {
                 >por defecto</span
               >
             </span>
-            <span class="block text-xs text-ink-500 dark:text-ink-300">{{ ROLES_INFO[rol].descripcion }}</span>
+            <span class="block text-xs text-ink-500 dark:text-ink-300">{{
+              ROLES_INFO[rol].descripcion
+            }}</span>
           </span>
         </label>
         <p v-if="intentado && form.roles.length === 0" class="text-xs text-red-600">

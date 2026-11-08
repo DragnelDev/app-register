@@ -55,8 +55,8 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/notas-auditoria',
     name: 'notas-auditoria',
-    component: () => import('@/modules/notas-auditoria/views/NotasAuditoriaView.vue'),
-    meta: { roles: ['ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS', 'CONSULTA_AVANZADA'] as RolUsuario[] },
+    // Ahora vive dentro de Préstamos por nota (pestaña "Respuesta a Auditoría")
+    redirect: (to) => ({ path: '/prestamos/notas', query: { ...to.query, tab: 'auditoria' } }),
   },
 
   // ── Gestión SIGEP (gastos) ──
@@ -151,7 +151,12 @@ export const routes: RouteRecordRaw[] = [
     name: 'reportes',
     component: () => import('@/modules/reportes/views/ReportesFinancierosView.vue'),
     meta: {
-      roles: ['ADMIN', 'OPERADOR_ARCHIVOS', 'CONSULTA_AVANZADA', 'CONSULTA_EXTERNA'] as RolUsuario[],
+      roles: [
+        'ADMIN',
+        'OPERADOR_ARCHIVOS',
+        'CONSULTA_AVANZADA',
+        'CONSULTA_EXTERNA',
+      ] as RolUsuario[],
     },
   },
   {

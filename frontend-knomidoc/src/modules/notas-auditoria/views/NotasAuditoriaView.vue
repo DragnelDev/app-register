@@ -6,12 +6,18 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import SeleccionRapidaModal from '@/components/shared/SeleccionRapidaModal.vue'
-import { notasAuditoriaService, type NotaAuditoria, type NotaPrestamoResumen, type SeccionNota } from '@/services/notas-auditoria.service'
+import {
+  notasAuditoriaService,
+  type NotaAuditoria,
+  type NotaPrestamoResumen,
+  type SeccionNota,
+} from '@/services/notas-auditoria.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { useGestionStore } from '@/stores/gestion.store'
 import { extractApiErrorMessage } from '@/utils/http-error'
 import { preventivosC31, type ComprobanteC31 } from '@/types/c31.types'
 
+defineProps<{ embedded?: boolean }>()
 const auth = useAuthStore()
 const gestion = useGestionStore()
 const puedeEscribir = computed(() => auth.rol === 'ADMIN' || auth.rol === 'OPERADOR_ARCHIVOS')
@@ -53,7 +59,11 @@ const errorForm = ref('')
 const editId = ref<number | null>(null)
 const conVia = ref(true)
 
-interface Seccion { titulo: string; texto: string; itemsTexto: string }
+interface Seccion {
+  titulo: string
+  texto: string
+  itemsTexto: string
+}
 const f = reactive({
   cite: '',
   fecha: new Date().toLocaleDateString('en-CA'),
@@ -69,9 +79,24 @@ const f = reactive({
 })
 
 const plantillaSecciones = (): Seccion[] => [
-  { titulo: 'Entrega de comprobantes', texto: 'En esta oportunidad, se hace la entrega física de los comprobantes C-31, debidamente foliados y engrampados.', itemsTexto: '' },
-  { titulo: 'Comprobantes pendientes ajenos a la unidad', texto: 'Los comprobantes restantes se encuentran en trámite o bajo custodia de otras oficinas, por lo que no es posible su entrega por mi parte.', itemsTexto: '' },
-  { titulo: 'Comprobantes entregados anteriormente', texto: 'Hago constar que estos comprobantes ya fueron entregados anteriormente, debidamente foliados, engrampados y registrados en los cuadernos de cargo de la Unidad de Archivos.', itemsTexto: '' },
+  {
+    titulo: 'Entrega de comprobantes',
+    texto:
+      'En esta oportunidad, se hace la entrega física de los comprobantes C-31, debidamente foliados y engrampados.',
+    itemsTexto: '',
+  },
+  {
+    titulo: 'Comprobantes pendientes ajenos a la unidad',
+    texto:
+      'Los comprobantes restantes se encuentran en trámite o bajo custodia de otras oficinas, por lo que no es posible su entrega por mi parte.',
+    itemsTexto: '',
+  },
+  {
+    titulo: 'Comprobantes entregados anteriormente',
+    texto:
+      'Hago constar que estos comprobantes ya fueron entregados anteriormente, debidamente foliados, engrampados y registrados en los cuadernos de cargo de la Unidad de Archivos.',
+    itemsTexto: '',
+  },
 ]
 
 function nueva() {
@@ -103,7 +128,11 @@ function editar(n: NotaAuditoria) {
   f.referencia = n.referencia
   f.introduccion = n.introduccion
   f.cierre = n.cierre
-  f.secciones = n.secciones.map((s) => ({ titulo: s.titulo, texto: s.texto, itemsTexto: s.items.join(', ') }))
+  f.secciones = n.secciones.map((s) => ({
+    titulo: s.titulo,
+    texto: s.texto,
+    itemsTexto: s.items.join(', '),
+  }))
   notasElegidas.value = [...(n.notasPrestamo ?? [])]
   avisoVinculo.value = ''
   buscaNota.value = ''
@@ -113,7 +142,10 @@ function editar(n: NotaAuditoria) {
 }
 
 function itemsDe(t: string) {
-  return t.split(/[\n,;]+/).map((x) => x.trim()).filter(Boolean)
+  return t
+    .split(/[\n,;]+/)
+    .map((x) => x.trim())
+    .filter(Boolean)
 }
 
 async function guardar() {
@@ -121,7 +153,11 @@ async function guardar() {
     errorForm.value = 'Complete destinatario, remitente y referencia.'
     return
   }
-  const secciones: SeccionNota[] = f.secciones.map((s) => ({ titulo: s.titulo, texto: s.texto, items: itemsDe(s.itemsTexto) }))
+  const secciones: SeccionNota[] = f.secciones.map((s) => ({
+    titulo: s.titulo,
+    texto: s.texto,
+    items: itemsDe(s.itemsTexto),
+  }))
   const payload = {
     ...(f.cite.trim() ? { cite: f.cite.trim() } : {}),
     fecha: f.fecha,
@@ -185,7 +221,11 @@ async function armarDesdeNotas() {
     if (!r) return
     if (!f.dest.nombre.trim()) f.dest.nombre = r.destinatario
     f.referencia = r.referencia
-    f.secciones = r.secciones.map((s) => ({ titulo: s.titulo, texto: s.texto, itemsTexto: s.items.join(', ') }))
+    f.secciones = r.secciones.map((s) => ({
+      titulo: s.titulo,
+      texto: s.texto,
+      itemsTexto: s.items.join(', '),
+    }))
     avisoVinculo.value = `Se armaron ${r.secciones.length} sección(es) según el estado actual de los comprobantes. Puede editarlas.`
   } catch (e) {
     avisoVinculo.value = extractApiErrorMessage(e, 'No se pudo armar desde las notas.')
@@ -219,11 +259,21 @@ const campo =
   <div class="space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h1 class="text-xl font-semibold text-ink-900 dark:text-ink-50">Notas a Auditoría Interna</h1>
-        <p class="text-sm text-ink-500">Respuestas formales con cuadros de comprobantes. Todo el texto es editable.</p>
+        <h1 v-if="!embedded" class="text-xl font-semibold text-ink-900 dark:text-ink-50">
+          Notas a Auditoría Interna
+        </h1>
+        <p class="text-sm text-ink-500">
+          Respuestas formales con cuadros de comprobantes. Todo el texto es editable.
+        </p>
       </div>
       <div class="flex gap-2">
-        <input v-model="search" type="search" placeholder="Buscar CITE o referencia…" :class="[campo, 'w-60']" @keydown.enter="cargar" />
+        <input
+          v-model="search"
+          type="search"
+          placeholder="Buscar CITE o referencia…"
+          :class="[campo, 'w-60']"
+          @keydown.enter="cargar"
+        />
         <BaseButton v-if="puedeEscribir" @click="nueva">Nueva nota</BaseButton>
       </div>
     </div>
@@ -231,34 +281,68 @@ const campo =
     <div class="overflow-x-auto rounded-lg border border-ink-100 dark:border-white/10">
       <table class="w-full text-sm">
         <thead class="bg-ink-50 text-left text-xs uppercase text-ink-500 dark:bg-ink-950">
-          <tr><th class="px-3 py-2">CITE</th><th class="px-3 py-2">Fecha</th><th class="px-3 py-2">Referencia</th><th class="px-3 py-2">Notas de préstamo</th><th class="px-3 py-2 text-right">Acciones</th></tr>
+          <tr>
+            <th class="px-3 py-2">CITE</th>
+            <th class="px-3 py-2">Fecha</th>
+            <th class="px-3 py-2">Referencia</th>
+            <th class="px-3 py-2">Notas de préstamo</th>
+            <th class="px-3 py-2 text-right">Acciones</th>
+          </tr>
         </thead>
         <tbody class="divide-y divide-ink-100 dark:divide-white/10">
-          <tr v-if="cargando"><td colspan="5" class="px-3 py-5 text-center text-ink-400">Cargando…</td></tr>
-          <tr v-else-if="!items.length"><td colspan="5" class="px-3 py-5 text-center text-ink-400">Sin notas registradas.</td></tr>
+          <tr v-if="cargando">
+            <td colspan="5" class="px-3 py-5 text-center text-ink-400">Cargando…</td>
+          </tr>
+          <tr v-else-if="!items.length">
+            <td colspan="5" class="px-3 py-5 text-center text-ink-400">Sin notas registradas.</td>
+          </tr>
           <tr v-for="n in items" :key="n.id">
             <td class="px-3 py-2 font-mono text-xs">{{ n.cite }}</td>
             <td class="px-3 py-2">{{ fechaCorta(n.fecha) }}</td>
             <td class="px-3 py-2">{{ n.referencia }}</td>
             <td class="px-3 py-2 text-xs">{{ (n.notasPrestamo ?? []).join(', ') || '—' }}</td>
             <td class="space-x-2 px-3 py-2 text-right">
-              <button class="text-seal-600 hover:underline" @click="notasAuditoriaService.abrirPdf(n.id)">PDF</button>
-              <button v-if="puedeEscribir" class="text-seal-600 hover:underline" @click="editar(n)">Editar</button>
-              <button v-if="puedeEscribir" class="text-red-600 hover:underline" @click="eliminar(n)">Eliminar</button>
+              <button
+                class="text-seal-600 hover:underline"
+                @click="notasAuditoriaService.abrirPdf(n.id)"
+              >
+                PDF
+              </button>
+              <button v-if="puedeEscribir" class="text-seal-600 hover:underline" @click="editar(n)">
+                Editar
+              </button>
+              <button
+                v-if="puedeEscribir"
+                class="text-red-600 hover:underline"
+                @click="eliminar(n)"
+              >
+                Eliminar
+              </button>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <BaseModal v-model="abierto" :title="editId ? 'Editar nota' : 'Nueva nota a Auditoría'" size="lg">
+    <BaseModal
+      v-model="abierto"
+      :title="editId ? 'Editar nota' : 'Nueva nota a Auditoría'"
+      size="lg"
+    >
       <div class="space-y-3 text-sm">
         <div class="grid gap-3 sm:grid-cols-2">
-          <label>CITE (vacío = automático)<input v-model="f.cite" :class="campo" placeholder="GAMSL/ARCH/AUD/OF-N° 004/2026" /></label>
+          <label
+            >CITE (vacío = automático)<input
+              v-model="f.cite"
+              :class="campo"
+              placeholder="GAMSL/ARCH/AUD/OF-N° 004/2026"
+          /></label>
           <label>Fecha<FechaInput v-model="f.fecha" /></label>
           <label>A (nombre)<input v-model="f.dest.nombre" :class="campo" /></label>
           <label>Cargo<input v-model="f.dest.cargo" :class="campo" /></label>
-          <label class="sm:col-span-2 flex items-center gap-2"><input v-model="conVia" type="checkbox" /> Incluir VÍA</label>
+          <label class="sm:col-span-2 flex items-center gap-2"
+            ><input v-model="conVia" type="checkbox" /> Incluir VÍA</label
+          >
           <template v-if="conVia">
             <label>VÍA (nombre)<input v-model="f.via.nombre" :class="campo" /></label>
             <label>Cargo<input v-model="f.via.cargo" :class="campo" /></label>
@@ -269,41 +353,95 @@ const campo =
         <div class="space-y-2 rounded-md border border-ink-100 p-3 dark:border-white/10">
           <p class="font-medium">Vincular con préstamos por nota</p>
           <div class="flex gap-2">
-            <input v-model="buscaNota" :class="campo" placeholder="Buscar N° de nota, institución o responsable…" @keydown.enter.prevent="buscarNotas" />
+            <input
+              v-model="buscaNota"
+              :class="campo"
+              placeholder="Buscar N° de nota, institución o responsable…"
+              @keydown.enter.prevent="buscarNotas"
+            />
             <BaseButton variant="secondary" size="sm" @click="buscarNotas">Buscar</BaseButton>
           </div>
           <div class="max-h-36 space-y-1 overflow-auto">
-            <label v-for="n in notasDisponibles" :key="n.numero" class="flex items-center gap-2 text-xs">
+            <label
+              v-for="n in notasDisponibles"
+              :key="n.numero"
+              class="flex items-center gap-2 text-xs"
+            >
               <input v-model="notasElegidas" type="checkbox" :value="n.numero" />
               <span class="font-mono">{{ n.numero }}</span>
-              <span class="text-ink-500">{{ fechaCorta(n.fecha) }} · {{ n.institucion || n.responsable || '—' }} · {{ n.total }} comprobante(s)</span>
+              <span class="text-ink-500"
+                >{{ fechaCorta(n.fecha) }} · {{ n.institucion || n.responsable || '—' }} ·
+                {{ n.total }} comprobante(s)</span
+              >
             </label>
-            <p v-if="!notasDisponibles.length" class="text-xs text-ink-400">Sin notas de préstamo registradas.</p>
+            <p v-if="!notasDisponibles.length" class="text-xs text-ink-400">
+              Sin notas de préstamo registradas.
+            </p>
           </div>
           <div class="flex items-center gap-3">
-            <BaseButton size="sm" :loading="armando" :disabled="!notasElegidas.length" @click="armarDesdeNotas">
+            <BaseButton
+              size="sm"
+              :loading="armando"
+              :disabled="!notasElegidas.length"
+              @click="armarDesdeNotas"
+            >
               Armar secciones según estado
             </BaseButton>
-            <span class="text-xs text-ink-500">Entrega = prestados · Pendientes = aún sin archivar · Anteriores = ya devueltos</span>
+            <span class="text-xs text-ink-500"
+              >Entrega = prestados · Pendientes = aún sin archivar · Anteriores = ya devueltos</span
+            >
           </div>
           <p v-if="avisoVinculo" class="text-xs text-amber-600">{{ avisoVinculo }}</p>
         </div>
-        <label class="block">REF.<textarea v-model="f.referencia" rows="2" :class="campo" placeholder="RESPUESTA A LA SOLICITUD DE DOCUMENTACIÓN (NOTA INTERNA … CITE Nº …)" /></label>
-        <label class="block">Introducción<textarea v-model="f.introduccion" rows="5" :class="campo" /></label>
+        <label class="block"
+          >REF.<textarea
+            v-model="f.referencia"
+            rows="2"
+            :class="campo"
+            placeholder="RESPUESTA A LA SOLICITUD DE DOCUMENTACIÓN (NOTA INTERNA … CITE Nº …)"
+          />
+        </label>
+        <label class="block"
+          >Introducción<textarea v-model="f.introduccion" rows="5" :class="campo" />
+        </label>
 
-        <div v-for="(s, i) in f.secciones" :key="i" class="space-y-2 rounded-md border border-ink-100 p-3 dark:border-white/10">
+        <div
+          v-for="(s, i) in f.secciones"
+          :key="i"
+          class="space-y-2 rounded-md border border-ink-100 p-3 dark:border-white/10"
+        >
           <div class="flex gap-2">
             <input v-model="s.titulo" :class="campo" placeholder="Título de la sección" />
-            <button type="button" class="text-red-600" title="Quitar sección" @click="f.secciones.splice(i, 1)">✕</button>
+            <button
+              type="button"
+              class="text-red-600"
+              title="Quitar sección"
+              @click="f.secciones.splice(i, 1)"
+            >
+              ✕
+            </button>
           </div>
           <textarea v-model="s.texto" rows="2" :class="campo" placeholder="Texto de la sección" />
-          <textarea v-model="s.itemsTexto" rows="2" :class="campo" placeholder="N° de preventivo separados por coma: 1, 156, 501-720, 673-672" />
+          <textarea
+            v-model="s.itemsTexto"
+            rows="2"
+            :class="campo"
+            placeholder="N° de preventivo separados por coma: 1, 156, 501-720, 673-672"
+          />
           <div class="flex items-center gap-3 text-xs text-ink-500">
-            <button type="button" class="text-seal-600 hover:underline" @click="abrirMatriz(i)">Insertar desde selección rápida</button>
+            <button type="button" class="text-seal-600 hover:underline" @click="abrirMatriz(i)">
+              Insertar desde selección rápida
+            </button>
             <span>{{ itemsDe(s.itemsTexto).length }} comprobante(s)</span>
           </div>
         </div>
-        <button type="button" class="text-seal-600 hover:underline" @click="f.secciones.push({ titulo: '', texto: '', itemsTexto: '' })">+ Agregar sección</button>
+        <button
+          type="button"
+          class="text-seal-600 hover:underline"
+          @click="f.secciones.push({ titulo: '', texto: '', itemsTexto: '' })"
+        >
+          + Agregar sección
+        </button>
 
         <label class="block">Cierre<textarea v-model="f.cierre" rows="3" :class="campo" /></label>
         <p v-if="errorForm" class="text-red-600">{{ errorForm }}</p>

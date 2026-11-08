@@ -20,7 +20,8 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { NotasAuditoriaModule } from './notas-auditoria/notas-auditoria.module';
 import { ActasEntregaModule } from './actas-entrega/actas-entrega.module';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { RotuloGrupoInterceptor } from './common/interceptors/rotulo-grupo.interceptor';
 import { EmailVerificadoGuard } from './auth/guards/email-verificado.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
@@ -84,6 +85,7 @@ import { FuncionariosModule } from './funcionarios/funcionarios.module';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: EmailVerificadoGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_INTERCEPTOR, useClass: RotuloGrupoInterceptor },
   ],
 })
 export class AppModule {}

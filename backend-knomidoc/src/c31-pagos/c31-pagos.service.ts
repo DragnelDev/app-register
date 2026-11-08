@@ -1,4 +1,6 @@
 import { rotuloC31 } from '../common/utils/identificador-c31.util';
+import { adjuntarRotuloGrupo } from '../common/utils/rotulo-grupo.util';
+import { constanciaPagoPdf, listadoPagosPdf } from './pagos-pdf.util';
 import {
   BadRequestException,
   ConflictException,
@@ -509,8 +511,7 @@ export class C31PagosService {
     pagos.forEach((p) =>
       hoja.addRow({
         gestion: p.comprobante?.gestion,
-        ident:
-rotuloC31(p.comprobante),
+        ident: rotuloC31(p.comprobante),
         beneficiario: p.beneficiario?.nombreBeneficiario ?? '',
         tipo: p.tipoPago === TipoPago.CHEQUE ? 'Cheque' : 'Pago electrónico',
         doc: p.numeroDocumento ?? '',
@@ -522,5 +523,55 @@ rotuloC31(p.comprobante),
       }),
     );
     return Buffer.from(await libro.xlsx.writeBuffer());
+  }
+
+  /** PDF con el listado de pagos según los filtros de pantalla. */
+  async listadoPdf(query: FilterC31PagoDto): Promise<Buffer> {
+    const pagos = await this.repo.find({
+      where: this.construirWhere(query),
+      relations: RELATIONS,
+      order: { id: 'ASC' },
+      take: 5000,
+    });
+    await adjuntarRotuloGrupo(
+      this.repo.manager,
+      pagos.map((p) => p.comprobante).filter(Boolean),
+    );
+    const ETQ: Record<string, string> = {
+      gestion: 'Gestión',
+      search: 'Búsqueda',
+      beneficiario: 'Beneficiario',
+      tipoPago: 'Forma',
+      estadoPago: 'Estado',
+      fechaDesde: 'Desde',
+      fechaHasta: 'Hasta',
+    };
+    const filtros = Object.entries(ETQ)
+      .map(([k, etq]) => {
+        const v = (query as unknown as Record<string, unknown>)[k];
+        return v === undefined || v === '' || v === null
+          ? ''
+          : `${etq}: ${String(v)}`;
+      })
+      .filter(Boolean)
+      .join(' · ');
+    return listadoPagosPdf(pagos, { filtros });
+  }
+
+  /** Constancia de pago individual en PDF. */
+  async constanciaPdf(id: number): Promise<Buffer> {
+    const pago = await this.findOne(id);
+    if (pago.comprobante)
+      await adjuntarRotuloGrupo(this.repo.manager, pago.comprobante);
+    if (pago.comprobanteId == null)
+      throw new BadRequestException('El pago no tiene un comprobante asociado');
+    const datos = await this.porComprobante(pago.comprobanteId);
+    return constanciaPagoPdf(pago, {
+      montoTotal: datos.resumen.montoTotal,
+      pagado: datos.resumen.pagado,
+      saldo:
+        Math.round((datos.resumen.montoTotal - datos.resumen.pagado) * 100) /
+        100,
+    });
   }
 }

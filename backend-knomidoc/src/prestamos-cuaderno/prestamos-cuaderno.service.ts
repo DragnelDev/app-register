@@ -7,6 +7,11 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
+import { createReadStream, existsSync } from 'fs';
+import { mkdir, unlink, writeFile } from 'fs/promises';
+import { join } from 'path';
+import type { Express } from 'express';
+import { C31_STORAGE_DIR } from '../uploads/c31-adjuntos.service';
 import {
   DataSource,
   EntityManager,
@@ -99,7 +104,8 @@ export class PrestamosCuadernoService {
           'El funcionario no tiene huella registrada: enrólela en el módulo Funcionarios',
         );
       }
-      const areaUnidad = dto.areaUnidad ?? (funcionario.unidadOficina as string);
+      const areaUnidad =
+        dto.areaUnidad ?? (funcionario.unidadOficina as string);
       const salida = dto.fechaHoraSalida
         ? new Date(dto.fechaHoraSalida)
         : new Date();
@@ -124,8 +130,7 @@ export class PrestamosCuadernoService {
         if (!comprobante) {
           throw new NotFoundException(`El comprobante ${id} no existe`);
         }
-        const nombre =
-identificadorC31(comprobante, `#${id}`);
+        const nombre = identificadorC31(comprobante, `#${id}`);
         if (comprobante.estadoFisico === EstadoFisicoC31.PRESTADO) {
           throw new ConflictException(
             `El comprobante ${nombre} ya se encuentra prestado`,
@@ -379,10 +384,7 @@ identificadorC31(comprobante, `#${id}`);
       });
       if (!f)
         throw new NotFoundException('El funcionario que devuelve no existe');
-      if (
-        dto.metodoVerificacion === 'HUELLA_DIGITAL' &&
-        !f.huellaRegistradaEn
-      )
+      if (dto.metodoVerificacion === 'HUELLA_DIGITAL' && !f.huellaRegistradaEn)
         throw new BadRequestException(
           'Quien devuelve no tiene huella registrada: enrólela en Funcionarios',
         );
@@ -495,5 +497,77 @@ identificadorC31(comprobante, `#${id}`);
       );
     }
     return this.repo.remove(prestamo);
+  }
+
+  // ── Evidencia (imagen del cuaderno firmado), una por lote y momento ──
+  private static readonly IMAGENES: Record<
+    string,
+    { ext: string; firma: number[] }
+  > = {
+    'image/jpeg': { ext: '.jpg', firma: [0xff, 0xd8, 0xff] },
+    'image/png': { ext: '.png', firma: [0x89, 0x50, 0x4e, 0x47] },
+    'image/webp': { ext: '.webp', firma: [0x52, 0x49, 0x46, 0x46] },
+  };
+
+  /** Registros que comparten la salida (el lote, o el propio registro si no tiene). */
+  private async delLote(id: number): Promise<PrestamosCuaderno[]> {
+    const base = await this.repo.findOne({ where: { id } });
+    if (!base) throw new NotFoundException('El préstamo no existe');
+    return base.loteId
+      ? this.repo.find({ where: { loteId: base.loteId } })
+      : [base];
+  }
+
+  async subirEvidencia(
+    id: number,
+    momento: 'salida' | 'devolucion',
+    archivo: Express.Multer.File | undefined,
+  ): Promise<{ momento: string; registros: number }> {
+    if (!archivo?.buffer?.length)
+      throw new BadRequestException('No se envió ninguna imagen');
+    const def = PrestamosCuadernoService.IMAGENES[archivo.mimetype];
+    if (!def || !def.firma.every((b, i) => archivo.buffer[i] === b))
+      throw new BadRequestException(
+        'La evidencia debe ser una imagen válida (JPG, PNG o WEBP)',
+      );
+    const filas = await this.delLote(id);
+    if (momento === 'devolucion' && !filas.some((f) => f.devuelto))
+      throw new ConflictException(
+        'La evidencia de devolución se sube cuando ya se registró la devolución',
+      );
+    const dir = join(C31_STORAGE_DIR, 'evidencias');
+    await mkdir(dir, { recursive: true });
+    const nombre = `${randomUUID()}${def.ext}`;
+    await writeFile(join(dir, nombre), archivo.buffer);
+    const anteriores = new Set<string>();
+    for (const f of filas) {
+      const previo =
+        momento === 'salida' ? f.evidenciaSalida : f.evidenciaDevolucion;
+      if (previo) anteriores.add(previo);
+      if (momento === 'salida') {
+        f.evidenciaSalida = nombre;
+        f.evidenciaSalidaMime = archivo.mimetype;
+      } else {
+        f.evidenciaDevolucion = nombre;
+        f.evidenciaDevolucionMime = archivo.mimetype;
+      }
+    }
+    await this.repo.save(filas);
+    for (const a of anteriores)
+      await unlink(join(dir, a)).catch(() => undefined);
+    return { momento, registros: filas.length };
+  }
+
+  async abrirEvidencia(id: number, momento: 'salida' | 'devolucion') {
+    const p = await this.repo.findOne({ where: { id } });
+    if (!p) throw new NotFoundException('El préstamo no existe');
+    const nombre =
+      momento === 'salida' ? p.evidenciaSalida : p.evidenciaDevolucion;
+    const mime =
+      momento === 'salida' ? p.evidenciaSalidaMime : p.evidenciaDevolucionMime;
+    const ruta = nombre ? join(C31_STORAGE_DIR, 'evidencias', nombre) : '';
+    if (!nombre || !existsSync(ruta))
+      throw new NotFoundException('Este préstamo no tiene evidencia cargada');
+    return { stream: createReadStream(ruta), mime: mime ?? 'image/jpeg' };
   }
 }

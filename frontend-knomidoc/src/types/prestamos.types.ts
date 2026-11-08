@@ -21,6 +21,9 @@ export interface PrestamoCuaderno {
   metodoVerificacionDevolucion?: MetodoVerificacion | null
   metodoVerificacion: MetodoVerificacion
   evidenciaVerificacionUrl?: string | null
+  /** Imagen del cuaderno firmado (nombre interno; se pide por /evidencia/:momento) */
+  evidenciaSalida?: string | null
+  evidenciaDevolucion?: string | null
   observaciones?: string | null
   comprobante?: ComprobanteC31
   funcionario?: Funcionario | null

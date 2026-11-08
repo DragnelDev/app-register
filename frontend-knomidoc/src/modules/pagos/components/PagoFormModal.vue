@@ -62,6 +62,10 @@ async function cargarComprobante(id: number) {
   if (!form.beneficiarioId && datos.value.beneficiarios.length === 1) {
     form.beneficiarioId = datos.value.beneficiarios[0]?.id ?? ''
   }
+  // Pago nuevo: sugiere el saldo disponible (se puede cambiar)
+  if (!props.pago && !form.monto && disponible.value && disponible.value > 0) {
+    form.monto = disponible.value.toFixed(2)
+  }
 }
 
 function reiniciar() {
@@ -179,13 +183,22 @@ const etiqueta = 'mb-1 block text-xs font-semibold text-ink-700 dark:text-ink-20
         </p>
       </div>
 
-      <div
-        v-if="datos"
-        class="rounded-md bg-ink-50 px-3 py-2 text-xs text-ink-600 dark:bg-white/5 dark:text-ink-300"
-      >
-        Total del comprobante: <strong>Bs {{ bs(datos.resumen.montoTotal) }}</strong> · Disponible
-        para pagar:
-        <strong>Bs {{ bs(disponible) }}</strong>
+      <div v-if="datos" class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div
+          v-for="t in [
+            { n: 'Total', v: datos.resumen.montoTotal, c: '' },
+            { n: 'Pagado', v: datos.resumen.pagado, c: 'text-emerald-700 dark:text-emerald-300' },
+            { n: 'Pendiente', v: datos.resumen.pendiente, c: 'text-amber-700 dark:text-amber-300' },
+            { n: 'Disponible', v: disponible ?? 0, c: 'text-seal-700 dark:text-seal-300' },
+          ]"
+          :key="t.n"
+          class="rounded-md border border-ink-100 bg-ink-50 px-3 py-2 dark:border-white/10 dark:bg-white/5"
+        >
+          <p class="text-[10px] font-semibold uppercase tracking-wide text-ink-500">{{ t.n }}</p>
+          <p class="whitespace-nowrap text-sm font-semibold tabular-nums" :class="t.c">
+            Bs {{ bs(t.v) }}
+          </p>
+        </div>
       </div>
 
       <div v-if="datos" class="grid grid-cols-1 gap-4 sm:grid-cols-2">

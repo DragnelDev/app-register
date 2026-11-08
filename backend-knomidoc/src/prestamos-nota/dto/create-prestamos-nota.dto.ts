@@ -38,7 +38,8 @@ export class CreatePrestamosNotaDto {
 
   @ApiPropertyOptional({
     example: 'NP-0012/2026',
-    description: 'N° de nota / CITE. Si se omite, el sistema lo genera (NP-0001/año)',
+    description:
+      'N° de nota / CITE. Si se omite, el sistema lo genera (NP-0001/año)',
   })
   @IsOptional()
   @Transform(vacioAUndefined)

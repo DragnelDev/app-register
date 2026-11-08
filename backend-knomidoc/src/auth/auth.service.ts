@@ -115,7 +115,7 @@ export class AuthService {
     usuario.rolActivo =
       payload.rol && perfiles.includes(payload.rol)
         ? payload.rol
-        : perfiles[0] ?? usuario.rol;
+        : (perfiles[0] ?? usuario.rol);
 
     return usuario;
   }

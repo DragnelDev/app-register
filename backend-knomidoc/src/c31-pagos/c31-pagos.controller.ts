@@ -61,6 +61,25 @@ export class C31PagosController {
     });
   }
 
+  @Roles(...ROLES_REPORTES)
+  @Get('pdf')
+  async listadoPdf(@Query() query: FilterC31PagoDto) {
+    const buffer = await this.service.listadoPdf(query);
+    return new StreamableFile(buffer, {
+      type: 'application/pdf',
+      disposition: 'inline; filename="listado-pagos-c31.pdf"',
+    });
+  }
+
+  @Get(':id/pdf')
+  async constanciaPdf(@Param('id', ParseIntPipe) id: number) {
+    const buffer = await this.service.constanciaPdf(id);
+    return new StreamableFile(buffer, {
+      type: 'application/pdf',
+      disposition: `inline; filename="constancia-pago-${id}.pdf"`,
+    });
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.service.findOne(id);
