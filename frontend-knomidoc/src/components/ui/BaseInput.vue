@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useId } from 'vue'
+import FechaInput from '@/components/shared/FechaInput.vue'
 
 interface Props {
   modelValue: string | number | null | undefined
@@ -22,13 +23,25 @@ const props = withDefaults(defineProps<Props>(), {
   disabled: false,
 })
 
-defineEmits<{ 'update:modelValue': [value: string]; blur: [event: FocusEvent] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: string]; blur: [event: FocusEvent] }>()
 
 const inputId = useId()
 
 // Ojito para ver/ocultar contraseñas (el del navegador no respeta el modo oscuro)
 const visible = ref(false)
 const tipoReal = computed(() => (props.type === 'password' && visible.value ? 'text' : props.type))
+
+// Fecha (dd/mm/aaaa) y fecha-hora (dd/mm/aaaa + hora en 24 h): independiente del idioma del navegador
+const esFecha = computed(() => props.type === 'date')
+const esFechaHora = computed(() => props.type === 'datetime-local')
+const parteFecha = computed(() => String(props.modelValue ?? '').slice(0, 10))
+const parteHora = computed(() => String(props.modelValue ?? '').slice(11, 16))
+function cambiarFecha(v: string) {
+  emit('update:modelValue', esFechaHora.value ? (v ? `${v}T${parteHora.value || '08:00'}` : '') : v)
+}
+function cambiarHora(v: string) {
+  emit('update:modelValue', parteFecha.value ? `${parteFecha.value}T${v || '00:00'}` : '')
+}
 </script>
 
 <template>
@@ -38,7 +51,21 @@ const tipoReal = computed(() => (props.type === 'password' && visible.value ? 't
       <span v-if="required" class="text-seal-600">*</span>
     </label>
 
-    <div class="relative">
+    <div v-if="esFecha" class="relative">
+      <FechaInput :id="inputId" :disabled="disabled" :model-value="parteFecha" :invalid="Boolean(error)" @update:model-value="cambiarFecha" />
+    </div>
+    <div v-else-if="esFechaHora" class="flex gap-2">
+      <FechaInput :id="inputId" class="flex-1" :model-value="parteFecha" :invalid="Boolean(error)" @update:model-value="cambiarFecha" />
+      <input
+        type="time"
+        step="60"
+        :value="parteHora"
+        :disabled="!parteFecha"
+        class="w-28 rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
+        @input="cambiarHora(($event.target as HTMLInputElement).value)"
+      />
+    </div>
+    <div v-else class="relative">
       <input
         :id="inputId"
         :type="tipoReal"

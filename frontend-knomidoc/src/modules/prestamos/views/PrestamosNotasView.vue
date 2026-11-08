@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
+import FechaInput from '@/components/shared/FechaInput.vue'
 import { useAuthStore } from '@/stores/auth.store'
 import DevolucionModal from '../components/DevolucionModal.vue'
 import IconButton from '@/components/ui/IconButton.vue'
@@ -21,6 +23,7 @@ import { rotuloC31 } from '@/types/c31.types'
 import { useGestionStore } from '@/stores/gestion.store'
 
 const auth = useAuthStore()
+const router = useRouter()
 const store = usePrestamosStore()
 const modalOpen = ref(false)
 const saving = ref(false)
@@ -269,11 +272,11 @@ onMounted(() => {
       </div>
       <div>
         <label :class="etiqueta" for="n-d">Préstamo desde</label>
-        <input id="n-d" v-model="f.fechaDesde" type="date" :class="campo" />
+        <FechaInput id="n-d" v-model="f.fechaDesde" />
       </div>
       <div>
         <label :class="etiqueta" for="n-h">Hasta</label>
-        <input id="n-h" v-model="f.fechaHasta" type="date" :class="campo" />
+        <FechaInput id="n-h" v-model="f.fechaHasta" />
       </div>
       <label class="flex items-center gap-2 pb-2 text-sm text-ink-700 dark:text-ink-200">
         <input v-model="f.vencidas" type="checkbox" true-value="true" false-value="" />
@@ -337,6 +340,14 @@ onMounted(() => {
             label="Imprimir nota (PDF)"
             variant="primary"
             @click="imprimir(row.numeroNotaSolicitud)"
+          />
+          <IconButton
+            v-if="auth.puedeRecibirActas"
+            icon="fa-file-signature"
+            label="Responder a Auditoría (nota vinculada)"
+            @click="
+              router.push({ path: '/notas-auditoria', query: { nota: row.numeroNotaSolicitud } })
+            "
           />
           <IconButton
             icon="fa-clock-rotate-left"

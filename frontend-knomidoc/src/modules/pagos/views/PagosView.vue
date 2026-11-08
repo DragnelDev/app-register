@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FechaInput from '@/components/shared/FechaInput.vue'
 import IconButton from '@/components/ui/IconButton.vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
@@ -243,11 +244,11 @@ onMounted(async () => {
         </div>
         <div>
           <label class="mb-1 block text-xs font-medium text-ink-500">Pago desde</label>
-          <input v-model="filtros.fechaDesde" type="date" :class="campo" />
+          <FechaInput v-model="filtros.fechaDesde" />
         </div>
         <div>
           <label class="mb-1 block text-xs font-medium text-ink-500">Hasta</label>
-          <input v-model="filtros.fechaHasta" type="date" :class="campo" />
+          <FechaInput v-model="filtros.fechaHasta" />
         </div>
       </template>
       <div class="flex gap-2">

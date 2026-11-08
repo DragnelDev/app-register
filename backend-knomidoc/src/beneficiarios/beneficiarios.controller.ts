@@ -11,6 +11,7 @@ import {
   StreamableFile,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { AbiertoATodosLosPerfiles } from '../auth/decorators/abierto-a-todos.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Usuario } from '../usuarios/entities/usuario.entity';
@@ -34,6 +35,8 @@ export class BeneficiariosController {
   }
 
   /** ?search= (nombre o CI/NIT) + filtros. También sirve para el autocompletado. */
+  /** Autocompletado del formulario de C31 (también para el remitente). */
+  @AbiertoATodosLosPerfiles()
   @Get()
   findAll(@Query() query: FilterBeneficiariosDto) {
     return this.service.findAll(query);

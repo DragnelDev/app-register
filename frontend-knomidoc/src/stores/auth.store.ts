@@ -59,6 +59,11 @@ export const useAuthStore = defineStore('auth', {
     /** Puede registrar comprobantes C31 y armar actas de entrega */
     puedeRegistrarC31: (state) =>
       ['ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS'].includes(state.usuario?.rol ?? ''),
+    /** Puede crear comprobantes y trabajar con ellos (el remitente, solo hasta Firmado) */
+    puedeTrabajarC31: (state) =>
+      ['ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS', 'REMITENTE_C31'].includes(
+        state.usuario?.rol ?? '',
+      ),
     /** Puede crear y editar depósitos, estantes y carpetas del archivo físico */
     puedeGestionarArchivo: (state) =>
       ['ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS'].includes(state.usuario?.rol ?? ''),

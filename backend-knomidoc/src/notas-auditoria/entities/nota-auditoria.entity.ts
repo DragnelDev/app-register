@@ -52,4 +52,8 @@ export class NotaAuditoria extends BaseAuditoriaEntity {
 
   @Column({ type: 'integer', nullable: true })
   gestion?: number | null;
+
+  /** N° de las notas de préstamo (préstamos por nota) con las que se vinculó. */
+  @Column({ name: 'notas_prestamo', type: 'jsonb', default: () => "'[]'" })
+  notasPrestamo: string[] | undefined;
 }

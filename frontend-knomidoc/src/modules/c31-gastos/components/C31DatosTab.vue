@@ -16,6 +16,8 @@ const editando = ref(false)
 const guardando = ref(false)
 const error = ref('')
 const nuevoBeneficiario = ref('')
+const motivoModificacion = ref('')
+const esArchivado = computed(() => props.comprobante.estadoFisico === 'ARCHIVADO')
 
 const form = reactive({
   tipoC31: 'CON_IMPUTACION',
@@ -71,8 +73,12 @@ function agregar() {
 }
 
 async function guardar() {
-  guardando.value = true
   error.value = ''
+  if (esArchivado.value && motivoModificacion.value.trim().length < 5) {
+    error.value = 'El comprobante está archivado: indique qué se está modificando y por qué.'
+    return
+  }
+  guardando.value = true
   try {
     if (nuevoBeneficiario.value.trim()) agregar()
     const numero = form.numero.trim()
@@ -87,7 +93,9 @@ async function guardar() {
       ubicacionFisica: form.ubicacionFisica.trim(),
       observaciones: form.observaciones.trim(),
       beneficiarios: form.beneficiarios,
+      motivoModificacion: esArchivado.value ? motivoModificacion.value.trim() : undefined,
     })
+    motivoModificacion.value = ''
     editando.value = false
   } catch (err) {
     error.value = extractApiErrorMessage(err, 'No se pudieron guardar los cambios.')
@@ -275,6 +283,22 @@ const titulo = 'mb-1 font-semibold text-ink-700 dark:text-ink-200'
       <div>
         <label :class="etiqueta">Observaciones</label>
         <textarea v-model="form.observaciones" rows="2" :class="campo" />
+      </div>
+
+      <div
+        v-if="esArchivado"
+        class="rounded-md border border-amber-300 bg-amber-50 p-3 dark:border-amber-500/40 dark:bg-amber-500/10"
+      >
+        <label :class="etiqueta">Motivo de la modificación (obligatorio)</label>
+        <textarea
+          v-model="motivoModificacion"
+          rows="2"
+          :class="campo"
+          placeholder="Ej.: se corrige el monto por error de digitación; se regulariza el beneficiario"
+        />
+        <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">
+          Este comprobante ya está archivado correctamente. El comentario queda en su historial.
+        </p>
       </div>
 
       <div class="flex justify-end gap-2">

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { fechaCorta, fechaHora } from '@/utils/estados'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
@@ -145,7 +146,7 @@ onBeforeUnmount(liberarPreview)
       <i :class="principal ? 'fa-solid fa-circle-check' : 'fa-solid fa-hourglass-half'" aria-hidden="true" />
       {{
         principal
-          ? `Digitalizado el ${new Date(principal.fechaCarga).toLocaleDateString('es-BO')}.`
+          ? `Digitalizado el ${fechaCorta(principal.fechaCarga)}.`
           : 'Pendiente de digitalizar: aún no se cargó el escaneo del C31.'
       }}
     </div>
@@ -209,7 +210,7 @@ onBeforeUnmount(liberarPreview)
           <p class="truncate text-sm font-medium text-ink-900 dark:text-ink-100">{{ a.nombreOriginal }}</p>
           <p class="text-xs text-ink-400">
             {{ a.tipo === 'C31' ? 'C31 escaneado' : 'Respaldo' }} · {{ tamanoLegible(a.tamano) }} ·
-            {{ new Date(a.fechaCarga).toLocaleString('es-BO') }}
+            {{ fechaHora(a.fechaCarga) }}
           </p>
         </div>
         <div class="flex gap-1">

@@ -33,6 +33,7 @@ export class CreateNotaAuditoriaDto {
   secciones?: SeccionNotaDto[];
   @IsOptional() @IsString() @MaxLength(5000) cierre?: string;
   @IsOptional() @IsInt() gestion?: number;
+  @IsOptional() @IsArray() @IsString({ each: true }) notasPrestamo?: string[];
 }
 
 export class UpdateNotaAuditoriaDto {
@@ -47,4 +48,5 @@ export class UpdateNotaAuditoriaDto {
   secciones?: SeccionNotaDto[];
   @IsOptional() @IsString() @MaxLength(5000) cierre?: string;
   @IsOptional() @IsInt() gestion?: number;
+  @IsOptional() @IsArray() @IsString({ each: true }) notasPrestamo?: string[];
 }

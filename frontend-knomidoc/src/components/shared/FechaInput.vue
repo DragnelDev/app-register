@@ -7,7 +7,7 @@ import { formatFechaBo, parseFechaBo } from '@/utils/fecha'
  * escribir o pegar; v-model es aaaa-mm-dd ('' si está vacío o no es válida).
  */
 const model = defineModel<string>({ default: '' })
-defineProps<{ id?: string; invalid?: boolean }>()
+defineProps<{ id?: string; invalid?: boolean; disabled?: boolean }>()
 
 const texto = ref(formatFechaBo(model.value))
 const error = ref('')
@@ -47,6 +47,7 @@ function alSalir() {
       autocomplete="off"
       placeholder="dd/mm/aaaa"
       maxlength="30"
+      :disabled="disabled"
       :aria-invalid="invalid || !!error"
       class="w-full rounded-md border bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-300 focus:border-seal-500 dark:bg-ink-950 dark:text-ink-100 dark:placeholder:text-ink-500"
       :class="invalid || error ? 'border-red-400' : 'border-ink-200 dark:border-white/10'"

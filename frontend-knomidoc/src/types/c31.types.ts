@@ -131,6 +131,8 @@ export interface ComprobanteC31FormPayload {
   numeroPreventivo?: string
   numeroDevengado?: string
   beneficiarios?: string[]
+  /** Obligatorio al modificar un comprobante ya archivado */
+  motivoModificacion?: string
   carpetas?: { carpetaId: string | number; numeroParte: number }[]
 }
 
@@ -210,7 +212,7 @@ export interface C31HistorialItem {
   fecha: string
   estadoAnterior: string | null
   estadoNuevo: string
-  origen: 'REGISTRO' | 'MANUAL' | 'ACTA' | 'PRESTAMO'
+  origen: 'REGISTRO' | 'MANUAL' | 'ACTA' | 'PRESTAMO' | 'SISTEMA' | 'MODIFICACION'
   referencia: string | null
   detalle: string | null
   usuario: string | null

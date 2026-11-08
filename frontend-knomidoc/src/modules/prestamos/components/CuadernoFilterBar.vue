@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FechaInput from '@/components/shared/FechaInput.vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { reactive, watch } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -56,11 +57,11 @@ const campo =
     </div>
     <div>
       <label class="mb-1 block text-xs font-medium text-ink-500" for="cq-desde">Salida desde</label>
-      <input id="cq-desde" v-model="local.fechaDesde" type="date" :class="campo" />
+      <FechaInput id="cq-desde" v-model="local.fechaDesde" />
     </div>
     <div>
       <label class="mb-1 block text-xs font-medium text-ink-500" for="cq-hasta">Salida hasta</label>
-      <input id="cq-hasta" v-model="local.fechaHasta" type="date" :class="campo" />
+      <FechaInput id="cq-hasta" v-model="local.fechaHasta" />
     </div>
     <div class="w-64">
       <FuncionarioSelect v-model="local.funcionarioId" label="Funcionario" />

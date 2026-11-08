@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { fechaHora } from '@/utils/estados'
 import IconButton from '@/components/ui/IconButton.vue'
 import { onMounted, reactive, ref, watch } from 'vue'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
@@ -38,7 +39,7 @@ const TONOS: Record<string, string> = {
 }
 
 const formatoFecha = (iso: string) =>
-  new Date(iso).toLocaleString('es-BO', { dateStyle: 'short', timeStyle: 'medium' })
+  fechaHora(iso)
 
 async function loadRows() {
   loading.value = true

@@ -1,6 +1,5 @@
 import {
   devengadosDe,
-  identificadorC31,
   preventivosDe,
   rotuloC31,
 } from '../common/utils/identificador-c31.util';
@@ -9,6 +8,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
@@ -50,6 +50,16 @@ import { ActasEntrega } from '../actas-entrega/entities/actas-entrega.entity';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { paginationSkip } from '../common/utils/pagination.util';
 import { Usuario } from '../usuarios/entities/usuario.entity';
+
+import {
+  campoDeEncabezado,
+  listaDeCelda,
+  parseFechaCelda,
+  parseMonto,
+  type CampoImport,
+} from './import-utils';
+
+import { fichaC31Pdf, listadoC31Pdf } from './comprobantes-pdf.util';
 
 /** Escapa % _ \\ para que el texto del usuario se busque literalmente en un ILIKE. */
 const escaparLike = (texto: string): string =>
@@ -105,6 +115,14 @@ function limpiarLista(valores?: string[]): string[] {
       return true;
     });
 }
+
+/** El remitente solo trabaja con comprobantes hasta "Firmado" (En revisión). */
+const ESTADOS_REMITENTE: readonly EstadoFisicoC31[] = [
+  EstadoFisicoC31.EN_TRAMITE,
+  EstadoFisicoC31.EN_REVISION,
+];
+const esRemitente = (u?: Usuario) =>
+  (u?.rolActivo ?? u?.rol) === 'REMITENTE_C31';
 
 /** Texto de una celda de Excel (soporta texto enriquecido, fórmulas y fechas). */
 function textoDeCelda(valor: unknown): string {
@@ -339,6 +357,7 @@ export class ComprobantesC31Service {
 
   async findAll(
     query: FilterComprobantesC31Dto,
+    usuario?: Usuario,
   ): Promise<PaginatedResponseDto<ComprobantesC31>> {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 10;
@@ -350,6 +369,11 @@ export class ComprobantesC31Service {
       .leftJoinAndSelect('c.preventivos', 'prev')
       .leftJoinAndSelect('c.devengados', 'dev')
       .leftJoinAndSelect('c.beneficiarios', 'ben');
+
+    if (esRemitente(usuario))
+      qb.andWhere('c.estadoFisico IN (:...estadosRemitente)', {
+        estadosRemitente: ESTADOS_REMITENTE,
+      });
 
     // La gestión SIEMPRE aísla el resultado: los N° de preventivo se repiten entre gestiones.
     if (query.gestion)
@@ -482,7 +506,7 @@ export class ComprobantesC31Service {
    * PREV + DEV). No fusiona registros: solo los agrupa. Si alguno ya pertenece
    * a un grupo, los demás se suman a ese grupo; dos grupos distintos no se mezclan.
    */
-  async unir(ids: number[]) {
+  async unir(ids: number[], usuario?: Usuario) {
     const unicos = [...new Set(ids)];
     if (unicos.length < 2) {
       throw new BadRequestException('Seleccione al menos 2 comprobantes para unir');
@@ -497,6 +521,7 @@ export class ComprobantesC31Service {
       if (items.some((c) => c.estadoFisico === EstadoFisicoC31.ANULADO)) {
         throw new ConflictException('No se pueden unir comprobantes anulados');
       }
+      this.exigirEstadoRemitente(items, usuario);
       if (new Set(items.map((c) => c.gestion)).size > 1) {
         throw new ConflictException(
           'Solo se unen comprobantes de la misma gestión',
@@ -522,11 +547,26 @@ export class ComprobantesC31Service {
     });
   }
 
+  /** Un remitente no toca comprobantes que ya pasaron de "Firmado". */
+  private exigirEstadoRemitente(items: ComprobantesC31[], usuario?: Usuario) {
+    if (
+      esRemitente(usuario) &&
+      items.some(
+        (c) => !ESTADOS_REMITENTE.includes(c.estadoFisico as EstadoFisicoC31),
+      )
+    ) {
+      throw new ForbiddenException(
+        'Su perfil solo puede trabajar con comprobantes hasta el estado Firmado (En revisión)',
+      );
+    }
+  }
+
   /** Saca un comprobante de su grupo; si el grupo queda con uno solo, se disuelve. */
-  async separar(id: number) {
+  async separar(id: number, usuario?: Usuario) {
     await this.dataSource.transaction(async (manager) => {
       const c = await manager.findOne(ComprobantesC31, { where: { id } });
       if (!c) throw new NotFoundException('El comprobante C31 no existe');
+      this.exigirEstadoRemitente([c], usuario);
       if (!c.grupoUnionId) return;
       const grupo = c.grupoUnionId;
       await manager.update(ComprobantesC31, { id }, { grupoUnionId: null });
@@ -565,13 +605,14 @@ export class ComprobantesC31Service {
     }));
   }
 
-  async findOne(id: number): Promise<ComprobantesC31> {
+  async findOne(id: number, usuario?: Usuario): Promise<ComprobantesC31> {
     const comprobante = await this.repo.findOne({
       where: { id },
       relations: RELATIONS,
     });
     if (!comprobante)
       throw new NotFoundException('El comprobante C31 no existe');
+    this.exigirEstadoRemitente([comprobante], usuario);
     return comprobante;
   }
 
@@ -586,6 +627,15 @@ export class ComprobantesC31Service {
     if (comprobante.estadoFisico === EstadoFisicoC31.ANULADO) {
       throw new ConflictException(
         'Un comprobante anulado no se puede modificar',
+      );
+    }
+    this.exigirEstadoRemitente([comprobante], usuario);
+    // Un comprobante ya archivado solo se modifica dejando constancia del motivo
+    const motivoModificacion = dto.motivoModificacion?.trim();
+    const eraArchivado = comprobante.estadoFisico === EstadoFisicoC31.ARCHIVADO;
+    if (eraArchivado && (!motivoModificacion || motivoModificacion.length < 5)) {
+      throw new BadRequestException(
+        'El comprobante está archivado: indique el motivo de la modificación (mínimo 5 caracteres)',
       );
     }
 
@@ -665,6 +715,22 @@ export class ComprobantesC31Service {
 
       if (Object.keys(camposSimples).length > 0) {
         await manager.update(ComprobantesC31, id, camposSimples);
+      }
+      if (eraArchivado) {
+        const campos = [
+          ...Object.keys(camposSimples),
+          ...(enviaPrev ? ['preventivos'] : []),
+          ...(enviaDev ? ['devengados'] : []),
+          ...(nombresNuevos !== undefined ? ['beneficiarios'] : []),
+        ];
+        await registrarCambioEstado(manager, {
+          comprobanteId: id,
+          estadoAnterior: EstadoFisicoC31.ARCHIVADO,
+          estadoNuevo: EstadoFisicoC31.ARCHIVADO,
+          origen: 'MODIFICACION',
+          usuarioId: usuario?.id,
+          detalle: `${motivoModificacion}${campos.length ? ` (campos: ${campos.join(', ')})` : ''}`,
+        });
       }
 
       // Reemplazo de las listas de identificadores enviadas en el DTO
@@ -811,6 +877,14 @@ export class ComprobantesC31Service {
       if (!comprobante)
         throw new NotFoundException('El comprobante C31 no existe');
       const actual = comprobante.estadoFisico as EstadoFisicoC31;
+      if (
+        esRemitente(usuario) &&
+        !(ESTADOS_REMITENTE.includes(actual) && ESTADOS_REMITENTE.includes(nuevo))
+      ) {
+        throw new ForbiddenException(
+          'Su perfil solo puede pasar un comprobante entre "En trámite" y "En revisión / firmado"',
+        );
+      }
 
       if (actual === nuevo) {
         throw new BadRequestException(
@@ -939,8 +1013,52 @@ export class ComprobantesC31Service {
     return filas.map((f) => Number(f.gestion));
   }
 
+  /** PDF del listado con los mismos filtros de pantalla (hasta 5000 filas). */
+  async listadoPdf(
+    query: FilterComprobantesC31Dto,
+    usuario?: Usuario,
+  ): Promise<Buffer> {
+    const q = Object.assign(new FilterComprobantesC31Dto(), query, {
+      page: 1,
+      pageSize: 5000,
+    });
+    const r = await this.findAll(q, usuario);
+    const ETQ: Record<string, string> = {
+      gestion: 'Gestión',
+      search: 'Búsqueda',
+      estadoFisico: 'Estado',
+      tipoC31: 'Tipo',
+      fechaDesde: 'Desde',
+      fechaHasta: 'Hasta',
+      detalle: 'Glosa',
+      numeroPreventivo: 'N° PREV',
+    };
+    const filtros = Object.entries(ETQ)
+      .map(([k, etq]) => {
+        const v = (query as unknown as Record<string, unknown>)[k];
+        return v === undefined || v === '' || v === null
+          ? ''
+          : `${etq}: ${k === 'estadoFisico' ? (ESTADO_FISICO_LABELS[v as EstadoFisicoC31] ?? String(v)) : String(v)}`;
+      })
+      .filter(Boolean)
+      .join(' · ');
+    return listadoC31Pdf(r.data, { filtros, total: r.total });
+  }
+
+  /** PDF con la ficha de un comprobante. */
+  async fichaPdf(id: number, usuario?: Usuario): Promise<Buffer> {
+    const c = await this.repo.findOne({
+      where: { id },
+      relations: { ...RELATIONS, pagos: true },
+    });
+    if (!c) throw new NotFoundException('El comprobante C31 no existe');
+    this.exigirEstadoRemitente([c], usuario);
+    return fichaC31Pdf(c);
+  }
+
   private static readonly COLUMNAS_EXPORT = [
     { header: 'Nº PREV', key: 'prev', width: 13 },
+    { header: 'Nº DEV', key: 'dev', width: 13 },
     { header: 'Nº CHEQUE', key: 'cheque', width: 13 },
     { header: 'BENEFICIARIO', key: 'beneficiario', width: 28 },
     { header: 'DESCRIPCION', key: 'descripcion', width: 63 },
@@ -1001,8 +1119,8 @@ export class ComprobantesC31Service {
     // Filas de datos
     comprobantes.forEach((c) => {
       const fila = hoja.addRow({
-        prev:
-identificadorC31(c),
+        prev: (c.preventivos ?? []).map((p) => p.numeroPreventivo).join(', '),
+        dev: (c.devengados ?? []).map((d) => d.numeroDevengado).join(', '),
         cheque: (c.pagos ?? [])
           .filter(
             (p) =>
@@ -1016,14 +1134,14 @@ identificadorC31(c),
           .join(', '),
         descripcion: c.descripcion,
         monto: Number(c.montoTotal).toFixed(2),
-        fecha: c.fechaElaboracion,
+        fecha: String(c.fechaElaboracion ?? '').slice(0, 10).split('-').reverse().join('/'),
         folio: c.numeroFolio ?? '',
         carpeta: c.ubicacionFisica ?? '',
       });
       fila.eachCell((celda, colNumber) => {
         celda.border = bordeFino;
         celda.alignment = {
-          horizontal: colNumber === 4 ? 'left' : 'center',
+          horizontal: colNumber === 5 ? 'left' : 'center',
           vertical: 'middle',
           wrapText: true,
         };
@@ -1070,57 +1188,77 @@ identificadorC31(c),
       );
     }
 
+    // Columnas por nombre de encabezado (Nº PREV, Nº DEV, Nº CHEQUE, BENEFICIARIO, ...)
+    const col: Partial<Record<CampoImport, number>> = {};
+    hoja.getRow(filaEncabezado).eachCell((celda, n) => {
+      const campo = campoDeEncabezado(textoDeCelda(celda.value));
+      if (campo && col[campo] === undefined) col[campo] = n;
+    });
+    if (!col.descripcion || !col.monto || (!col.prev && !col.dev)) {
+      throw new BadRequestException(
+        'Faltan columnas obligatorias. El Excel debe tener: Nº PREV y/o Nº DEV, DESCRIPCION y MONTO (opcionales: Nº CHEQUE, BENEFICIARIO, FECHA, Nº DE FOLIO, CARPETA)',
+      );
+    }
+    const celda = (fila: ExcelJS.Row, campo: CampoImport): unknown =>
+      col[campo] ? fila.getCell(col[campo]).value : undefined;
+
     const errores: { fila: number; motivo: string }[] = [];
     let creados = 0;
 
     for (let r = filaEncabezado + 1; r <= hoja.rowCount; r++) {
       const fila = hoja.getRow(r);
-      const valores = fila.values as unknown[];
-      // ExcelJS indexa desde 1; columnas: 1 vacío, 2..9 = B..I
-      const [
-        ,
-        prev,
-        cheque,
-        beneficiario,
-        descripcion,
-        monto,
-        fecha,
-        folio,
-        ubicacion,
-      ] = valores;
+      const prev = celda(fila, 'prev');
+      const dev = celda(fila, 'dev');
+      const cheque = celda(fila, 'cheque');
+      const beneficiario = celda(fila, 'beneficiario');
+      const descripcion = celda(fila, 'descripcion');
+      const monto = celda(fila, 'monto');
+      const fecha = celda(fila, 'fecha');
+      const folio = celda(fila, 'folio');
+      const ubicacion = celda(fila, 'carpeta');
 
       const vacia =
-        !descripcion && !beneficiario && !monto && (!prev || prev === '');
+        !textoDeCelda(descripcion) &&
+        !textoDeCelda(beneficiario) &&
+        !textoDeCelda(monto) &&
+        !textoDeCelda(prev) &&
+        !textoDeCelda(dev);
       if (vacia) continue;
 
       try {
-        if (!descripcion) {
+        // Preventivos van a Preventivos y devengados a Devengados (nunca mezclados)
+        const preventivosCelda = listaDeCelda(textoDeCelda(prev));
+        const devengadosCelda = listaDeCelda(textoDeCelda(dev));
+        if (!preventivosCelda.length && !devengadosCelda.length) {
+          throw new Error('Falta el Nº de preventivo o de devengado');
+        }
+        if (!textoDeCelda(descripcion)) {
           throw new Error('Falta la descripción del comprobante');
         }
-        if (!monto) {
+        if (!textoDeCelda(monto)) {
           throw new Error('Falta el monto del comprobante');
         }
-
-        const montoNumerico = Number(textoDeCelda(monto).replace(/,/g, ''));
-        if (Number.isNaN(montoNumerico) || montoNumerico <= 0) {
-          throw new Error('El monto no es un número válido');
+        const montoNumerico = parseMonto(
+          typeof monto === 'number' ? monto : textoDeCelda(monto),
+        );
+        if (montoNumerico === null || montoNumerico <= 0) {
+          throw new Error(
+            `El monto "${textoDeCelda(monto)}" no es un número válido`,
+          );
         }
 
-        let fechaElaboracion: Date;
-        if (fecha instanceof Date) {
-          fechaElaboracion = fecha;
-        } else if (typeof fecha === 'string' && fecha.trim()) {
-          fechaElaboracion = new Date(fecha);
+        let fechaIso: string | null;
+        if (textoDeCelda(fecha)) {
+          fechaIso = parseFechaCelda(fecha);
+          if (!fechaIso) {
+            throw new Error(
+              `La fecha "${textoDeCelda(fecha)}" no es válida (use dd/mm/aaaa)`,
+            );
+          }
         } else {
-          fechaElaboracion = new Date(`${gestion}-01-01`);
+          fechaIso = `${gestion}-01-01`;
         }
-        if (Number.isNaN(fechaElaboracion.getTime())) {
-          throw new Error('La fecha no es válida');
-        }
-
-        // Un solo identificador por comprobante; si la celda trae varios
-        // (formato "2 en 1") se conservan juntos como texto libre.
-        const preventivosCelda = [textoDeCelda(prev).trim() || 'S/N'];
+        const fechaElaboracion = new Date(`${fechaIso}T12:00:00`);
 
         const cheques = textoDeCelda(cheque)
           .split(/\s+/)
@@ -1143,7 +1281,10 @@ identificadorC31(c),
             usuario.id,
           );
           const comprobante = manager.create(ComprobantesC31, {
-            tipoC31: TipoC31.CON_IMPUTACION,
+            // Con al menos un preventivo es Con imputación; solo devengado, Sin imputación
+            tipoC31: preventivosCelda.length
+              ? TipoC31.CON_IMPUTACION
+              : TipoC31.SIN_IMPUTACION,
             montoTotal: montoNumerico,
             fechaElaboracion: fechaElaboracion,
             descripcion: textoDeCelda(descripcion),
@@ -1158,6 +1299,9 @@ identificadorC31(c),
             creadoPorId: usuario.id,
             preventivos: preventivosCelda.map((numeroPreventivo) =>
               manager.create(C31Preventivo, { numeroPreventivo }),
+            ),
+            devengados: devengadosCelda.map((numeroDevengado) =>
+              manager.create(C31Devengado, { numeroDevengado }),
             ),
             beneficiarios: beneficiarios.map((nombreBeneficiario) =>
               manager.create(C31Beneficiario, {

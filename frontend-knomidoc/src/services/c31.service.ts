@@ -45,6 +45,32 @@ export const c31Service = {
       }))
   },
 
+  /** Abre un PDF (autenticado) en otra pestaña */
+  async abrirPdf(ruta: string, params: Record<string, unknown> = {}) {
+    const ventana = window.open('', '_blank')
+    try {
+      const r = await apiClient.get(`${RESOURCE}/${ruta}`, {
+        params: cleanQueryParams(params as QueryParams & C31FilterState),
+        responseType: 'blob',
+      })
+      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }))
+      if (ventana) ventana.location.href = url
+      else window.location.href = url
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch (e) {
+      ventana?.close()
+      throw e
+    }
+  },
+
+  listadoPdf(filtros: C31FilterState) {
+    return this.abrirPdf('pdf', filtros as unknown as Record<string, unknown>)
+  },
+
+  fichaPdf(id: string | number) {
+    return this.abrirPdf(`${id}/pdf`)
+  },
+
   getById(id: string) {
     return apiClient.get<ComprobanteC31>(`${RESOURCE}/${id}`).then((r) => r.data)
   },
@@ -129,11 +155,8 @@ export const c31Service = {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('gestion', String(gestion))
-    return apiClient
-      .post<C31ImportResult>(`${RESOURCE}/import`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
-      .then((r) => r.data)
+    // Sin Content-Type manual: el navegador agrega el boundary del multipart
+    return apiClient.post<C31ImportResult>(`${RESOURCE}/import`, formData).then((r) => r.data)
   },
 
   // --- Digitalización: escaneos y respaldos (carpeta privada, solo con sesión) ---

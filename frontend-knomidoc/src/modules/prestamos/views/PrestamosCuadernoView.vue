@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { fechaHora } from '@/utils/estados'
 import { useAuthStore } from '@/stores/auth.store'
 import IconButton from '@/components/ui/IconButton.vue'
 import DevolucionModal from '../components/DevolucionModal.vue'
@@ -232,7 +233,7 @@ onMounted(async () => {
       </template>
       <template #cell-funcionarioId="{ row }">{{ nombreSolicitante(row) }}</template>
       <template #cell-fechaHoraSalida="{ row }">
-        {{ new Date(row.fechaHoraSalida).toLocaleString('es-BO') }}
+        {{ fechaHora(row.fechaHoraSalida) }}
       </template>
       <template #cell-devuelto="{ row }">
         <span

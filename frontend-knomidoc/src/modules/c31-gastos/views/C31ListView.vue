@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { c31Service } from '@/services/c31.service'
 import IconButton from '@/components/ui/IconButton.vue'
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
@@ -49,6 +50,19 @@ function handleFiltersUpdate(filters: C31FilterState) {
   store.fetchList()
 }
 
+const generandoPdf = ref(false)
+async function descargarPdf() {
+  generandoPdf.value = true
+  importFeedback.value = ''
+  try {
+    await c31Service.listadoPdf({ ...store.filters, tipoC31: tipoFijo.value || store.filters.tipoC31 })
+  } catch (error) {
+    importFeedback.value = extractApiErrorMessage(error, 'No se pudo generar el PDF.')
+  } finally {
+    generandoPdf.value = false
+  }
+}
+
 async function exportarExcel() {
   exporting.value = true
   try {
@@ -80,13 +94,19 @@ async function handleImportChange(event: Event) {
     }
 
     const resultado = await store.importExcel(file, gestion)
+    const detalle = resultado.errores
+      .slice(0, 8)
+      .map((e) => `Fila ${e.fila}: ${e.motivo}`)
+      .join('\n')
     const mensaje = resultado.errores.length
-      ? `Importación finalizada: ${resultado.creados} comprobantes cargados y ${resultado.errores.length} errores.`
+      ? `Importación finalizada: ${resultado.creados} comprobantes cargados y ${resultado.errores.length} con error.\n${detalle}${resultado.errores.length > 8 ? '\n…' : ''}`
       : `Importación finalizada: ${resultado.creados} comprobantes cargados.`
     importFeedback.value = mensaje
   } catch (error) {
-    console.error(error)
-    importFeedback.value = 'No se pudo importar el archivo. Revise el formato del Excel.'
+    importFeedback.value = extractApiErrorMessage(
+      error,
+      'No se pudo importar el archivo. Revise el formato del Excel.',
+    )
   } finally {
     importing.value = false
     input.value = ''
@@ -153,6 +173,9 @@ onMounted(() => {
         >
           📥 Importar Excel
         </BaseButton>
+        <BaseButton variant="secondary" size="sm" :loading="generandoPdf" @click="descargarPdf">
+          📄 Descargar PDF
+        </BaseButton>
         <BaseButton
           v-if="auth.puedeExportar"
           variant="secondary"
@@ -163,7 +186,7 @@ onMounted(() => {
           📊 Exportar a Excel
         </BaseButton>
         <RouterLink
-          v-if="auth.puedeRegistrarC31"
+          v-if="auth.puedeTrabajarC31"
           to="/c31/nuevo"
           class="inline-flex items-center rounded-md bg-ink-800 px-4 py-2 text-sm font-medium text-white hover:bg-ink-900 dark:bg-seal-500 dark:hover:bg-seal-600"
         >
@@ -180,7 +203,7 @@ onMounted(() => {
       @change="handleImportChange"
     />
 
-    <p v-if="importFeedback" class="text-sm text-ink-600 dark:text-ink-300">
+    <p v-if="importFeedback" class="whitespace-pre-line text-sm text-ink-600 dark:text-ink-300">
       {{ importFeedback }}
     </p>
 

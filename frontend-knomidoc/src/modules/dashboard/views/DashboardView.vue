@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { fechaCorta } from '@/utils/estados'
 import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useC31Store } from '@/stores/c31.store'
@@ -152,7 +153,7 @@ const ultimosComprobantes = computed(() => c31Store.items.slice(0, 6))
             </p>
             <p class="text-xs text-ink-600 dark:text-ink-400">
               Bs {{ Number(comprobante.montoTotal).toFixed(2) }} ·
-              {{ comprobante.fechaElaboracion }}
+              {{ fechaCorta(comprobante.fechaElaboracion) }}
             </p>
           </div>
           <BaseBadge :estado="comprobante.estadoFisico" />

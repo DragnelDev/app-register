@@ -56,14 +56,7 @@ export const routes: RouteRecordRaw[] = [
     path: '/notas-auditoria',
     name: 'notas-auditoria',
     component: () => import('@/modules/notas-auditoria/views/NotasAuditoriaView.vue'),
-    meta: {
-      roles: [
-        'ADMIN',
-        'OPERADOR_ARCHIVOS',
-        'AUXILIAR_ARCHIVOS',
-        'CONSULTA_AVANZADA',
-      ] as RolUsuario[],
-    },
+    meta: { roles: ['ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS', 'CONSULTA_AVANZADA'] as RolUsuario[] },
   },
 
   // ── Gestión SIGEP (gastos) ──
@@ -71,24 +64,25 @@ export const routes: RouteRecordRaw[] = [
     path: '/c31',
     name: 'c31-list',
     component: () => import('@/modules/c31-gastos/views/C31ListView.vue'),
+    meta: { abiertoATodos: true },
   },
   {
     path: '/c31/con-imputacion',
     name: 'c31-con-imputacion',
     component: () => import('@/modules/c31-gastos/views/C31ListView.vue'),
-    meta: { tipoC31: 'CON_IMPUTACION' },
+    meta: { tipoC31: 'CON_IMPUTACION', abiertoATodos: true },
   },
   {
     path: '/c31/sin-imputacion',
     name: 'c31-sin-imputacion',
     component: () => import('@/modules/c31-gastos/views/C31ListView.vue'),
-    meta: { tipoC31: 'SIN_IMPUTACION' },
+    meta: { tipoC31: 'SIN_IMPUTACION', abiertoATodos: true },
   },
   {
     path: '/c31/nuevo',
     name: 'c31-create',
     component: () => import('@/modules/c31-gastos/views/C31CreateView.vue'),
-    meta: { roles: ARCHIVO },
+    meta: { roles: [...ARCHIVO, 'REMITENTE_C31'] as RolUsuario[] },
   },
   {
     path: '/c31/vinculos',
@@ -157,12 +151,7 @@ export const routes: RouteRecordRaw[] = [
     name: 'reportes',
     component: () => import('@/modules/reportes/views/ReportesFinancierosView.vue'),
     meta: {
-      roles: [
-        'ADMIN',
-        'OPERADOR_ARCHIVOS',
-        'CONSULTA_AVANZADA',
-        'CONSULTA_EXTERNA',
-      ] as RolUsuario[],
+      roles: ['ADMIN', 'OPERADOR_ARCHIVOS', 'CONSULTA_AVANZADA', 'CONSULTA_EXTERNA'] as RolUsuario[],
     },
   },
   {

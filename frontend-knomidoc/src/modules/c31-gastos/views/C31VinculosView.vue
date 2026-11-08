@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { fechaCorta } from '@/utils/estados'
 import IconButton from '@/components/ui/IconButton.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import BaseDataTable, { type DataTableColumn } from '@/components/ui/BaseDataTable.vue'
@@ -283,7 +284,7 @@ onMounted(async () => {
             :options="
               actas.map((a) => ({
                 value: a.id,
-                label: `${a.numeroActa} — ${a.fechaRecepcion?.slice(0, 10)}`,
+                label: `${a.numeroActa} — ${fechaCorta(a.fechaRecepcion)}`,
               }))
             "
             hint="Pasa a «En archivo» cuando Archivo recibe el acta. Solo se listan actas en borrador."

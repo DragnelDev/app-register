@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { fechaCorta } from '@/utils/estados'
 import { onMounted, reactive, ref } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
@@ -145,9 +146,9 @@ onMounted(cargar)
             <p class="text-xs text-ink-500 dark:text-ink-400">
               {{ g.totalComprobantes ?? 0 }} comprobantes
               <template v-if="g.fechaApertura">
-                · apertura {{ g.fechaApertura.slice(0, 10) }}</template
+                · apertura {{ fechaCorta(g.fechaApertura) }}</template
               >
-              <template v-if="g.fechaCierre"> · cierre {{ g.fechaCierre.slice(0, 10) }}</template>
+              <template v-if="g.fechaCierre"> · cierre {{ fechaCorta(g.fechaCierre) }}</template>
             </p>
           </div>
           <div class="flex flex-col items-end gap-1">

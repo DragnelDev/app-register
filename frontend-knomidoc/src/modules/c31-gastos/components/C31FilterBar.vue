@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FechaInput from '@/components/shared/FechaInput.vue'
 import BeneficiarioSelect from '@/components/shared/BeneficiarioSelect.vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import type { C31FilterState } from '@/types/c31.types'
@@ -322,11 +323,11 @@ const etiqueta = 'mb-1 block text-xs font-medium text-ink-500'
         </div>
         <div class="w-40">
           <label :class="etiqueta" for="c31-desde">Desde</label>
-          <input id="c31-desde" v-model="local.fechaDesde" type="date" :class="campo" />
+          <FechaInput id="c31-desde" v-model="local.fechaDesde" />
         </div>
         <div class="w-40">
           <label :class="etiqueta" for="c31-hasta">Hasta</label>
-          <input id="c31-hasta" v-model="local.fechaHasta" type="date" :class="campo" />
+          <FechaInput id="c31-hasta" v-model="local.fechaHasta" />
         </div>
         <div class="w-44">
           <label :class="etiqueta" for="c31-digi">Digitalización</label>

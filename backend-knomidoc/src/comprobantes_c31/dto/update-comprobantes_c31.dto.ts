@@ -1,4 +1,5 @@
-import { PartialType } from '@nestjs/swagger';
+import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 import { CreateComprobantesC31Dto } from './create-comprobantes_c31.dto';
 
 /**
@@ -8,4 +9,11 @@ import { CreateComprobantesC31Dto } from './create-comprobantes_c31.dto';
  */
 export class UpdateComprobantesC31Dto extends PartialType(
   CreateComprobantesC31Dto,
-) {}
+) {
+  /** Obligatorio al modificar un comprobante ya archivado: queda en la bitácora. */
+  @ApiPropertyOptional({ description: 'Motivo de la modificación (comprobante archivado)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  motivoModificacion?: string;
+}

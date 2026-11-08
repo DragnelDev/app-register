@@ -10,7 +10,7 @@ import { ComprobantesC31 } from '../../comprobantes_c31/entities/comprobantes_c3
 import { Usuario } from '../../usuarios/entities/usuario.entity';
 
 export type OrigenCambioC31 =
-  'REGISTRO' | 'MANUAL' | 'ACTA' | 'PRESTAMO' | 'SISTEMA';
+  'REGISTRO' | 'MANUAL' | 'ACTA' | 'PRESTAMO' | 'SISTEMA' | 'MODIFICACION';
 
 /** Bitácora de cambios de estado de cada comprobante (quién, cuándo y por qué). */
 @Entity('c31_historial')

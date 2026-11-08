@@ -72,9 +72,17 @@ watch(
   { immediate: true },
 )
 
-const siguientes = computed(() =>
-  props.comprobante ? TRANSICIONES_MANUALES[props.comprobante.estadoFisico] : [],
+const ESTADOS_REMITENTE = ['EN_TRAMITE', 'EN_REVISION']
+/** Archivo: siempre; remitente: solo mientras el comprobante no pase de Firmado */
+const puedeTrabajar = computed(
+  () =>
+    auth.puedeRegistrarC31 ||
+    (auth.esRemitente && ESTADOS_REMITENTE.includes(props.comprobante?.estadoFisico ?? '')),
 )
+const siguientes = computed(() => {
+  const todos = props.comprobante ? TRANSICIONES_MANUALES[props.comprobante.estadoFisico] : []
+  return auth.esRemitente ? todos.filter((e) => ESTADOS_REMITENTE.includes(e)) : todos
+})
 const requiereMotivo = computed(
   () => nuevoEstado.value === 'OBSERVADO' || nuevoEstado.value === 'ANULADO',
 )
@@ -114,13 +122,19 @@ async function confirmarEstado() {
   }
 }
 
-const tabs = [
+const TODAS_LAS_PESTANAS = [
   { id: 'datos', label: 'Datos' },
   { id: 'pagos', label: 'Pagos' },
   { id: 'seguimiento', label: 'Seguimiento y ubicación' },
   { id: 'union', label: 'Unión' },
   { id: 'adjuntos', label: 'Digitalización' },
 ] as const
+// El remitente solo ve sus datos y la vinculación (unión)
+const tabs = computed(() =>
+  auth.esRemitente
+    ? TODAS_LAS_PESTANAS.filter((t) => t.id === 'datos' || t.id === 'union')
+    : TODAS_LAS_PESTANAS,
+)
 </script>
 
 <template>
@@ -163,7 +177,14 @@ const tabs = [
             {{ comprobante.archivoAdjuntoUrl ? 'Digitalizado' : 'Pendiente de digitalizar' }}
           </span>
           <button
-            v-if="auth.puedeRegistrarC31 && siguientes.length && !cambiandoEstado"
+            type="button"
+            class="text-xs font-medium text-seal-600 hover:underline dark:text-seal-300"
+            @click="c31Service.fichaPdf(comprobante.id)"
+          >
+            <i class="fa-solid fa-file-pdf" aria-hidden="true" /> Ficha PDF
+          </button>
+          <button
+            v-if="puedeTrabajar && siguientes.length && !cambiandoEstado"
             type="button"
             class="text-xs font-medium text-seal-600 hover:underline dark:text-seal-300"
             @click="cambiandoEstado = true"
@@ -250,7 +271,7 @@ const tabs = [
       <C31DatosTab
         v-if="pestana === 'datos'"
         :comprobante="comprobante"
-        :puede-editar="auth.puedeRegistrarC31"
+        :puede-editar="puedeTrabajar"
       />
       <C31PagosTab
         v-else-if="pestana === 'pagos'"
@@ -261,7 +282,7 @@ const tabs = [
       <C31UnionTab
         v-else-if="pestana === 'union'"
         :comprobante="comprobante"
-        :puede-editar="auth.puedeRegistrarC31 && comprobante.estadoFisico !== 'ANULADO'"
+        :puede-editar="puedeTrabajar && comprobante.estadoFisico !== 'ANULADO'"
         @cambio="alCambiarUnion"
       />
       <C31AdjuntosTab

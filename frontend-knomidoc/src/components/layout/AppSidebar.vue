@@ -54,9 +54,24 @@ const navGroups = computed<NavGroup[]>(() => [
     title: 'Gestión SIGEP (Gastos)',
     divider: true,
     items: [
-      { to: '/c31/con-imputacion', label: 'C31 Con Imputación', icon: 'fa-file-circle-check' },
-      { to: '/c31/sin-imputacion', label: 'C31 Sin Imputación', icon: 'fa-file-circle-xmark' },
-      { to: '/c31/nuevo', label: 'Registrar Comprobante', icon: 'fa-circle-plus', roles: ARCHIVO },
+      {
+        to: '/c31/con-imputacion',
+        label: 'C31 Con Imputación',
+        icon: 'fa-file-circle-check',
+        roles: [...ARCHIVO_Y_CONSULTA, 'ENCARGADO_PRESTAMOS', 'REMITENTE_C31'],
+      },
+      {
+        to: '/c31/sin-imputacion',
+        label: 'C31 Sin Imputación',
+        icon: 'fa-file-circle-xmark',
+        roles: [...ARCHIVO_Y_CONSULTA, 'ENCARGADO_PRESTAMOS', 'REMITENTE_C31'],
+      },
+      {
+        to: '/c31/nuevo',
+        label: 'Registrar Comprobante',
+        icon: 'fa-circle-plus',
+        roles: [...ARCHIVO, 'REMITENTE_C31'],
+      },
       { to: '/pagos', label: 'Pagos', icon: 'fa-money-check-dollar' },
       {
         to: '/beneficiarios',

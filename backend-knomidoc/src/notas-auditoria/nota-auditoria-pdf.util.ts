@@ -51,6 +51,7 @@ export function notaAuditoriaPdf(n: NotaAuditoria): Promise<Buffer> {
   if (n.via?.nombre) fila('VIA', [n.via.nombre, n.via.cargo]);
   fila('DE', [n.remitente?.nombre ?? '', n.remitente?.cargo ?? '']);
   fila('REF.', [n.referencia ?? '']);
+  if (n.notasPrestamo?.length) fila('NOTA(S)', [n.notasPrestamo.join(', ')]);
   doc
     .moveTo(izq, doc.y)
     .lineTo(izq + ancho, doc.y)

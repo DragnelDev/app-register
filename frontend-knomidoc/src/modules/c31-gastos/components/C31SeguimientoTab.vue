@@ -28,6 +28,7 @@ const ORIGEN: Record<string, string> = {
   ACTA: 'Acta de entrega',
   PRESTAMO: 'Préstamo',
   SISTEMA: 'Ubicación / sistema',
+  MODIFICACION: 'Modificación de datos',
 }
 </script>
 
@@ -225,6 +226,12 @@ const ORIGEN: Record<string, string> = {
               class="text-ink-900 dark:text-white"
             >
               <strong>Movimiento de ubicación</strong>
+            </p>
+            <p
+              v-else-if="h.origen === 'MODIFICACION'"
+              class="text-ink-900 dark:text-white"
+            >
+              <strong>Datos modificados</strong>
             </p>
             <p v-else class="text-ink-900 dark:text-white">
               <template v-if="h.estadoAnterior"

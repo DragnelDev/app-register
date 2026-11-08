@@ -68,8 +68,22 @@ export const bs = (n: number | null | undefined) =>
     Number(n ?? 0),
   )
 
-export const fechaCorta = (v?: string | null) =>
-  v ? new Date(v.length <= 10 ? `${v}T00:00:00` : v).toLocaleDateString('es-BO') : '—'
+const dos = (n: number) => String(n).padStart(2, '0')
 
-export const fechaHora = (v?: string | null) =>
-  v ? new Date(v).toLocaleString('es-BO', { dateStyle: 'short', timeStyle: 'short' }) : '—'
+/** dd/mm/aaaa (día, mes y año; siempre en ese orden) */
+export const fechaCorta = (v?: string | null) => {
+  if (!v) return '—'
+  if (v.length <= 10) {
+    const [y, m, d] = v.split('-')
+    return y && m && d ? `${d}/${m}/${y}` : '—'
+  }
+  const f = new Date(v)
+  return Number.isNaN(f.getTime()) ? '—' : `${dos(f.getDate())}/${dos(f.getMonth() + 1)}/${f.getFullYear()}`
+}
+
+/** dd/mm/aaaa hh:mm (24 h) */
+export const fechaHora = (v?: string | null) => {
+  if (!v) return '—'
+  const f = new Date(v)
+  return Number.isNaN(f.getTime()) ? '—' : `${fechaCorta(v)} ${dos(f.getHours())}:${dos(f.getMinutes())}`
+}

@@ -25,6 +25,7 @@ import { UnirComprobantesC31Dto } from './dto/unir-comprobantes_c31.dto';
 import { CambiarEstadoC31Dto } from './dto/cambiar-estado-comprobantes_c31.dto';
 import { C31SeguimientoService } from './c31-seguimiento.service';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { AbiertoATodosLosPerfiles } from '../auth/decorators/abierto-a-todos.decorator';
 import { Usuario } from '../usuarios/entities/usuario.entity';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
@@ -37,7 +38,7 @@ export class ComprobantesC31Controller {
     private readonly seguimientoService: C31SeguimientoService,
   ) {}
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS', 'REMITENTE_C31')
   @Post()
   create(
     @Body() dto: CreateComprobantesC31Dto,
@@ -47,21 +48,39 @@ export class ComprobantesC31Controller {
   }
 
   /** Une comprobantes que vienen como uno solo (PREV + PREV, PREV + DEV). */
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS', 'REMITENTE_C31')
   @Post('unir')
-  unir(@Body() dto: UnirComprobantesC31Dto) {
-    return this.comprobantesC31Service.unir(dto.comprobanteIds);
+  unir(@Body() dto: UnirComprobantesC31Dto, @CurrentUser() usuario: Usuario) {
+    return this.comprobantesC31Service.unir(dto.comprobanteIds, usuario);
   }
 
+  @AbiertoATodosLosPerfiles()
   @Get()
-  findAll(@Query() query: FilterComprobantesC31Dto) {
-    return this.comprobantesC31Service.findAll(query);
+  findAll(
+    @Query() query: FilterComprobantesC31Dto,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    return this.comprobantesC31Service.findAll(query, usuario);
   }
 
   // Las rutas fijas van antes de ':id' para que no se interpreten como un id
+  @AbiertoATodosLosPerfiles()
   @Get('gestiones')
   findGestiones() {
     return this.comprobantesC31Service.findGestiones();
+  }
+
+  @AbiertoATodosLosPerfiles()
+  @Get('pdf')
+  async listadoPdf(
+    @Query() query: FilterComprobantesC31Dto,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    const buffer = await this.comprobantesC31Service.listadoPdf(query, usuario);
+    return new StreamableFile(buffer, {
+      type: 'application/pdf',
+      disposition: 'inline; filename="listado-comprobantes-c31.pdf"',
+    });
   }
 
   @Roles(...ROLES_REPORTES)
@@ -93,20 +112,41 @@ export class ComprobantesC31Controller {
     return this.comprobantesC31Service.importExcel(file.buffer, anio, usuario);
   }
 
+  @AbiertoATodosLosPerfiles()
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.comprobantesC31Service.findOne(id);
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    return this.comprobantesC31Service.findOne(id, usuario);
   }
 
+  @AbiertoATodosLosPerfiles()
+  @Get(':id/pdf')
+  async fichaPdf(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    const buffer = await this.comprobantesC31Service.fichaPdf(id, usuario);
+    return new StreamableFile(buffer, {
+      type: 'application/pdf',
+      disposition: `inline; filename="ficha-c31-${id}.pdf"`,
+    });
+  }
+
+  @AbiertoATodosLosPerfiles()
   @Get(':id/grupo')
   grupo(@Param('id', ParseIntPipe) id: number) {
     return this.comprobantesC31Service.grupoDe(id);
   }
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS', 'REMITENTE_C31')
   @Delete(':id/grupo')
-  separar(@Param('id', ParseIntPipe) id: number) {
-    return this.comprobantesC31Service.separar(id);
+  separar(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    return this.comprobantesC31Service.separar(id, usuario);
   }
 
   /** Bitácora de estados y detalle de préstamos del comprobante. */
@@ -115,7 +155,7 @@ export class ComprobantesC31Controller {
     return this.seguimientoService.obtener(id);
   }
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS', 'REMITENTE_C31')
   @Patch(':id/estado')
   cambiarEstado(
     @Param('id', ParseIntPipe) id: number,
@@ -125,7 +165,7 @@ export class ComprobantesC31Controller {
     return this.comprobantesC31Service.cambiarEstado(id, dto, usuario);
   }
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS', 'REMITENTE_C31')
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,

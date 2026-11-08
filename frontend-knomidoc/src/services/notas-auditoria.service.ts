@@ -14,12 +14,33 @@ export interface NotaAuditoria {
   secciones: SeccionNota[]
   cierre: string
   gestion?: number | null
+  notasPrestamo?: string[]
+}
+export interface NotaPrestamoResumen {
+  numero: string
+  fecha: string
+  institucion: string | null
+  responsable: string | null
+  total: number
+}
+export interface NotaDesdePrestamos {
+  notasPrestamo: string[]
+  destinatario: string
+  institucion: string
+  referencia: string
+  secciones: SeccionNota[]
 }
 export type NotaAuditoriaPayload = Partial<Omit<NotaAuditoria, 'id'>>
 
 const R = '/notas-auditoria'
 export const notasAuditoriaService = {
   list: (search?: string) => apiClient.get<NotaAuditoria[]>(R, { params: { search } }).then((r) => r.data),
+  notasPrestamo: (search?: string) =>
+    apiClient.get<NotaPrestamoResumen[]>(`${R}/notas-prestamo`, { params: { search } }).then((r) => r.data),
+  desdePrestamos: (numeros: string[]) =>
+    apiClient
+      .get<NotaDesdePrestamos | null>(`${R}/desde-prestamos`, { params: { notas: numeros.join('|') } })
+      .then((r) => r.data),
   create: (p: NotaAuditoriaPayload) => apiClient.post<NotaAuditoria>(R, p).then((r) => r.data),
   update: (id: number, p: NotaAuditoriaPayload) => apiClient.patch<NotaAuditoria>(`${R}/${id}`, p).then((r) => r.data),
   remove: (id: number) => apiClient.delete(`${R}/${id}`).then((r) => r.data),

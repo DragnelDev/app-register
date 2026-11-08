@@ -24,6 +24,20 @@ export class NotasAuditoriaController {
   }
 
   @Roles(...LECTURA)
+  @Get('notas-prestamo')
+  notasPrestamo(@Query('search') search?: string) {
+    return this.service.notasPrestamo(search);
+  }
+
+  @Roles(...LECTURA)
+  @Get('desde-prestamos')
+  desdePrestamos(@Query('notas') notas: string) {
+    return this.service.desdePrestamos(
+      (notas ?? '').split('|').map((n) => n.trim()).filter(Boolean),
+    );
+  }
+
+  @Roles(...LECTURA)
   @Get(':id/pdf')
   async pdf(@Param('id', ParseIntPipe) id: number) {
     const buf = await this.service.pdf(id);
