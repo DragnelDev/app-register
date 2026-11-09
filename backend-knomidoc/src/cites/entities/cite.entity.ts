@@ -11,15 +11,11 @@ import { CiteAdjunto } from './cite-adjunto.entity';
 export const DIRECCIONES_CITE = ['EMITIDO', 'RECIBIDO'] as const;
 export type DireccionCite = (typeof DIRECCIONES_CITE)[number];
 
-export const TIPOS_CITE = [
-  'OF',
-  'INF',
-  'MEMO',
-  'NOTA',
-  'CARTA',
-  'CIRC',
-  'OTRO',
-] as const;
+/**
+ * Series documentales de la Unidad de Archivos. Cada serie tiene su propia numeración
+ * por gestión (001, 002...): GAMSL/ARCH/<SERIE>/OF-N° 001/2026.
+ */
+export const TIPOS_CITE = ['PS', 'AUD', 'CERT', 'INF', 'EXT', 'OF'] as const;
 export type TipoCite = (typeof TIPOS_CITE)[number];
 
 /**

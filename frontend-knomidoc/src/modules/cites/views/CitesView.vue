@@ -76,7 +76,7 @@ function nuevo(direccion: 'EMITIDO' | 'RECIBIDO') {
   editId.value = null
   Object.assign(f, {
     direccion,
-    tipo: direccion === 'EMITIDO' ? 'OF' : 'NOTA',
+    tipo: 'OF',
     cite: '',
     fecha: new Date().toLocaleDateString('en-CA'),
     contraparte: '',
@@ -212,6 +212,9 @@ const campo =
       <div v-if="puedeEscribir" class="flex gap-2">
         <BaseButton @click="nuevo('EMITIDO')">+ CITE emitido</BaseButton>
         <BaseButton variant="secondary" @click="nuevo('RECIBIDO')">+ CITE recibido</BaseButton>
+        <BaseButton variant="secondary" @click="citesService.exportar(filtros)"
+          >📊 Planilla Excel</BaseButton
+        >
       </div>
     </div>
 

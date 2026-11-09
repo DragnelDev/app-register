@@ -198,7 +198,7 @@ export class NotasAuditoriaService {
       .registrarSiNoExiste(
         {
           direccion: 'EMITIDO',
-          tipo: 'OF',
+          tipo: 'AUD',
           cite: nota.cite,
           fecha: nota.fecha,
           contraparte: nota.destinatario?.nombre ?? '',

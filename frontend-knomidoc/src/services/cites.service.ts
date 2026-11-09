@@ -52,13 +52,12 @@ export type CitePayload = Partial<
 }
 
 export const TIPOS_CITE = [
-  { value: 'OF', label: 'Oficio / Nota (OF)' },
-  { value: 'INF', label: 'Informe (INF)' },
-  { value: 'MEMO', label: 'Memorándum (MEMO)' },
-  { value: 'NOTA', label: 'Nota' },
-  { value: 'CARTA', label: 'Carta' },
-  { value: 'CIRC', label: 'Circular' },
-  { value: 'OTRO', label: 'Otro' },
+  { value: 'PS', label: 'PS · Planillas y Sueldos' },
+  { value: 'AUD', label: 'AUD · Auditoría' },
+  { value: 'CERT', label: 'CERT · Certificaciones' },
+  { value: 'INF', label: 'INF · Informes' },
+  { value: 'EXT', label: 'EXT · Correspondencia externa' },
+  { value: 'OF', label: 'OF · Oficios / General' },
 ]
 
 const R = '/cites'
@@ -78,6 +77,18 @@ export const citesService = {
     const fd = new FormData()
     archivos.forEach((a) => fd.append('files', a))
     return apiClient.post<Cite>(`${R}/${id}/archivos`, fd).then((r) => r.data)
+  },
+  /** Planilla de control en Excel (N° CITE, Fecha, Serie, Destinatario, Referencia), con los filtros activos. */
+  async exportar(f: CiteFiltros = {}) {
+    const r = await apiClient.get(`${R}/export`, { params: limpiar(f), responseType: 'blob' })
+    const url = URL.createObjectURL(new Blob([r.data]))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `planilla-cites-${f.gestion || 'todas'}.xlsx`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   },
   eliminarArchivo: (id: number, adjuntoId: number) =>
     apiClient.delete(`${R}/${id}/archivos/${adjuntoId}`),

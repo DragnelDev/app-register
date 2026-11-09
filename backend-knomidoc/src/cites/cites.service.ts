@@ -9,6 +9,7 @@ import { createReadStream, existsSync } from 'fs';
 import { mkdir, rename, unlink, writeFile } from 'fs/promises';
 import { dirname, join, resolve } from 'path';
 import type { Express } from 'express';
+import * as ExcelJS from 'exceljs';
 import { Repository } from 'typeorm';
 import {
   coincideFirma,
@@ -42,7 +43,7 @@ export class CitesService {
     private readonly adjuntos: Repository<CiteAdjunto>,
   ) {}
 
-  /** GAMSL/ARCH/OF-N° 004/2026 (el prefijo se configura con CITE_PREFIJO). */
+  /** GAMSL/ARCH/AUD/OF-N° 004/2026: serie propia, correlativo por serie y gestión (prefijo: CITE_PREFIJO). */
   private async siguiente(tipo: TipoCite, gestion: number) {
     const r = await this.repo
       .createQueryBuilder('c')
@@ -57,7 +58,7 @@ export class CitesService {
     const prefijo = process.env.CITE_PREFIJO ?? 'GAMSL/ARCH';
     return {
       n,
-      cite: `${prefijo}/${tipo}-N° ${String(n).padStart(3, '0')}/${gestion}`,
+      cite: `${prefijo}/${tipo}/OF-N° ${String(n).padStart(3, '0')}/${gestion}`,
     };
   }
 
@@ -115,13 +116,9 @@ export class CitesService {
   async findAll(f: FiltroCiteDto) {
     const page = Math.max(1, f.page ?? 1);
     const pageSize = Math.min(200, Math.max(1, f.pageSize ?? 25));
-
     const qb = this.repo
       .createQueryBuilder('c')
-      .leftJoin('c.adjuntos', 'adjunto')
-      .addSelect('COUNT(adjunto.id)', 'c_totalAdjuntos') // O mapearlo como propiedad
-      .groupBy('c.id'); // Necesario al usar COUNT con un leftJoin
-
+      .loadRelationIdAndMap('c.totalAdjuntos', 'c.adjuntos');
     if (f.gestion) qb.andWhere('c.gestion = :g', { g: f.gestion });
     if (f.direccion) qb.andWhere('c.direccion = :d', { d: f.direccion });
     if (f.tipo) qb.andWhere('c.tipo = :t', { t: f.tipo });
@@ -132,17 +129,54 @@ export class CitesService {
           s: `%${f.search.trim()}%`,
         },
       );
-
-    qb.orderBy('c.fecha', 'DESC')
+    const [data, total] = await qb
+      .orderBy('c.fecha', 'DESC')
       .addOrderBy('c.id', 'DESC')
       .skip((page - 1) * pageSize)
-      .take(pageSize);
-
-    // getManyAndCount con groupBy a veces requiere getRawAndEntities para asegurar los conteos,
-    // o puedes usar loadRelationIdAndMap si solo necesitas los IDs de los adjuntos:
-    const [data, total] = await qb.getManyAndCount();
-
+      .take(pageSize)
+      .getManyAndCount();
     return { data, total, page, pageSize };
+  }
+
+  async exportarPlanilla(f: FiltroCiteDto): Promise<Buffer> {
+    const qb = this.repo.createQueryBuilder('c');
+    if (f.gestion) qb.andWhere('c.gestion = :g', { g: f.gestion });
+    if (f.direccion) qb.andWhere('c.direccion = :d', { d: f.direccion });
+    if (f.tipo) qb.andWhere('c.tipo = :t', { t: f.tipo });
+    if (f.search?.trim())
+      qb.andWhere(
+        '(c.cite ILIKE :s OR c.asunto ILIKE :s OR c.contraparte ILIKE :s OR c.referencia ILIKE :s)',
+        {
+          s: `%${f.search.trim()}%`,
+        },
+      );
+    const filas = await qb
+      .orderBy('c.direccion', 'ASC')
+      .addOrderBy('c.tipo', 'ASC')
+      .addOrderBy('c.correlativo', 'ASC')
+      .addOrderBy('c.fecha', 'ASC')
+      .getMany();
+    const libro = new ExcelJS.Workbook();
+    const hoja = libro.addWorksheet('CITEs');
+    hoja.columns = [
+      { header: 'N° CITE', key: 'n', width: 34 },
+      { header: 'FECHA', key: 'fecha', width: 13 },
+      { header: 'SERIE', key: 'serie', width: 9 },
+      { header: 'DESTINATARIO', key: 'dest', width: 38 },
+      { header: 'REFERENCIA', key: 'ref', width: 60 },
+    ];
+    hoja.getRow(1).font = { bold: true };
+    for (const c of filas) {
+      const [y, m, d] = String(c.fecha).slice(0, 10).split('-');
+      hoja.addRow({
+        n: `${c.cite}${c.direccion === 'RECIBIDO' ? ' (recibido)' : ''}${c.estado === 'ANULADO' ? ' [ANULADO]' : ''}`,
+        fecha: `${d}/${m}/${y}`,
+        serie: c.tipo,
+        dest: c.contraparte,
+        ref: c.asunto,
+      });
+    }
+    return Buffer.from(await libro.xlsx.writeBuffer());
   }
 
   async findOne(id: number) {

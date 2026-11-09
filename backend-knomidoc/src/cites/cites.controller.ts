@@ -48,6 +48,17 @@ export class CitesController {
     return this.service.findAll(f);
   }
 
+  /** Planilla de control (N° CITE, Fecha, Serie, Destinatario, Referencia) con los filtros activos. */
+  @Roles(...LECTURA)
+  @Get('export')
+  async exportar(@Query() f: FiltroCiteDto) {
+    const buffer = await this.service.exportarPlanilla(f);
+    return new StreamableFile(buffer, {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      disposition: `attachment; filename="planilla-cites-${f.gestion ?? 'todas'}.xlsx"`,
+    });
+  }
+
   @Roles(...LECTURA)
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
