@@ -84,7 +84,10 @@ const siguientes = computed(() => {
   return auth.esRemitente ? todos.filter((e) => ESTADOS_REMITENTE.includes(e)) : todos
 })
 const requiereMotivo = computed(
-  () => nuevoEstado.value === 'OBSERVADO' || nuevoEstado.value === 'ANULADO',
+  () =>
+    nuevoEstado.value === 'OBSERVADO' ||
+    nuevoEstado.value === 'NO_ENCONTRADO' ||
+    nuevoEstado.value === 'ANULADO',
 )
 const ayudaActual = computed(
   () => ESTADOS_C31.find((e) => e.value === props.comprobante?.estadoFisico)?.ayuda ?? '',
@@ -174,9 +177,20 @@ const tabs = computed(() =>
           <BaseBadge :estado="comprobante.estadoFisico" />
           <span
             class="text-xs font-medium"
-            :class="comprobante.archivoAdjuntoUrl ? 'text-emerald-600 dark:text-emerald-300' : 'text-amber-600 dark:text-amber-300'"
+            :class="
+              comprobante.archivoAdjuntoUrl
+                ? 'text-emerald-600 dark:text-emerald-300'
+                : 'text-amber-600 dark:text-amber-300'
+            "
           >
-            <i :class="comprobante.archivoAdjuntoUrl ? 'fa-solid fa-circle-check' : 'fa-solid fa-hourglass-half'" aria-hidden="true" />
+            <i
+              :class="
+                comprobante.archivoAdjuntoUrl
+                  ? 'fa-solid fa-circle-check'
+                  : 'fa-solid fa-hourglass-half'
+              "
+              aria-hidden="true"
+            />
             {{ comprobante.archivoAdjuntoUrl ? 'Digitalizado' : 'Pendiente de digitalizar' }}
           </span>
           <button

@@ -3,6 +3,7 @@ import { fechaCorta, fechaHora } from '@/utils/estados'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
+import DigitalizacionModal from './DigitalizacionModal.vue'
 import IconButton from '@/components/ui/IconButton.vue'
 import { c31Service } from '@/services/c31.service'
 import { extractApiErrorMessage } from '@/utils/http-error'
@@ -23,6 +24,16 @@ const tipo = ref<TipoAdjuntoC31>('C31')
 const arrastrando = ref(false)
 const entrada = ref<HTMLInputElement | null>(null)
 
+// Digitalización rápida (fotos → PDF)
+const digitalizando = ref(false)
+const ultimoPdf = ref<{ adjunto: C31Adjunto; paginas: number } | null>(null)
+
+async function alDigitalizar(adjunto: C31Adjunto, paginas: number) {
+  ultimoPdf.value = { adjunto, paginas }
+  await cargar()
+  emit('cambio')
+}
+
 // Vista previa (PDF en iframe / imagen)
 const previewAbierta = ref(false)
 const previewUrl = ref('')
@@ -30,7 +41,9 @@ const previewNombre = ref('')
 const previewEsPdf = ref(false)
 
 const tamanoLegible = (n: number) =>
-  n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`
+  n >= 1024 * 1024
+    ? `${(n / 1024 / 1024).toFixed(1)} MB`
+    : `${Math.max(1, Math.round(n / 1024))} KB`
 
 const principal = computed(() => adjuntos.value.find((a) => a.tipo === 'C31'))
 
@@ -143,7 +156,10 @@ onBeforeUnmount(liberarPreview)
       "
       role="status"
     >
-      <i :class="principal ? 'fa-solid fa-circle-check' : 'fa-solid fa-hourglass-half'" aria-hidden="true" />
+      <i
+        :class="principal ? 'fa-solid fa-circle-check' : 'fa-solid fa-hourglass-half'"
+        aria-hidden="true"
+      />
       {{
         principal
           ? `Digitalizado el ${fechaCorta(principal.fechaCarga)}.`
@@ -151,13 +167,31 @@ onBeforeUnmount(liberarPreview)
       }}
     </div>
 
-    <p v-if="error" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">
+    <p
+      v-if="error"
+      class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300"
+    >
       {{ error }}
     </p>
 
+    <div
+      v-if="ultimoPdf"
+      class="flex flex-wrap items-center gap-3 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200"
+      role="status"
+    >
+      <span>PDF generado con {{ ultimoPdf.paginas }} página(s) y adjuntado al comprobante.</span>
+      <BaseButton size="sm" @click="previsualizar(ultimoPdf.adjunto)">Ver PDF</BaseButton>
+      <button type="button" class="text-xs underline" @click="ultimoPdf = null">Ocultar</button>
+    </div>
+
     <div v-if="puedeEditar" class="space-y-2">
+      <BaseButton size="sm" @click="digitalizando = true">
+        📷 Digitalización rápida (fotos → PDF)
+      </BaseButton>
       <div class="flex flex-wrap items-center gap-3 text-sm">
-        <label class="font-medium text-ink-700 dark:text-ink-200" for="adj-tipo">Tipo de archivo</label>
+        <label class="font-medium text-ink-700 dark:text-ink-200" for="adj-tipo"
+          >Tipo de archivo</label
+        >
         <select
           id="adj-tipo"
           v-model="tipo"
@@ -172,15 +206,13 @@ onBeforeUnmount(liberarPreview)
         :class="
           arrastrando
             ? 'border-seal-500 bg-seal-50 dark:bg-seal-400/10'
-            : 'border-ink-200 dark:border-white/15'
+            : 'border-ink-200 bg-transparent dark:border-white/15 dark:bg-white/[0.03]'
         "
         @dragover.prevent="arrastrando = true"
         @dragleave.prevent="arrastrando = false"
         @drop.prevent="alSoltar"
       >
-        <p class="text-ink-600 dark:text-ink-300">
-          Arrastre aquí el PDF o las imágenes, o
-        </p>
+        <p class="text-ink-600 dark:text-ink-300">Arrastre aquí el PDF o las imágenes, o</p>
         <BaseButton size="sm" :loading="subiendo" @click="entrada?.click()">
           Seleccionar archivos
         </BaseButton>
@@ -200,30 +232,66 @@ onBeforeUnmount(liberarPreview)
     <p v-else-if="!adjuntos.length" class="text-sm text-ink-400">
       Este comprobante no tiene archivos digitalizados.
     </p>
-    <ul v-else class="divide-y divide-ink-100 rounded-md border border-ink-100 dark:divide-white/10 dark:border-white/10">
+    <ul
+      v-else
+      class="divide-y divide-ink-100 rounded-md border border-ink-100 dark:divide-white/10 dark:border-white/10"
+    >
       <li v-for="a in adjuntos" :key="a.id" class="flex flex-wrap items-center gap-3 px-3 py-2">
         <i
-          :class="a.mimeType === 'application/pdf' ? 'fa-solid fa-file-pdf text-red-500' : 'fa-solid fa-file-image text-sky-500'"
+          :class="
+            a.mimeType === 'application/pdf'
+              ? 'fa-solid fa-file-pdf text-red-500'
+              : 'fa-solid fa-file-image text-sky-500'
+          "
           aria-hidden="true"
         />
         <div class="min-w-0 flex-1">
-          <p class="truncate text-sm font-medium text-ink-900 dark:text-ink-100">{{ a.nombreOriginal }}</p>
+          <p class="truncate text-sm font-medium text-ink-900 dark:text-ink-100">
+            {{ a.nombreOriginal }}
+          </p>
           <p class="text-xs text-ink-400">
             {{ a.tipo === 'C31' ? 'C31 escaneado' : 'Respaldo' }} · {{ tamanoLegible(a.tamano) }} ·
             {{ fechaHora(a.fechaCarga) }}
           </p>
         </div>
         <div class="flex gap-1">
-          <IconButton icon="fa-eye" label="Vista previa" variant="primary" @click="previsualizar(a)" />
+          <IconButton
+            icon="fa-eye"
+            label="Vista previa"
+            variant="primary"
+            @click="previsualizar(a)"
+          />
           <IconButton icon="fa-download" label="Descargar" @click="descargar(a)" />
-          <IconButton v-if="puedeEditar" icon="fa-trash" label="Eliminar" variant="danger" @click="eliminar(a)" />
+          <IconButton
+            v-if="puedeEditar"
+            icon="fa-trash"
+            label="Eliminar"
+            variant="danger"
+            @click="eliminar(a)"
+          />
         </div>
       </li>
     </ul>
 
-    <BaseModal :model-value="previewAbierta" :title="previewNombre" size="lg" @update:model-value="cerrarPreview">
-      <iframe v-if="previewEsPdf" :src="previewUrl" class="h-[65vh] w-full rounded border-0" :title="previewNombre" />
+    <BaseModal
+      :model-value="previewAbierta"
+      :title="previewNombre"
+      size="lg"
+      @update:model-value="cerrarPreview"
+    >
+      <iframe
+        v-if="previewEsPdf"
+        :src="previewUrl"
+        class="h-[65vh] w-full rounded border-0"
+        :title="previewNombre"
+      />
       <img v-else :src="previewUrl" :alt="previewNombre" class="mx-auto max-h-[65vh] rounded" />
     </BaseModal>
+
+    <DigitalizacionModal
+      v-model="digitalizando"
+      :comprobante-id="comprobanteId"
+      @listo="alDigitalizar"
+    />
   </div>
 </template>

@@ -207,14 +207,29 @@ onMounted(cargar)
       <div class="card space-y-3 p-5">
         <h2 class="text-base font-semibold">Foto de perfil</h2>
         <p v-if="errFoto" class="text-sm text-red-600" role="alert">{{ errFoto }}</p>
-        <p v-if="msgFoto" class="text-sm text-emerald-600 dark:text-emerald-400" role="status">{{ msgFoto }}</p>
+        <p v-if="msgFoto" class="text-sm text-emerald-600 dark:text-emerald-400" role="status">
+          {{ msgFoto }}
+        </p>
         <div class="flex flex-wrap items-end gap-3">
-          <input ref="inputArchivo" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" @change="alElegirArchivo" />
-          <BaseButton type="button" variant="secondary" :loading="guardandoFoto" @click="inputArchivo?.click()">
+          <input
+            ref="inputArchivo"
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            class="hidden"
+            @change="alElegirArchivo"
+          />
+          <BaseButton
+            type="button"
+            variant="secondary"
+            :loading="guardandoFoto"
+            @click="inputArchivo?.click()"
+          >
             <i class="fa-solid fa-upload mr-1" aria-hidden="true" /> Subir imagen
           </BaseButton>
           <div class="min-w-[240px] flex-1">
-            <label class="mb-1 block text-xs font-medium text-ink-500" for="foto-url">o pegar una URL</label>
+            <label class="mb-1 block text-xs font-medium text-ink-500" for="foto-url"
+              >o pegar una URL</label
+            >
             <div class="flex gap-2">
               <input
                 id="foto-url"
@@ -224,12 +239,26 @@ onMounted(cargar)
                 class="w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
                 @keydown.enter.prevent="usarUrl"
               />
-              <BaseButton type="button" variant="secondary" :disabled="!fotoUrl.trim()" @click="usarUrl">Usar</BaseButton>
+              <BaseButton
+                type="button"
+                variant="secondary"
+                :disabled="!fotoUrl.trim()"
+                @click="usarUrl"
+                >Usar</BaseButton
+              >
             </div>
           </div>
-          <BaseButton v-if="perfil.foto" type="button" variant="ghost" @click="guardarFoto('', 'Foto eliminada.')">Quitar foto</BaseButton>
+          <BaseButton
+            v-if="perfil.foto"
+            type="button"
+            variant="ghost"
+            @click="guardarFoto('', 'Foto eliminada.')"
+            >Quitar foto</BaseButton
+          >
         </div>
-        <p class="text-xs text-ink-400">La imagen subida se recorta en cuadrado y se reduce automáticamente.</p>
+        <p class="text-xs text-ink-400">
+          La imagen subida se recorta en cuadrado y se reduce automáticamente.
+        </p>
       </div>
 
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">

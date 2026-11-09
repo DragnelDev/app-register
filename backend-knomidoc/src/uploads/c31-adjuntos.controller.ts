@@ -9,9 +9,10 @@ import {
   Query,
   StreamableFile,
   UploadedFile,
+  UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -25,7 +26,12 @@ import { IsIn, IsOptional } from 'class-validator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Usuario } from '../usuarios/entities/usuario.entity';
-import { C31AdjuntosService, MAX_ADJUNTO_BYTES } from './c31-adjuntos.service';
+import {
+  C31AdjuntosService,
+  MAX_ADJUNTO_BYTES,
+  MAX_IMAGEN_BYTES,
+  MAX_IMAGENES_DIGITALIZACION,
+} from './c31-adjuntos.service';
 import {
   TIPOS_ADJUNTO_C31,
   TipoAdjuntoC31,
@@ -82,6 +88,43 @@ export class C31AdjuntosController {
     return this.service.subir(
       comprobanteId,
       file,
+      dto.tipo ?? TipoAdjuntoC31.C31,
+      usuario,
+    );
+  }
+
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
+  @Post('digitalizar')
+  @ApiOperation({
+    summary:
+      'Digitalización rápida: une varias imágenes (en orden) en un PDF y lo adjunta',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['files'],
+      properties: {
+        files: { type: 'array', items: { type: 'string', format: 'binary' } },
+        tipo: { type: 'string', enum: TIPOS_ADJUNTO_C31, default: 'C31' },
+      },
+    },
+  })
+  @UseInterceptors(
+    FilesInterceptor('files', MAX_IMAGENES_DIGITALIZACION, {
+      storage: memoryStorage(),
+      limits: { fileSize: MAX_IMAGEN_BYTES },
+    }),
+  )
+  digitalizar(
+    @Param('comprobanteId', ParseIntPipe) comprobanteId: number,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Body() dto: SubirAdjuntoDto,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    return this.service.digitalizar(
+      comprobanteId,
+      files,
       dto.tipo ?? TipoAdjuntoC31.C31,
       usuario,
     );

@@ -7,7 +7,11 @@ import { extractApiErrorMessage } from '@/utils/http-error'
 import type { PrestamoCuaderno } from '@/types/prestamos.types'
 
 /** Evidencia (foto del cuaderno firmado) de un préstamo: ver, subir o reemplazar. Una por lote. */
-const props = defineProps<{ modelValue: boolean; prestamo: PrestamoCuaderno | null; puedeEditar: boolean }>()
+const props = defineProps<{
+  modelValue: boolean
+  prestamo: PrestamoCuaderno | null
+  puedeEditar: boolean
+}>()
 const emit = defineEmits<{ 'update:modelValue': [boolean]; changed: [] }>()
 
 type Momento = 'salida' | 'devolucion'
@@ -38,7 +42,10 @@ async function cargar() {
     }
   }
 }
-watch(() => [props.modelValue, props.prestamo?.id], () => props.modelValue && cargar())
+watch(
+  () => [props.modelValue, props.prestamo?.id],
+  () => props.modelValue && cargar(),
+)
 onBeforeUnmount(liberar)
 
 async function elegir(m: Momento, e: Event) {
@@ -46,7 +53,8 @@ async function elegir(m: Momento, e: Event) {
   const archivo = input.files?.[0]
   input.value = ''
   if (!archivo || !props.prestamo) return
-  if (!/^image\/(jpeg|png|webp)$/.test(archivo.type)) return (error.value = 'Elija una imagen JPG, PNG o WEBP')
+  if (!/^image\/(jpeg|png|webp)$/.test(archivo.type))
+    return (error.value = 'Elija una imagen JPG, PNG o WEBP')
   if (archivo.size > 10 * 1024 * 1024) return (error.value = 'La imagen supera los 10 MB')
   cargando.value = m
   error.value = ''
@@ -65,19 +73,35 @@ async function elegir(m: Momento, e: Event) {
 </script>
 
 <template>
-  <BaseModal :model-value="modelValue" size="lg" title="Evidencia del préstamo" @update:model-value="emit('update:modelValue', $event)">
+  <BaseModal
+    :model-value="modelValue"
+    size="lg"
+    title="Evidencia del préstamo"
+    @update:model-value="emit('update:modelValue', $event)"
+  >
     <p v-if="error" class="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{{ error }}</p>
     <p class="mb-3 text-xs text-ink-500">
-      Foto del cuaderno firmado. Es una por préstamo (aplica a todos los comprobantes que salieron juntos).
+      Foto del cuaderno firmado. Es una por préstamo (aplica a todos los comprobantes que salieron
+      juntos).
     </p>
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <section v-for="m in (['salida', 'devolucion'] as const)" :key="m" class="rounded-lg border border-ink-100 p-3 dark:border-white/10">
+      <section
+        v-for="m in ['salida', 'devolucion'] as const"
+        :key="m"
+        class="rounded-lg border border-ink-100 p-3 dark:border-white/10"
+      >
         <h3 class="mb-2 text-sm font-semibold">{{ m === 'salida' ? 'Salida' : 'Devolución' }}</h3>
         <a v-if="urls[m]" :href="urls[m]" target="_blank" rel="noopener">
-          <img :src="urls[m]" :alt="`Evidencia de ${m}`" class="max-h-64 w-full rounded-md object-contain" />
+          <img
+            :src="urls[m]"
+            :alt="`Evidencia de ${m}`"
+            class="max-h-64 w-full rounded-md object-contain"
+          />
         </a>
         <p v-else class="py-8 text-center text-xs text-ink-400">
-          {{ m === 'devolucion' && !prestamo?.devuelto ? 'Aún no se devolvió' : 'Sin imagen cargada' }}
+          {{
+            m === 'devolucion' && !prestamo?.devuelto ? 'Aún no se devolvió' : 'Sin imagen cargada'
+          }}
         </p>
         <label
           v-if="puedeEditar && (m === 'salida' || prestamo?.devuelto)"
@@ -85,7 +109,13 @@ async function elegir(m: Momento, e: Event) {
         >
           <i class="fa-solid fa-camera" aria-hidden="true" />
           {{ cargando === m ? 'Subiendo…' : tiene[m] ? 'Reemplazar imagen' : 'Subir imagen' }}
-          <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" :disabled="cargando !== null" @change="elegir(m, $event)" />
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            class="sr-only"
+            :disabled="cargando !== null"
+            @change="elegir(m, $event)"
+          />
         </label>
       </section>
     </div>

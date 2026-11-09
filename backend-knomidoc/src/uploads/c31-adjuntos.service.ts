@@ -14,6 +14,7 @@ import { C31Adjunto, TipoAdjuntoC31 } from './entities/c31-adjunto.entity';
 import { ComprobantesC31 } from '../comprobantes_c31/entities/comprobantes_c31.entity';
 import { Usuario } from '../usuarios/entities/usuario.entity';
 import { rotuloC31 } from '../common/utils/identificador-c31.util';
+import { imagenesAPdf } from './imagenes-pdf.util';
 import { adjuntarRotuloGrupo } from '../common/utils/rotulo-grupo.util';
 
 /**
@@ -25,6 +26,10 @@ export const C31_STORAGE_DIR = resolve(
 );
 
 export const MAX_ADJUNTO_BYTES = 20 * 1024 * 1024;
+/** Digitalización rápida (fotos → PDF) */
+export const MAX_IMAGENES_DIGITALIZACION = 40;
+export const MAX_IMAGEN_BYTES = 15 * 1024 * 1024;
+export const MAX_TOTAL_DIGITALIZACION = 80 * 1024 * 1024;
 
 export const TIPOS_PERMITIDOS: Record<
   string,
@@ -139,6 +144,73 @@ export class C31AdjuntosService {
       await unlink(join(C31_STORAGE_DIR, nombreArchivo)).catch(() => undefined);
       throw e;
     }
+  }
+
+  /**
+   * Digitalización rápida: une varias fotos/escaneos (JPG o PNG, en el orden
+   * recibido) en un único PDF y lo adjunta al comprobante como cualquier otro
+   * archivo (si es de tipo C31 pasa a ser el principal y marca "digitalizado").
+   */
+  async digitalizar(
+    comprobanteId: number,
+    imagenes: Express.Multer.File[] | undefined,
+    tipo: TipoAdjuntoC31,
+    usuario?: Usuario,
+  ) {
+    if (!imagenes?.length) {
+      throw new BadRequestException('Seleccione al menos una imagen');
+    }
+    if (imagenes.length > MAX_IMAGENES_DIGITALIZACION) {
+      throw new BadRequestException(
+        `Máximo ${MAX_IMAGENES_DIGITALIZACION} imágenes por PDF`,
+      );
+    }
+    const total = imagenes.reduce((s, f) => s + (f.size ?? 0), 0);
+    if (total > MAX_TOTAL_DIGITALIZACION) {
+      throw new BadRequestException(
+        `El peso total supera ${MAX_TOTAL_DIGITALIZACION / 1024 / 1024} MB: elimine o reduzca algunas imágenes`,
+      );
+    }
+    for (const f of imagenes) {
+      if (!['image/jpeg', 'image/png'].includes(f.mimetype)) {
+        throw new BadRequestException(
+          `“${f.originalname}”: solo se admiten imágenes JPG o PNG`,
+        );
+      }
+      if (!f.buffer?.length || !coincideFirma(f.buffer, f.mimetype)) {
+        throw new BadRequestException(
+          `“${f.originalname}” no es una imagen válida`,
+        );
+      }
+    }
+    await this.exigirComprobante(comprobanteId);
+
+    let pdf: Buffer;
+    try {
+      pdf = await imagenesAPdf(imagenes.map((f) => f.buffer));
+    } catch {
+      throw new BadRequestException(
+        'No se pudo generar el PDF: alguna imagen está dañada o tiene un formato no soportado',
+      );
+    }
+    const nombre = `digitalizacion-${Date.now()}.pdf`;
+    const adjunto = await this.subir(
+      comprobanteId,
+      {
+        buffer: pdf,
+        mimetype: 'application/pdf',
+        originalname: nombre,
+        size: pdf.length,
+      } as Express.Multer.File,
+      tipo,
+      usuario,
+    );
+    return {
+      ok: true,
+      paginas: imagenes.length,
+      adjunto,
+      url: urlArchivo(comprobanteId, adjunto.id as number),
+    };
   }
 
   /**

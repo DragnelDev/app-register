@@ -12,10 +12,10 @@ import C31FilterBar from '../components/C31FilterBar.vue'
 import C31DetailModal from '../components/C31DetailModal.vue'
 import { useC31Store } from '@/stores/c31.store'
 import { useAuthStore } from '@/stores/auth.store'
-import type { ComprobanteC31, C31FilterState } from '@/types/c31.types'
+import type { ComprobanteC31, C31FilterState, C31ImportResult } from '@/types/c31.types'
 import { esDigitalizado, rotuloC31 } from '@/types/c31.types'
 import { useGestionStore } from '@/stores/gestion.store'
-import { extractApiErrorMessage } from '@/utils/http-error.ts'
+import { extractApiErrorMessage } from '@/utils/http-error'
 
 const gestionStore = useGestionStore()
 
@@ -85,37 +85,60 @@ function openImportPicker() {
   fileInput.value?.click()
 }
 
+const archivoPendiente = ref<File | null>(null)
+const vistaPrevia = ref<C31ImportResult | null>(null)
+
+function gestionImport() {
+  const gestion = Number(store.filters.gestion || new Date().getFullYear())
+  if (!gestion) throw new Error('Seleccione una gestión válida')
+  return gestion
+}
+
+// Paso 1: lee el Excel y muestra qué se detectó, sin guardar nada
 async function handleImportChange(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
-
   importing.value = true
   importFeedback.value = ''
-
+  vistaPrevia.value = null
   try {
-    const gestion = Number(store.filters.gestion || new Date().getFullYear())
-    if (!gestion) {
-      throw new Error('Seleccione una gestión válida')
-    }
-
-    const resultado = await store.importExcel(file, gestion)
-    const detalle = resultado.errores
-      .slice(0, 8)
-      .map((e) => `Fila ${e.fila}: ${e.motivo}`)
-      .join('\n')
-    const mensaje = resultado.errores.length
-      ? `Importación finalizada: ${resultado.creados} comprobantes cargados y ${resultado.errores.length} con error.\n${detalle}${resultado.errores.length > 8 ? '\n…' : ''}`
-      : `Importación finalizada: ${resultado.creados} comprobantes cargados.`
-    importFeedback.value = mensaje
+    vistaPrevia.value = await store.importExcel(file, gestionImport(), true)
+    archivoPendiente.value = file
   } catch (error) {
     importFeedback.value = extractApiErrorMessage(
       error,
-      'No se pudo importar el archivo. Revise el formato del Excel.',
+      'No se pudo leer el archivo. Revise el formato del Excel.',
     )
   } finally {
     importing.value = false
     input.value = ''
+  }
+}
+
+function cancelarImportacion() {
+  vistaPrevia.value = null
+  archivoPendiente.value = null
+}
+
+// Paso 2: confirma y guarda
+async function confirmarImportacion() {
+  if (!archivoPendiente.value) return
+  importing.value = true
+  try {
+    const r = await store.importExcel(archivoPendiente.value, gestionImport(), false)
+    const detalle = r.errores
+      .slice(0, 8)
+      .map((e) => `Fila ${e.fila}: ${e.motivo}`)
+      .join('\n')
+    importFeedback.value =
+      `Importación finalizada: ${r.creados} comprobantes cargados, ${r.omitidos.length} omitidos por duplicado y ${r.errores.length} con error.` +
+      (detalle ? `\n${detalle}${r.errores.length > 8 ? '\n…' : ''}` : '')
+    cancelarImportacion()
+  } catch (error) {
+    importFeedback.value = extractApiErrorMessage(error, 'No se pudo importar el archivo.')
+  } finally {
+    importing.value = false
   }
 }
 
@@ -187,7 +210,7 @@ onMounted(() => {
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <BaseButton
-          v-if="auth.puedeRegistrarC31"
+          v-if="auth.puedeImportar"
           variant="secondary"
           size="sm"
           :loading="importing"
@@ -230,6 +253,73 @@ onMounted(() => {
       class="hidden"
       @change="handleImportChange"
     />
+
+    <section
+      v-if="vistaPrevia"
+      class="space-y-3 rounded-lg border border-ink-200 bg-white p-4 dark:border-white/10 dark:bg-ink-900"
+    >
+      <h3 class="text-sm font-semibold text-ink-800 dark:text-ink-100">
+        Vista previa de la importación (aún no se guardó nada)
+      </h3>
+      <p class="text-sm text-ink-600 dark:text-ink-300">
+        {{ vistaPrevia.total }} filas leídas · <b>{{ vistaPrevia.porCrear }}</b> se cargarán ·
+        {{ vistaPrevia.omitidos.length }} ya existen (se omiten) ·
+        {{ vistaPrevia.errores.length }} con error
+      </p>
+      <div class="max-h-72 overflow-auto rounded-md border border-ink-100 dark:border-white/10">
+        <table class="w-full text-left text-xs">
+          <thead class="sticky top-0 bg-ink-50 text-ink-600 dark:bg-ink-950 dark:text-ink-300">
+            <tr>
+              <th class="px-2 py-1.5">Fila</th>
+              <th class="px-2 py-1.5">PREV</th>
+              <th class="px-2 py-1.5">DEV</th>
+              <th class="px-2 py-1.5">Carpetas</th>
+              <th class="px-2 py-1.5">Estado</th>
+              <th class="px-2 py-1.5">Avisos</th>
+            </tr>
+          </thead>
+          <tbody
+            class="divide-y divide-ink-100 text-ink-700 dark:divide-white/10 dark:text-ink-200"
+          >
+            <tr v-for="f in vistaPrevia.filas" :key="f.hoja + f.fila">
+              <td class="px-2 py-1">{{ f.fila }}</td>
+              <td class="px-2 py-1">{{ f.preventivos.join(' · ') || '—' }}</td>
+              <td class="px-2 py-1">{{ f.devengados.join(' · ') || '—' }}</td>
+              <td class="px-2 py-1">{{ f.carpetas.join(' · ') || '—' }}</td>
+              <td
+                class="px-2 py-1 font-medium"
+                :class="
+                  f.estado === 'OK'
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : f.estado === 'DUPLICADO'
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-red-600 dark:text-red-400'
+                "
+              >
+                {{
+                  f.estado === 'OK'
+                    ? 'Se cargará'
+                    : f.estado === 'DUPLICADO'
+                      ? 'Ya existe'
+                      : 'Error'
+                }}
+              </td>
+              <td class="px-2 py-1">{{ f.advertencias.join(' | ') }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="flex gap-2">
+        <BaseButton
+          :loading="importing"
+          :disabled="!vistaPrevia.porCrear"
+          @click="confirmarImportacion"
+        >
+          Confirmar e importar {{ vistaPrevia.porCrear }}
+        </BaseButton>
+        <BaseButton variant="secondary" @click="cancelarImportacion">Cancelar</BaseButton>
+      </div>
+    </section>
 
     <p v-if="importFeedback" class="whitespace-pre-line text-sm text-ink-600 dark:text-ink-300">
       {{ importFeedback }}

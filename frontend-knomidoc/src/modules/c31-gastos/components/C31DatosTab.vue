@@ -312,7 +312,7 @@ const titulo = 'mb-1 font-semibold text-ink-700 dark:text-ink-200'
           size="sm"
           :disabled="guardando"
           @click="
-            editando = false;
+            editando = false,
             cargar()
           "
           >Cancelar</BaseButton

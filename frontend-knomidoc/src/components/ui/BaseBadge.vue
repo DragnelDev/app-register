@@ -24,6 +24,7 @@ const stylesByEstado: Record<string, string> = {
   PRESTADO: azul,
   OBSERVADO: naranja,
   ANULADO: rojo,
+  NO_ENCONTRADO: rojo,
   // préstamos
   ENTREGADO: azul,
   DEVUELTO: verde,
@@ -44,6 +45,7 @@ const labelByEstado: Record<string, string> = {
   PRESTADO: 'Prestado',
   OBSERVADO: 'Observado',
   ANULADO: 'Anulado',
+  NO_ENCONTRADO: 'No se encuentra en archivos',
   DEVUELTO: 'Devuelto',
   ENTREGADO: 'Prestado',
   BORRADOR: 'Borrador',

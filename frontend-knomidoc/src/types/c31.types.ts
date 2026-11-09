@@ -185,9 +185,25 @@ export interface C31FilterState {
 }
 
 /** Resultado de una importación masiva desde Excel */
+export interface C31ImportFila {
+  fila: number
+  hoja: string
+  preventivos: string[]
+  devengados: string[]
+  carpetas: string[]
+  monto: number | null
+  estado: 'OK' | 'DUPLICADO' | 'ERROR'
+  advertencias: string[]
+}
+
 export interface C31ImportResult {
+  simulacion: boolean
   creados: number
+  porCrear: number
+  total: number
+  omitidos: { fila: number; motivo: string }[]
   errores: { fila: number; motivo: string }[]
+  filas: C31ImportFila[]
 }
 
 /** Un préstamo del comprobante, con todo el detalle de quién, cuándo y en qué condición. */

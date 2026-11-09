@@ -11,9 +11,7 @@ const RESOURCE = '/beneficiarios'
 
 export const beneficiariosService = {
   list(params: QueryParams & BeneficiarioFiltros = {}) {
-    return apiClient
-      .get<PaginatedResponse<Beneficiario>>(RESOURCE, { params })
-      .then((r) => r.data)
+    return apiClient.get<PaginatedResponse<Beneficiario>>(RESOURCE, { params }).then((r) => r.data)
   },
   ficha(id: number) {
     return apiClient.get<BeneficiarioFicha>(`${RESOURCE}/${id}/ficha`).then((r) => r.data)

@@ -195,7 +195,9 @@ const etiqueta = 'mb-1 block text-xs font-semibold text-ink-700 dark:text-ink-20
           class="rounded-md border border-ink-100 bg-ink-50 px-3 py-2 dark:border-white/10 dark:bg-white/5"
         >
           <p class="text-[10px] font-semibold uppercase tracking-wide text-ink-500">{{ t.n }}</p>
-          <p class="whitespace-nowrap text-sm font-semibold tabular-nums" :class="t.c">Bs {{ bs(t.v) }}</p>
+          <p class="whitespace-nowrap text-sm font-semibold tabular-nums" :class="t.c">
+            Bs {{ bs(t.v) }}
+          </p>
         </div>
       </div>
 

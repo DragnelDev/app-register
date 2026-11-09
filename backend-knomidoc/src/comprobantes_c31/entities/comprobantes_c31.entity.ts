@@ -41,6 +41,8 @@ export enum EstadoFisicoC31 {
   PRESTADO = 'PRESTADO',
   OBSERVADO = 'OBSERVADO',
   ANULADO = 'ANULADO',
+  /** Comprobante que debería estar en archivo pero no se ubica físicamente (extraviado). */
+  NO_ENCONTRADO = 'NO_ENCONTRADO',
 }
 
 export const ESTADOS_FISICO_C31 = Object.values(EstadoFisicoC31);
@@ -54,6 +56,7 @@ export const ESTADO_FISICO_LABELS: Record<EstadoFisicoC31, string> = {
   [EstadoFisicoC31.PRESTADO]: 'Prestado',
   [EstadoFisicoC31.OBSERVADO]: 'Observado',
   [EstadoFisicoC31.ANULADO]: 'Revertido / anulado',
+  [EstadoFisicoC31.NO_ENCONTRADO]: 'No se encuentra en archivos',
 };
 
 /**
@@ -81,15 +84,23 @@ export const TRANSICIONES_MANUALES: Record<EstadoFisicoC31, EstadoFisicoC31[]> =
     ],
     [EstadoFisicoC31.EN_ARCHIVO]: [
       EstadoFisicoC31.ARCHIVADO,
+      EstadoFisicoC31.NO_ENCONTRADO,
       EstadoFisicoC31.OBSERVADO,
       EstadoFisicoC31.ANULADO,
     ],
     [EstadoFisicoC31.ARCHIVADO]: [
+      EstadoFisicoC31.NO_ENCONTRADO,
       EstadoFisicoC31.OBSERVADO,
       EstadoFisicoC31.ANULADO,
     ],
     [EstadoFisicoC31.PRESTADO]: [],
     [EstadoFisicoC31.ANULADO]: [],
+    // Si aparece, vuelve a archivado (con folio y ubicación) o queda observado
+    [EstadoFisicoC31.NO_ENCONTRADO]: [
+      EstadoFisicoC31.ARCHIVADO,
+      EstadoFisicoC31.OBSERVADO,
+      EstadoFisicoC31.ANULADO,
+    ],
   };
 
 /**

@@ -109,7 +109,11 @@ function cantidadLote(row: PrestamoCuaderno) {
 
 const hoyIso = new Date().toISOString().slice(0, 10)
 function vencido(row: PrestamoCuaderno) {
-  return !row.devuelto && !!row.fechaDevolucionEstimada && row.fechaDevolucionEstimada.slice(0, 10) < hoyIso
+  return (
+    !row.devuelto &&
+    !!row.fechaDevolucionEstimada &&
+    row.fechaDevolucionEstimada.slice(0, 10) < hoyIso
+  )
 }
 
 const pestanas = [
@@ -184,7 +188,9 @@ onMounted(async () => {
           Préstamo individual y rápido de comprobantes ya en archivo.
         </p>
       </div>
-      <BaseButton v-if="!auth.esSoloConsulta" @click="modalOpen = true">+ Registrar préstamo</BaseButton>
+      <BaseButton v-if="!auth.esSoloConsulta" @click="modalOpen = true"
+        >+ Registrar préstamo</BaseButton
+      >
     </div>
 
     <p
@@ -271,11 +277,16 @@ onMounted(async () => {
           />
           <IconButton
             icon="fa-image"
-            :label="row.evidenciaSalida || row.evidenciaDevolucion ? 'Ver / actualizar evidencia' : 'Subir evidencia (imagen)'"
+            :label="
+              row.evidenciaSalida || row.evidenciaDevolucion
+                ? 'Ver / actualizar evidencia'
+                : 'Subir evidencia (imagen)'
+            "
             :variant="row.evidenciaSalida || row.evidenciaDevolucion ? 'success' : undefined"
             @click="abrirEvidencia(row)"
           />
-          <IconButton v-if="(!row.devuelto) && !auth.esSoloConsulta"
+          <IconButton
+            v-if="!row.devuelto && !auth.esSoloConsulta"
             icon="fa-rotate-left"
             :label="cantidadLote(row) > 1 ? 'Devolver lote completo' : 'Registrar devolución'"
             variant="success"

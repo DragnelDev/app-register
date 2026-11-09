@@ -14,7 +14,7 @@ import type { EstadoFisico } from '@/types/common.types'
 
 const RESOURCE = '/comprobantes-c31'
 
-function cleanQueryParams(params: QueryParams & C31FilterState) {
+function cleanQueryParams(params: object) {
   return Object.fromEntries(
     Object.entries(params).filter(
       ([, value]) => value !== '' && value !== undefined && value !== null,
@@ -135,15 +135,18 @@ export const c31Service = {
   },
 
   /** Descarga el Excel con el formato institucional (opcionalmente filtrado por gestión) */
-  async exportExcel(gestion?: number | '') {
+  async exportExcel(filtros: C31FilterState) {
+    const gestion = filtros.gestion
+    // Solo se envían los filtros con valor, igual que el listado en pantalla
+    const params = cleanQueryParams(filtros)
     const response = await apiClient.get(`${RESOURCE}/export`, {
-      params: gestion ? { gestion } : {},
+      params,
       responseType: 'blob',
     })
     const url = URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')
     link.href = url
-    link.download = `comprobantes-c31-gestion-${gestion || 'todas'}.xlsx`
+    link.download = `comprobantes-c31-gestion-${gestion || 'todas'}-filtrado.xlsx`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -151,12 +154,16 @@ export const c31Service = {
   },
 
   /** Carga masiva desde un Excel ya diligenciado con el formato institucional */
-  importExcel(file: File, gestion: number) {
+  importExcel(file: File, gestion: number, simular = false) {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('gestion', String(gestion))
     // Sin Content-Type manual: el navegador agrega el boundary del multipart
-    return apiClient.post<C31ImportResult>(`${RESOURCE}/import`, formData).then((r) => r.data)
+    return apiClient
+      .post<C31ImportResult>(`${RESOURCE}/import`, formData, {
+        params: simular ? { simular: 1 } : {},
+      })
+      .then((r) => r.data)
   },
 
   // --- Digitalización: escaneos y respaldos (carpeta privada, solo con sesión) ---
@@ -173,6 +180,30 @@ export const c31Service = {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 120_000,
       })
+      .then((r) => r.data)
+  },
+
+  /** Digitalización rápida: varias imágenes (en orden) → un PDF adjunto al comprobante */
+  digitalizar(
+    comprobanteId: number | string,
+    imagenes: File[],
+    tipo: TipoAdjuntoC31,
+    onProgress?: (porcentaje: number) => void,
+  ) {
+    const formData = new FormData()
+    imagenes.forEach((f) => formData.append('files', f))
+    formData.append('tipo', tipo)
+    return apiClient
+      .post<{ ok: boolean; paginas: number; adjunto: C31Adjunto; url: string }>(
+        `/uploads/c31/${comprobanteId}/digitalizar`,
+        formData,
+        {
+          timeout: 300_000,
+          onUploadProgress: (e) => {
+            if (e.total) onProgress?.(Math.round((e.loaded / e.total) * 100))
+          },
+        },
+      )
       .then((r) => r.data)
   },
 

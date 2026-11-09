@@ -29,6 +29,11 @@ export const ESTADOS_C31: { value: EstadoFisico; label: string; ayuda: string }[
   },
   { value: 'OBSERVADO', label: 'Observado', ayuda: 'Inconsistencias o devolución por fallas.' },
   { value: 'ANULADO', label: 'Revertido / anulado', ayuda: 'Dejado sin efecto en el SIGEP.' },
+  {
+    value: 'NO_ENCONTRADO',
+    label: 'No se encuentra en archivos',
+    ayuda: 'Debería estar en archivo pero no se ubica físicamente (extraviado).',
+  },
 ]
 
 export const ESTADO_C31_LABEL: Record<string, string> = Object.fromEntries(
@@ -40,10 +45,11 @@ export const TRANSICIONES_MANUALES: Record<EstadoFisico, EstadoFisico[]> = {
   EN_TRAMITE: ['EN_REVISION', 'OBSERVADO', 'ANULADO'],
   EN_REVISION: ['EN_TRAMITE', 'OBSERVADO', 'ANULADO'],
   OBSERVADO: ['EN_TRAMITE', 'EN_REVISION', 'ANULADO'],
-  EN_ARCHIVO: ['ARCHIVADO', 'OBSERVADO', 'ANULADO'],
-  ARCHIVADO: ['OBSERVADO', 'ANULADO'],
+  EN_ARCHIVO: ['ARCHIVADO', 'NO_ENCONTRADO', 'OBSERVADO', 'ANULADO'],
+  ARCHIVADO: ['NO_ENCONTRADO', 'OBSERVADO', 'ANULADO'],
   PRESTADO: [],
   ANULADO: [],
+  NO_ENCONTRADO: ['ARCHIVADO', 'OBSERVADO', 'ANULADO'],
 }
 
 export const ESTADO_ACTA_LABEL: Record<string, string> = {
@@ -78,12 +84,16 @@ export const fechaCorta = (v?: string | null) => {
     return y && m && d ? `${d}/${m}/${y}` : '—'
   }
   const f = new Date(v)
-  return Number.isNaN(f.getTime()) ? '—' : `${dos(f.getDate())}/${dos(f.getMonth() + 1)}/${f.getFullYear()}`
+  return Number.isNaN(f.getTime())
+    ? '—'
+    : `${dos(f.getDate())}/${dos(f.getMonth() + 1)}/${f.getFullYear()}`
 }
 
 /** dd/mm/aaaa hh:mm (24 h) */
 export const fechaHora = (v?: string | null) => {
   if (!v) return '—'
   const f = new Date(v)
-  return Number.isNaN(f.getTime()) ? '—' : `${fechaCorta(v)} ${dos(f.getHours())}:${dos(f.getMinutes())}`
+  return Number.isNaN(f.getTime())
+    ? '—'
+    : `${fechaCorta(v)} ${dos(f.getHours())}:${dos(f.getMinutes())}`
 }

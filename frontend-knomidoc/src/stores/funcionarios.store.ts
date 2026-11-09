@@ -58,7 +58,10 @@ export const useFuncionariosStore = defineStore('funcionarios', {
 
     setFilters(
       filters: Partial<
-        Pick<FuncionariosState, 'search' | 'estado' | 'unidad' | 'cargo' | 'conHuella' | 'conPrestamosActivos'>
+        Pick<
+          FuncionariosState,
+          'search' | 'estado' | 'unidad' | 'cargo' | 'conHuella' | 'conPrestamosActivos'
+        >
       >,
     ) {
       Object.assign(this, filters)

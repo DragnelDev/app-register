@@ -24,7 +24,11 @@ const mensaje = ref('')
 const calidad = ref<number | null>(null)
 
 const etiquetaBoton = computed(() =>
-  props.modo === 'enrolar' ? (props.tieneHuella ? 'Volver a registrar huella' : 'Registrar huella') : 'Leer huella',
+  props.modo === 'enrolar'
+    ? props.tieneHuella
+      ? 'Volver a registrar huella'
+      : 'Registrar huella'
+    : 'Leer huella',
 )
 
 async function iniciar() {
@@ -36,7 +40,11 @@ async function iniciar() {
     const captura = await lector.capturar(String(props.funcionarioId), (p) => (progreso.value = p))
     calidad.value = captura.calidad
     if (props.modo === 'enrolar') {
-      await funcionariosService.registrarHuella(props.funcionarioId, captura.plantilla, captura.lector)
+      await funcionariosService.registrarHuella(
+        props.funcionarioId,
+        captura.plantilla,
+        captura.lector,
+      )
       estado.value = 'ok'
       mensaje.value = 'Huella registrada correctamente'
       emit('enrolada')
@@ -61,14 +69,18 @@ async function iniciar() {
 </script>
 
 <template>
-  <div class="rounded-md border border-ink-200 bg-ink-50/60 p-3 text-sm dark:border-white/10 dark:bg-white/5">
+  <div
+    class="rounded-md border border-ink-200 bg-ink-50/60 p-3 text-sm dark:border-white/10 dark:bg-white/5"
+  >
     <div class="flex items-center gap-3">
       <div
         class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-2xl"
         :class="{
           'bg-ink-100 text-ink-500 dark:bg-white/10 dark:text-ink-300': estado === 'reposo',
-          'animate-pulse bg-seal-100 text-seal-600 dark:bg-seal-500/20 dark:text-seal-300': estado === 'leyendo',
-          'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300': estado === 'ok',
+          'animate-pulse bg-seal-100 text-seal-600 dark:bg-seal-500/20 dark:text-seal-300':
+            estado === 'leyendo',
+          'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300':
+            estado === 'ok',
           'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300': estado === 'error',
         }"
       >
@@ -77,12 +89,22 @@ async function iniciar() {
       <div class="min-w-0 flex-1">
         <p class="font-medium text-ink-800 dark:text-ink-100">
           {{ lector.nombre }}
-          <span v-if="lector.esDemo" class="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-500/20 dark:text-amber-200">DEMO</span>
+          <span
+            v-if="lector.esDemo"
+            class="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-500/20 dark:text-amber-200"
+            >DEMO</span
+          >
         </p>
         <p v-if="mensaje" class="text-xs text-ink-500 dark:text-ink-400">
-          {{ mensaje }}<template v-if="calidad !== null && estado === 'ok'"> · calidad {{ calidad }}%</template>
+          {{ mensaje
+          }}<template v-if="calidad !== null && estado === 'ok'">
+            · calidad {{ calidad }}%</template
+          >
         </p>
-        <div v-if="estado === 'leyendo'" class="mt-1 h-1.5 w-full overflow-hidden rounded bg-ink-200 dark:bg-white/10">
+        <div
+          v-if="estado === 'leyendo'"
+          class="mt-1 h-1.5 w-full overflow-hidden rounded bg-ink-200 dark:bg-white/10"
+        >
           <div class="h-full bg-seal-500 transition-all" :style="{ width: progreso + '%' }" />
         </div>
       </div>
@@ -97,7 +119,8 @@ async function iniciar() {
       </BaseButton>
     </div>
     <p v-if="lector.esDemo" class="mt-2 text-[11px] text-ink-400">
-      Modo demostración: la captura es simulada. Al conectar un lector real solo cambia el adaptador.
+      Modo demostración: la captura es simulada. Al conectar un lector real solo cambia el
+      adaptador.
     </p>
   </div>
 </template>

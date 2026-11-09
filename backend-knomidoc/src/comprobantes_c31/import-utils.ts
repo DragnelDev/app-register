@@ -18,12 +18,18 @@ export type CampoImport =
   | 'monto'
   | 'fecha'
   | 'folio'
-  | 'carpeta';
+  | 'carpeta'
+  | 'ubicacion'
+  | 'estado'
+  | 'observaciones';
 
 /** Clasifica un encabezado; DEV se evalúa antes que PREV ("Nº PREV/DEV" no existe). */
 export function campoDeEncabezado(encabezado: unknown): CampoImport | null {
   const h = normalizarEncabezado(encabezado);
   if (!h) return null;
+  if (h.includes('ESTADO')) return 'estado';
+  if (h.includes('OBSERVACION')) return 'observaciones';
+  if (h.includes('UBICACION')) return 'ubicacion';
   if (h.includes('DEV')) return 'dev';
   if (h.includes('PREV')) return 'prev';
   if (h.includes('CHEQUE')) return 'cheque';
@@ -33,7 +39,7 @@ export function campoDeEncabezado(encabezado: unknown): CampoImport | null {
   if (h.includes('MONTO') || h.includes('IMPORTE')) return 'monto';
   if (h.includes('FECHA')) return 'fecha';
   if (h.includes('FOLIO')) return 'folio';
-  if (h.includes('CARPETA') || h.includes('UBICACION')) return 'carpeta';
+  if (h.includes('CARPETA')) return 'carpeta';
   return null;
 }
 
@@ -127,4 +133,48 @@ export function listaDeCelda(texto: string): string[] {
     .split(/[,;\n]+/)
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+/**
+ * Varios N° en una misma celda: "DEV.5/6", "4-5", "6 7", "8-9-10", "2/3", "1 y 2",
+ * "PREV 3, 4". Quita prefijos (DEV., PREV., Nº) y separa por / - , ; espacio, "y" o salto de línea.
+ * Un guion se toma como separador de lista (no como rango); si salta números ("4-8")
+ * se devuelve una advertencia para que se revise en la vista previa.
+ */
+export function numerosDeCelda(texto: string): {
+  numeros: string[];
+  advertencias: string[];
+} {
+  const limpio = texto
+    .replace(/(?:PREVENTIVOS?|DEVENGADOS?|PREV|DEV|NRO|N[º°])\.?/gi, ' ')
+    .trim();
+  const advertencias: string[] = [];
+  const numeros: string[] = [];
+  for (const t of limpio.split(/[\s,;\/\-\n]+|\by\b/i)) {
+    const n = t.trim().replace(/^\.+|\.+$/g, '');
+    if (!n) continue;
+    if (!/^[A-Za-z0-9]+$/.test(n)) {
+      advertencias.push(`"${n}" no parece un número válido`);
+      continue;
+    }
+    if (!numeros.includes(n)) numeros.push(n);
+  }
+  // Rango probable: guion entre dos números que no son consecutivos
+  const m = /(\d+)\s*-\s*(\d+)/g;
+  let r: RegExpExecArray | null;
+  while ((r = m.exec(limpio))) {
+    if (Number(r[2]) - Number(r[1]) > 1) {
+      advertencias.push(
+        `"${r[1]}-${r[2]}" se tomó como dos números (${r[1]} y ${r[2]}); si era un rango, corríjalo`,
+      );
+    }
+  }
+  return { numeros, advertencias };
+}
+
+/** Código de carpeta con convención <gestión>-<N° a 3 cifras>: 4 → "2017-004". */
+export function codigoDeCarpeta(gestion: number, numero: string): string {
+  return /^\d+$/.test(numero)
+    ? `${gestion}-${numero.padStart(3, '0')}`
+    : `${gestion}-${numero.toUpperCase()}`.slice(0, 50);
 }

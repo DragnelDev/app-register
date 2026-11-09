@@ -13,7 +13,9 @@ import type { ComprobanteC31 } from '@/types/c31.types'
 import type { Funcionario } from '@/types/funcionarios.types'
 
 defineProps<{ saving?: boolean }>()
-const emit = defineEmits<{ submit: [payload: PrestamoCuadernoCreatePayload & { evidencia?: File | null }] }>()
+const emit = defineEmits<{
+  submit: [payload: PrestamoCuadernoCreatePayload & { evidencia?: File | null }]
+}>()
 const evidencia = ref<File | null>(null)
 const errorEvidencia = ref('')
 function elegirEvidencia(e: Event) {
@@ -99,7 +101,8 @@ function validateAll(): boolean {
   if (form.metodoVerificacion === 'HUELLA_DIGITAL') {
     if (!funcionarioElegido.value?.huellaRegistradaEn)
       errorHuella.value = 'El funcionario no tiene huella registrada (se enrola en Funcionarios)'
-    else if (!huellaVerificada.value) errorHuella.value = 'Verifique la huella del funcionario antes de registrar'
+    else if (!huellaVerificada.value)
+      errorHuella.value = 'Verifique la huella del funcionario antes de registrar'
   }
   return !errorHuella.value && !errors.funcionarioId && !errors.areaUnidad && !errors.comprobante
 }
@@ -156,7 +159,11 @@ function handleSubmit() {
       </label>
       <div class="flex gap-2">
         <div class="min-w-0 flex-1">
-          <ComprobanteC31Picker :exclude-ids="excludeIds" solo-disponibles @select="addComprobante" />
+          <ComprobanteC31Picker
+            :exclude-ids="excludeIds"
+            solo-disponibles
+            @select="addComprobante"
+          />
         </div>
         <button
           type="button"
@@ -166,7 +173,11 @@ function handleSubmit() {
           <i class="fa-solid fa-table-cells" aria-hidden="true" /> Selección rápida
         </button>
       </div>
-      <SeleccionRapidaModal v-model="matrizAbierta" :exclude-ids="excludeIds" @confirm="agregarLote" />
+      <SeleccionRapidaModal
+        v-model="matrizAbierta"
+        :exclude-ids="excludeIds"
+        @confirm="agregarLote"
+      />
       <p class="mt-1 text-xs text-ink-400">
         Puede buscar por N° o glosa, o elegir una gestión y agregar todos los comprobantes de ese
         año.

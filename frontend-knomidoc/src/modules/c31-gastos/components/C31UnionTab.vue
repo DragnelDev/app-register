@@ -4,11 +4,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import { c31Service } from '@/services/c31.service'
 import { extractApiErrorMessage } from '@/utils/http-error'
 import { ESTADO_C31_LABEL, bs } from '@/utils/estados'
-import {
-  rotuloC31,
-  type C31GrupoMiembro,
-  type ComprobanteC31,
-} from '@/types/c31.types'
+import { rotuloC31, type C31GrupoMiembro, type ComprobanteC31 } from '@/types/c31.types'
 import type { EstadoFisico } from '@/types/common.types'
 
 /**
@@ -63,9 +59,7 @@ async function buscar() {
       numeroPreventivo: busqueda.value.trim(),
     } as never)
     const ya = new Set([idActual(), ...miembros.value.map((m) => m.id)])
-    resultados.value = r.data.filter(
-      (c) => !ya.has(Number(c.id)) && c.estadoFisico !== 'ANULADO',
-    )
+    resultados.value = r.data.filter((c) => !ya.has(Number(c.id)) && c.estadoFisico !== 'ANULADO')
   } catch (err) {
     error.value = extractApiErrorMessage(err, 'No se pudo buscar.')
   } finally {
@@ -128,7 +122,9 @@ const campo =
       <div v-if="miembros.length">
         <h4 class="mb-2 font-semibold text-ink-700 dark:text-ink-200">
           Comprobantes unidos
-          <span v-if="comprobante.rotuloGrupo" class="ml-1 font-mono text-seal-600">· {{ comprobante.rotuloGrupo }}</span>
+          <span v-if="comprobante.rotuloGrupo" class="ml-1 font-mono text-seal-600"
+            >· {{ comprobante.rotuloGrupo }}</span
+          >
         </h4>
         <ul class="space-y-2">
           <li
@@ -177,7 +173,12 @@ const campo =
           Unir con otro comprobante (gestión {{ comprobante.gestion }})
         </h4>
         <div class="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-2">
-          <select v-model="tipoBuscado" :class="[campo, '!w-full']" aria-label="Tipo a buscar" @change="alEscribir">
+          <select
+            v-model="tipoBuscado"
+            :class="[campo, '!w-full']"
+            aria-label="Tipo a buscar"
+            @change="alEscribir"
+          >
             <option value="CON_IMPUTACION">Preventivo</option>
             <option value="SIN_IMPUTACION">Devengado</option>
           </select>
@@ -185,12 +186,15 @@ const campo =
             v-model="busqueda"
             type="text"
             :class="[campo, '!w-full min-w-0']"
-            :placeholder="tipoBuscado === 'CON_IMPUTACION' ? 'N° de preventivo…' : 'N° de devengado…'"
+            :placeholder="
+              tipoBuscado === 'CON_IMPUTACION' ? 'N° de preventivo…' : 'N° de devengado…'
+            "
             @input="alEscribir"
           />
         </div>
         <p class="mt-1 text-xs text-ink-400">
-          El PREV y el DEV tienen numeración propia: pueden unirse aunque sus números sean distintos (por ejemplo PREV 5 con DEV 12).
+          El PREV y el DEV tienen numeración propia: pueden unirse aunque sus números sean distintos
+          (por ejemplo PREV 5 con DEV 12).
         </p>
         <p v-if="buscando" class="mt-1 text-xs text-ink-400">Buscando…</p>
         <ul v-if="resultados.length" class="mt-2 max-h-56 space-y-1.5 overflow-y-auto pr-1">

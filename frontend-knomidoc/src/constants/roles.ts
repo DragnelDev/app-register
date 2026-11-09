@@ -8,7 +8,8 @@ export const ROLES_INFO: Record<RolUsuario, { label: string; descripcion: string
   },
   OPERADOR_ARCHIVOS: {
     label: 'Operador de archivos',
-    descripcion: 'Registra comprobantes C31, actas, ubicación física y recibe y aprueba las actas de entrega.',
+    descripcion:
+      'Registra comprobantes C31, actas, ubicación física y recibe y aprueba las actas de entrega.',
   },
   AUXILIAR_ARCHIVOS: {
     label: 'Auxiliar de archivos',
@@ -21,7 +22,8 @@ export const ROLES_INFO: Record<RolUsuario, { label: string; descripcion: string
   },
   REMITENTE_C31: {
     label: 'Remitente de C31',
-    descripcion: 'Arma el acta de entrega de C31 hacia Archivo, la imprime y consulta su estado. El archivista la recibe.',
+    descripcion:
+      'Arma el acta de entrega de C31 hacia Archivo, la imprime y consulta su estado. El archivista la recibe.',
   },
   CONSULTA_AVANZADA: {
     label: 'Consulta avanzada',
@@ -29,7 +31,8 @@ export const ROLES_INFO: Record<RolUsuario, { label: string; descripcion: string
   },
   SOLO_LECTURA: {
     label: 'Solo lectura',
-    descripcion: 'Consulta básica de comprobantes, actas, ubicación y préstamos. No exporta ni modifica.',
+    descripcion:
+      'Consulta básica de comprobantes, actas, ubicación y préstamos. No exporta ni modifica.',
   },
   CONSULTA_EXTERNA: {
     label: 'Consulta externa',

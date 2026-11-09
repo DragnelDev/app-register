@@ -8,7 +8,10 @@ const props = withDefaults(
 
 // Si la URL de la foto no carga, se vuelve a las iniciales
 const falla = ref(false)
-watch(() => props.foto, () => (falla.value = false))
+watch(
+  () => props.foto,
+  () => (falla.value = false),
+)
 
 const iniciales = computed(
   () =>

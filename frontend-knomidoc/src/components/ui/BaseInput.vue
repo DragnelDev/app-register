@@ -52,10 +52,22 @@ function cambiarHora(v: string) {
     </label>
 
     <div v-if="esFecha" class="relative">
-      <FechaInput :id="inputId" :disabled="disabled" :model-value="parteFecha" :invalid="Boolean(error)" @update:model-value="cambiarFecha" />
+      <FechaInput
+        :id="inputId"
+        :disabled="disabled"
+        :model-value="parteFecha"
+        :invalid="Boolean(error)"
+        @update:model-value="cambiarFecha"
+      />
     </div>
     <div v-else-if="esFechaHora" class="flex gap-2">
-      <FechaInput :id="inputId" class="flex-1" :model-value="parteFecha" :invalid="Boolean(error)" @update:model-value="cambiarFecha" />
+      <FechaInput
+        :id="inputId"
+        class="flex-1"
+        :model-value="parteFecha"
+        :invalid="Boolean(error)"
+        @update:model-value="cambiarFecha"
+      />
       <input
         type="time"
         step="60"

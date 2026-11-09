@@ -1,7 +1,14 @@
 import apiClient from './api.client'
 
-export interface PersonaNota { nombre: string; cargo: string }
-export interface SeccionNota { titulo: string; texto: string; items: string[] }
+export interface PersonaNota {
+  nombre: string
+  cargo: string
+}
+export interface SeccionNota {
+  titulo: string
+  texto: string
+  items: string[]
+}
 export interface NotaAuditoria {
   id: number
   cite: string
@@ -34,7 +41,9 @@ export interface SolicitudAuditoria {
   observaciones?: string | null
   ejemplo?: boolean
 }
-export type SolicitudPayload = Partial<Omit<SolicitudAuditoria, 'id' | 'estado' | 'notaAuditoriaId' | 'ejemplo'>>
+export type SolicitudPayload = Partial<
+  Omit<SolicitudAuditoria, 'id' | 'estado' | 'notaAuditoriaId' | 'ejemplo'>
+>
 export type BucketNota = 'entrega' | 'anteriores' | 'pendientes'
 export interface ItemClasificado {
   comprobanteId: number
@@ -66,31 +75,45 @@ export interface NotaDesdePrestamos {
   referencia: string
   secciones: SeccionNota[]
 }
-export type NotaAuditoriaPayload = Partial<Omit<NotaAuditoria, 'id'>> & { motivoModificacion?: string }
+export type NotaAuditoriaPayload = Partial<Omit<NotaAuditoria, 'id'>> & {
+  motivoModificacion?: string
+}
 
 const R = '/notas-auditoria'
 export const notasAuditoriaService = {
-  list: (search?: string) => apiClient.get<NotaAuditoria[]>(R, { params: { search } }).then((r) => r.data),
+  list: (search?: string) =>
+    apiClient.get<NotaAuditoria[]>(R, { params: { search } }).then((r) => r.data),
   notasPrestamo: (search?: string) =>
-    apiClient.get<NotaPrestamoResumen[]>(`${R}/notas-prestamo`, { params: { search } }).then((r) => r.data),
+    apiClient
+      .get<NotaPrestamoResumen[]>(`${R}/notas-prestamo`, { params: { search } })
+      .then((r) => r.data),
   desdePrestamos: (numeros: string[]) =>
     apiClient
-      .get<NotaDesdePrestamos | null>(`${R}/desde-prestamos`, { params: { notas: numeros.join('|') } })
+      .get<NotaDesdePrestamos | null>(`${R}/desde-prestamos`, {
+        params: { notas: numeros.join('|') },
+      })
       .then((r) => r.data),
   solicitudes: (estado?: string, search?: string) =>
-    apiClient.get<SolicitudAuditoria[]>(`${R}/solicitudes`, { params: { estado, search } }).then((r) => r.data),
-  solicitud: (id: number) => apiClient.get<SolicitudAuditoria>(`${R}/solicitudes/${id}`).then((r) => r.data),
-  crearSolicitud: (p: SolicitudPayload) => apiClient.post<SolicitudAuditoria>(`${R}/solicitudes`, p).then((r) => r.data),
+    apiClient
+      .get<SolicitudAuditoria[]>(`${R}/solicitudes`, { params: { estado, search } })
+      .then((r) => r.data),
+  solicitud: (id: number) =>
+    apiClient.get<SolicitudAuditoria>(`${R}/solicitudes/${id}`).then((r) => r.data),
+  crearSolicitud: (p: SolicitudPayload) =>
+    apiClient.post<SolicitudAuditoria>(`${R}/solicitudes`, p).then((r) => r.data),
   actualizarSolicitud: (id: number, p: SolicitudPayload) =>
     apiClient.patch<SolicitudAuditoria>(`${R}/solicitudes/${id}`, p).then((r) => r.data),
   eliminarSolicitud: (id: number) => apiClient.delete(`${R}/solicitudes/${id}`).then((r) => r.data),
   solicitudesEjemplo: (gestion?: number) =>
-    apiClient.post<SolicitudAuditoria[]>(`${R}/solicitudes/ejemplo`, null, { params: { gestion } }).then((r) => r.data),
+    apiClient
+      .post<SolicitudAuditoria[]>(`${R}/solicitudes/ejemplo`, null, { params: { gestion } })
+      .then((r) => r.data),
   clasificar: (p: { texto?: string; comprobanteIds?: number[]; gestion?: number }) =>
     apiClient.post<Clasificacion>(`${R}/clasificar`, p).then((r) => r.data),
   emitir: (id: number) => apiClient.patch<NotaAuditoria>(`${R}/${id}/emitir`).then((r) => r.data),
   create: (p: NotaAuditoriaPayload) => apiClient.post<NotaAuditoria>(R, p).then((r) => r.data),
-  update: (id: number, p: NotaAuditoriaPayload) => apiClient.patch<NotaAuditoria>(`${R}/${id}`, p).then((r) => r.data),
+  update: (id: number, p: NotaAuditoriaPayload) =>
+    apiClient.patch<NotaAuditoria>(`${R}/${id}`, p).then((r) => r.data),
   remove: (id: number) => apiClient.delete(`${R}/${id}`).then((r) => r.data),
   async abrirPdf(id: number) {
     const ventana = window.open('', '_blank')

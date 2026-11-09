@@ -8,6 +8,7 @@ export const ESTADOS_SOLICITABLES = [
   'EN_REVISION',
   'ARCHIVADO',
   'OBSERVADO',
+  'NO_ENCONTRADO',
   'ANULADO',
 ] as const;
 

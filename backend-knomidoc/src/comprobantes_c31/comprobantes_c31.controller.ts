@@ -88,23 +88,30 @@ export class ComprobantesC31Controller {
 
   @Roles(...ROLES_REPORTES)
   @Get('export')
-  async exportExcel(@Query('gestion') gestion?: string) {
+  async exportExcel(
+    @Query() query: FilterComprobantesC31Dto,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    const gestion = query.gestion;
     const buffer = await this.comprobantesC31Service.exportExcel(
-      gestion ? Number(gestion) : undefined,
+      query,
+      usuario,
     );
     return new StreamableFile(buffer, {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      disposition: `attachment; filename="comprobantes-c31-gestion-${gestion || 'todas'}.xlsx"`,
+      disposition: `attachment; filename="comprobantes-c31-gestion-${gestion || 'todas'}-filtrado.xlsx"`,
     });
   }
 
-  @Roles('ADMIN', 'OPERADOR_ARCHIVOS', 'AUXILIAR_ARCHIVOS')
+  // Importar es una operación masiva: solo Admin y Operador de archivos
+  @Roles('ADMIN', 'OPERADOR_ARCHIVOS')
   @Post('import')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
   importExcel(
     @UploadedFile() file: Express.Multer.File,
     @Body('gestion') gestion: string,
+    @Query('simular') simular: string,
     @CurrentUser() usuario: Usuario,
   ) {
     if (!file) throw new BadRequestException('No se envió ningún archivo');
@@ -112,7 +119,12 @@ export class ComprobantesC31Controller {
     if (!Number.isInteger(anio) || anio < 2000 || anio > 2100) {
       throw new BadRequestException('La gestión indicada no es válida');
     }
-    return this.comprobantesC31Service.importExcel(file.buffer, anio, usuario);
+    return this.comprobantesC31Service.importExcel(
+      file.buffer,
+      anio,
+      usuario,
+      simular === '1' || simular === 'true',
+    );
   }
 
   @AbiertoATodosLosPerfiles()

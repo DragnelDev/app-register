@@ -113,6 +113,7 @@ export class NotasAuditoriaService {
       EstadoFisicoC31.EN_TRAMITE,
       EstadoFisicoC31.EN_REVISION,
       EstadoFisicoC31.OBSERVADO,
+      EstadoFisicoC31.NO_ENCONTRADO,
     ];
     const entrega = new Set<string>();
     const pendientes = new Set<string>();

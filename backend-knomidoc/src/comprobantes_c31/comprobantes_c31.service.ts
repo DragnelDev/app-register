@@ -44,6 +44,7 @@ import {
   EstadoPago,
   TipoPago,
 } from '../c31-pagos/entities/c31-pago.entity';
+import { Carpeta } from '../carpetas/entities/carpeta.entity';
 import { C31CarpetasUbicacion } from '../c31-carpetas-ubicacion/entities/c31-carpetas-ubicacion.entity';
 import { registrarCambioEstado } from '../c31-historial/c31-historial.helper';
 import { ActasEntrega } from '../actas-entrega/entities/actas-entrega.entity';
@@ -53,7 +54,9 @@ import { Usuario } from '../usuarios/entities/usuario.entity';
 
 import {
   campoDeEncabezado,
-  listaDeCelda,
+  codigoDeCarpeta,
+  normalizarEncabezado,
+  numerosDeCelda,
   parseFechaCelda,
   parseMonto,
   type CampoImport,
@@ -373,13 +376,11 @@ export class ComprobantesC31Service {
     });
   }
 
-  async findAll(
+  /** Consulta con TODOS los filtros del listado (sin orden ni paginación): la usan listado y exportación */
+  private construirConsultaFiltrada(
     query: FilterComprobantesC31Dto,
     usuario?: Usuario,
-  ): Promise<PaginatedResponseDto<ComprobantesC31>> {
-    const page = query.page ?? 1;
-    const pageSize = query.pageSize ?? 10;
-
+  ) {
     const qb = this.repo
       .createQueryBuilder('c')
       .leftJoinAndSelect('c.actaEntrega', 'acta')
@@ -509,6 +510,17 @@ export class ComprobantesC31Service {
         { like: `%${escaparLike(texto)}%` },
       );
     }
+
+    return qb;
+  }
+
+  async findAll(
+    query: FilterComprobantesC31Dto,
+    usuario?: Usuario,
+  ): Promise<PaginatedResponseDto<ComprobantesC31>> {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 10;
+    const qb = this.construirConsultaFiltrada(query, usuario);
 
     const [data, total] = await qb
       .orderBy('c.fechaCreacion', query.order ?? 'DESC')
@@ -939,13 +951,16 @@ export class ComprobantesC31Service {
       }
       if (
         (nuevo === EstadoFisicoC31.OBSERVADO ||
+          nuevo === EstadoFisicoC31.NO_ENCONTRADO ||
           nuevo === EstadoFisicoC31.ANULADO) &&
         !motivo
       ) {
         throw new BadRequestException(
           nuevo === EstadoFisicoC31.OBSERVADO
             ? 'Indique qué se observa (firma, sello o respaldo faltante)'
-            : 'Indique el motivo de la anulación',
+            : nuevo === EstadoFisicoC31.NO_ENCONTRADO
+              ? 'Indique cómo se constató que no se encuentra (revisión, fecha, quién lo buscó)'
+              : 'Indique el motivo de la anulación',
         );
       }
 
@@ -977,6 +992,8 @@ export class ComprobantesC31Service {
         }
       }
       if (nuevo === EstadoFisicoC31.OBSERVADO) cambios.observaciones = motivo;
+      if (nuevo === EstadoFisicoC31.NO_ENCONTRADO)
+        cambios.observaciones = `No se encuentra en archivos: ${motivo}`;
       if (nuevo === EstadoFisicoC31.ANULADO) {
         const efectuados = await manager.countBy(C31Pago, {
           comprobanteId: id,
@@ -1105,15 +1122,26 @@ export class ComprobantesC31Service {
   ];
 
   /** RF-02.2 / plantilla institucional: exporta los comprobantes de una gestión con el mismo formato usado en archivo físico. */
-  async exportExcel(gestion?: number): Promise<Buffer> {
-    const where: FindOptionsWhere<ComprobantesC31> = {};
-    if (gestion) where.gestion = gestion;
-
-    const comprobantes = await this.repo.find({
-      where,
-      relations: { ...RELATIONS, pagos: true },
-      order: { fechaElaboracion: 'ASC' },
-    });
+  async exportExcel(
+    query: FilterComprobantesC31Dto,
+    usuario?: Usuario,
+  ): Promise<Buffer> {
+    const gestion = query.gestion ? Number(query.gestion) : undefined;
+    // Mismos filtros que el listado en pantalla; se obtienen los ids y luego los datos completos
+    const filas = await this.construirConsultaFiltrada(query, usuario)
+      .select('c.id')
+      .orderBy('c.fechaElaboracion', 'ASC')
+      .addOrderBy('c.id', 'ASC')
+      .getMany();
+    const ids = filas.map((f) => f.id);
+    const comprobantes = ids.length
+      ? (
+          await this.repo.find({
+            where: { id: In(ids) },
+            relations: { ...RELATIONS, pagos: true },
+          })
+        ).sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id))
+      : [];
 
     const anioTitulo = gestion ?? new Date().getFullYear();
     const workbook = new ExcelJS.Workbook();
@@ -1192,210 +1220,362 @@ export class ComprobantesC31Service {
   }
 
   /**
-   * RF-02.1: importación masiva desde un Excel ya diligenciado con el mismo
-   * formato institucional (Nº PREV, Nº CHEQUE, BENEFICIARIO, DESCRIPCION,
-   * MONTO, FECHA, Nº DE FOLIO, CARPETA). La columna CARPETA se guarda como
-   * ubicación física del comprobante.
+   * RF-02.1: importación masiva desde el Excel histórico (Nº DEV / Nº PREV, Nº CHEQUE,
+   * BENEFICIARIO, DESCRIPCION, MONTO, FECHA, Nº DE FOLIO, Nº CARPETA, UBICACIÓN FÍSICA,
+   * OBSERVACIONES).
+   * - Una fila = un comprobante. "DEV.5/6" o "4-5" son varios N° del MISMO comprobante.
+   * - "Nº CARPETA" 4-5-6 enlaza el comprobante a varias carpetas (se crean si no existen).
+   * - Si el N° de PREV/DEV ya existe en la gestión, la fila se omite (reimportar es seguro).
+   * - Con simular=true no guarda nada: devuelve la vista previa fila por fila.
    */
   async importExcel(
     buffer: Buffer,
     gestion: number,
     usuario: Usuario,
-  ): Promise<{ creados: number; errores: { fila: number; motivo: string }[] }> {
+    simular = false,
+  ): Promise<ResultadoImportacion> {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
-    const hoja = workbook.worksheets[0];
-    if (!hoja) {
+    if (!workbook.worksheets.length) {
       throw new BadRequestException('El archivo no contiene ninguna hoja');
     }
 
-    // Ubica la fila de encabezado buscando "Nº PREV" o "BENEFICIARIO"
-    let filaEncabezado = -1;
-    hoja.eachRow((row, rowNumber) => {
-      if (filaEncabezado !== -1) return;
-      const valores = row.values as unknown[];
-      const textos = valores
-        .map((v) => (typeof v === 'string' ? v.toUpperCase() : ''))
-        .join('|');
-      if (textos.includes('BENEFICIARIO') && textos.includes('DESCRIPCION')) {
-        filaEncabezado = rowNumber;
-      }
-    });
-    if (filaEncabezado === -1) {
-      throw new BadRequestException(
-        'No se encontró la fila de encabezados (Nº PREV, BENEFICIARIO, DESCRIPCION...) en el archivo',
-      );
-    }
-
-    // Columnas por nombre de encabezado (Nº PREV, Nº DEV, Nº CHEQUE, BENEFICIARIO, ...)
-    const col: Partial<Record<CampoImport, number>> = {};
-    hoja.getRow(filaEncabezado).eachCell((celda, n) => {
-      const campo = campoDeEncabezado(textoDeCelda(celda.value));
-      if (campo && col[campo] === undefined) col[campo] = n;
-    });
-    if (!col.descripcion || !col.monto || (!col.prev && !col.dev)) {
-      throw new BadRequestException(
-        'Faltan columnas obligatorias. El Excel debe tener: Nº PREV y/o Nº DEV, DESCRIPCION y MONTO (opcionales: Nº CHEQUE, BENEFICIARIO, FECHA, Nº DE FOLIO, CARPETA)',
-      );
-    }
-    const celda = (fila: ExcelJS.Row, campo: CampoImport): unknown =>
-      col[campo] ? fila.getCell(col[campo]).value : undefined;
-
     const errores: { fila: number; motivo: string }[] = [];
+    const omitidos: { fila: number; motivo: string }[] = [];
+    const filas: FilaImportacion[] = [];
     let creados = 0;
+    // Evita duplicados dentro del mismo archivo (y entre hojas)
+    const vistosPrev = new Set<string>();
+    const vistosDev = new Set<string>();
+    let hojasLeidas = 0;
 
-    for (let r = filaEncabezado + 1; r <= hoja.rowCount; r++) {
-      const fila = hoja.getRow(r);
-      const prev = celda(fila, 'prev');
-      const dev = celda(fila, 'dev');
-      const cheque = celda(fila, 'cheque');
-      const beneficiario = celda(fila, 'beneficiario');
-      const descripcion = celda(fila, 'descripcion');
-      const monto = celda(fila, 'monto');
-      const fecha = celda(fila, 'fecha');
-      const folio = celda(fila, 'folio');
-      const ubicacion = celda(fila, 'carpeta');
+    for (const hoja of workbook.worksheets) {
+      // Ubica la fila de encabezado buscando BENEFICIARIO + DESCRIPCION
+      let filaEncabezado = -1;
+      hoja.eachRow((row, rowNumber) => {
+        if (filaEncabezado !== -1) return;
+        const textos = (row.values as unknown[])
+          .map((v) => (typeof v === 'string' ? v.toUpperCase() : ''))
+          .join('|');
+        if (textos.includes('BENEFICIARIO') && textos.includes('DESCRIPCION')) {
+          filaEncabezado = rowNumber;
+        }
+      });
+      if (filaEncabezado === -1) continue; // hoja sin formato (resúmenes, etc.)
 
-      const vacia =
-        !textoDeCelda(descripcion) &&
-        !textoDeCelda(beneficiario) &&
-        !textoDeCelda(monto) &&
-        !textoDeCelda(prev) &&
-        !textoDeCelda(dev);
-      if (vacia) continue;
+      const col: Partial<Record<CampoImport, number>> = {};
+      hoja.getRow(filaEncabezado).eachCell((celdaEnc, n) => {
+        const campo = campoDeEncabezado(textoDeCelda(celdaEnc.value));
+        if (campo && col[campo] === undefined) col[campo] = n;
+      });
+      if (!col.descripcion || !col.monto || (!col.prev && !col.dev)) continue;
+      hojasLeidas++;
+      const celda = (fila: ExcelJS.Row, campo: CampoImport): unknown =>
+        col[campo] ? fila.getCell(col[campo]).value : undefined;
 
-      try {
-        // Preventivos van a Preventivos y devengados a Devengados (nunca mezclados)
-        const preventivosCelda = listaDeCelda(textoDeCelda(prev));
-        const devengadosCelda = listaDeCelda(textoDeCelda(dev));
-        if (!preventivosCelda.length && !devengadosCelda.length) {
-          throw new Error('Falta el Nº de preventivo o de devengado');
-        }
-        if (!textoDeCelda(descripcion)) {
-          throw new Error('Falta la descripción del comprobante');
-        }
-        if (!textoDeCelda(monto)) {
-          throw new Error('Falta el monto del comprobante');
-        }
-        const montoNumerico = parseMonto(
-          typeof monto === 'number' ? monto : textoDeCelda(monto),
-        );
-        if (montoNumerico === null || montoNumerico <= 0) {
-          throw new Error(
-            `El monto "${textoDeCelda(monto)}" no es un número válido`,
+      for (let r = filaEncabezado + 1; r <= hoja.rowCount; r++) {
+        const fila = hoja.getRow(r);
+        const prev = celda(fila, 'prev');
+        const dev = celda(fila, 'dev');
+        const cheque = celda(fila, 'cheque');
+        const beneficiario = celda(fila, 'beneficiario');
+        const descripcion = celda(fila, 'descripcion');
+        const monto = celda(fila, 'monto');
+        const fecha = celda(fila, 'fecha');
+        const folio = celda(fila, 'folio');
+        const carpetaCelda = celda(fila, 'carpeta');
+        const ubicacion = celda(fila, 'ubicacion');
+        const estadoCelda = celda(fila, 'estado');
+        const observacionesCelda = celda(fila, 'observaciones');
+
+        const vacia =
+          !textoDeCelda(descripcion) &&
+          !textoDeCelda(beneficiario) &&
+          !textoDeCelda(monto) &&
+          !textoDeCelda(prev) &&
+          !textoDeCelda(dev);
+        if (vacia) continue;
+
+        const detalle: FilaImportacion = {
+          fila: r,
+          hoja: hoja.name,
+          preventivos: [],
+          devengados: [],
+          carpetas: [],
+          monto: null,
+          estado: 'OK',
+          advertencias: [],
+        };
+        filas.push(detalle);
+
+        try {
+          // Preventivos van a Preventivos y devengados a Devengados (nunca mezclados)
+          const np = numerosDeCelda(textoDeCelda(prev));
+          const nd = numerosDeCelda(textoDeCelda(dev));
+          const preventivosCelda = np.numeros;
+          const devengadosCelda = nd.numeros;
+          detalle.preventivos = preventivosCelda;
+          detalle.devengados = devengadosCelda;
+          detalle.advertencias.push(...np.advertencias, ...nd.advertencias);
+          if (!preventivosCelda.length && !devengadosCelda.length) {
+            throw new Error('Falta el Nº de preventivo o de devengado');
+          }
+          if (!textoDeCelda(descripcion)) {
+            throw new Error('Falta la descripción del comprobante');
+          }
+          if (!textoDeCelda(monto)) {
+            throw new Error('Falta el monto del comprobante');
+          }
+          const montoNumerico = parseMonto(
+            typeof monto === 'number' ? monto : textoDeCelda(monto),
           );
-        }
-
-        let fechaIso: string | null;
-        if (textoDeCelda(fecha)) {
-          fechaIso = parseFechaCelda(fecha);
-          if (!fechaIso) {
+          if (montoNumerico === null || montoNumerico <= 0) {
             throw new Error(
-              `La fecha "${textoDeCelda(fecha)}" no es válida (use dd/mm/aaaa)`,
+              `El monto "${textoDeCelda(monto)}" no es un número válido`,
             );
           }
-        } else {
-          fechaIso = `${gestion}-01-01`;
-        }
-        const fechaElaboracion = new Date(`${fechaIso}T12:00:00`);
+          detalle.monto = montoNumerico;
 
-        const cheques = textoDeCelda(cheque)
-          .split(/\s+/)
-          .map((s) => s.trim())
-          .filter(Boolean);
-
-        const beneficiarios = (textoDeCelda(beneficiario) || 'S/N')
-          .split(/[,;]/)
-          .map((s) => s.trim())
-          .filter(Boolean);
-
-        const numeroFolio = textoDeCelda(folio) || undefined;
-        const ubicacionFisica =
-          textoDeCelda(ubicacion).slice(0, 150) || undefined;
-
-        await this.dataSource.transaction(async (manager) => {
-          const catalogoImport = await this.beneficiariosService.catalogar(
-            manager,
-            beneficiarios,
-            usuario.id,
-          );
-          const comprobante = manager.create(ComprobantesC31, {
-            // Con al menos un preventivo es Con imputación; solo devengado, Sin imputación
-            tipoC31: preventivosCelda.length
-              ? TipoC31.CON_IMPUTACION
-              : TipoC31.SIN_IMPUTACION,
-            montoTotal: montoNumerico,
-            fechaElaboracion: fechaElaboracion,
-            descripcion: textoDeCelda(descripcion),
-            numeroFolio,
-            ubicacionFisica,
-            gestion,
-            // Archivo histórico ya foliado y ubicado -> Archivado; si no, En archivo
-            estadoFisico:
-              numeroFolio && ubicacionFisica
-                ? EstadoFisicoC31.ARCHIVADO
-                : EstadoFisicoC31.EN_ARCHIVO,
-            creadoPorId: usuario.id,
-            preventivos: preventivosCelda.map((numeroPreventivo) =>
-              manager.create(C31Preventivo, { numeroPreventivo }),
-            ),
-            devengados: devengadosCelda.map((numeroDevengado) =>
-              manager.create(C31Devengado, { numeroDevengado }),
-            ),
-            beneficiarios: beneficiarios.map((nombreBeneficiario) =>
-              manager.create(C31Beneficiario, {
-                nombreBeneficiario,
-                beneficiarioId: catalogoImport.get(
-                  claveNombre(nombreBeneficiario),
-                ),
-              }),
-            ),
-          });
-          const guardado = await manager.save(ComprobantesC31, comprobante);
-          await registrarCambioEstado(manager, {
-            comprobanteId: guardado.id as number,
-            estadoNuevo: guardado.estadoFisico as string,
-            origen: 'REGISTRO',
-            usuarioId: usuario.id,
-            detalle: 'Importado desde Excel',
-          });
-
-          // Cada pago se liga a un beneficiario; con varios beneficiarios no se
-          // sabe a quién corresponde cada cheque, así que se dejan en observaciones.
-          if (cheques.length > 0) {
-            if (guardado.beneficiarios?.length === 1) {
-              await manager.save(
-                C31Pago,
-                cheques.map((numeroDocumento) =>
-                  manager.create(C31Pago, {
-                    comprobanteId: guardado.id,
-                    beneficiarioId: guardado.beneficiarios?.[0].id,
-                    tipoPago: TipoPago.CHEQUE,
-                    numeroDocumento,
-                    // Con un solo cheque el monto es el del comprobante; con varios se completa después
-                    monto: cheques.length === 1 ? montoNumerico : null,
-                    estadoPago: EstadoPago.PAGADO,
-                    creadoPorId: usuario.id,
-                  }),
-                ),
+          let fechaIso: string | null;
+          if (textoDeCelda(fecha)) {
+            fechaIso = parseFechaCelda(fecha);
+            if (!fechaIso) {
+              throw new Error(
+                `La fecha "${textoDeCelda(fecha)}" no es válida (use dd/mm/aaaa)`,
               );
-            } else {
-              await manager.update(ComprobantesC31, guardado.id as number, {
-                observaciones: `Cheques del Excel: ${cheques.join(', ')}`,
-              });
             }
+          } else {
+            fechaIso = `${gestion}-01-01`;
+            detalle.advertencias.push(
+              'Sin fecha: se usó el 01/01 de la gestión',
+            );
           }
-        });
+          const fechaElaboracion = new Date(`${fechaIso}T12:00:00`);
 
-        creados++;
-      } catch (err) {
-        errores.push({
-          fila: r,
-          motivo: err instanceof Error ? err.message : 'Error desconocido',
-        });
+          // Duplicados: en el archivo y en la base (misma gestión)
+          const repetidos: string[] = [];
+          for (const n of preventivosCelda) {
+            const enBase = await this.dataSource.query(
+              `SELECT 1 FROM c31_preventivos p JOIN comprobantes_c31 c ON c.id = p.comprobante_id
+               WHERE c.gestion = $1 AND p.numero_preventivo = $2 LIMIT 1`,
+              [gestion, n],
+            );
+            if (vistosPrev.has(n) || enBase.length) repetidos.push(`PREV ${n}`);
+          }
+          for (const n of devengadosCelda) {
+            const enBase = await this.dataSource.query(
+              `SELECT 1 FROM c31_devengados d JOIN comprobantes_c31 c ON c.id = d.comprobante_id
+               WHERE c.gestion = $1 AND d.numero_devengado = $2 LIMIT 1`,
+              [gestion, n],
+            );
+            if (vistosDev.has(n) || enBase.length) repetidos.push(`DEV ${n}`);
+          }
+          if (repetidos.length) {
+            detalle.estado = 'DUPLICADO';
+            const motivo = `Ya existe en la gestión ${gestion}: ${repetidos.join(', ')}`;
+            detalle.advertencias.push(motivo);
+            omitidos.push({ fila: r, motivo });
+            continue;
+          }
+          preventivosCelda.forEach((n) => vistosPrev.add(n));
+          devengadosCelda.forEach((n) => vistosDev.add(n));
+
+          const cheques = textoDeCelda(cheque)
+            .split(/[\s,;]+/)
+            .map((s) => s.trim())
+            .filter(Boolean);
+
+          const beneficiarios = (textoDeCelda(beneficiario) || 'S/N')
+            .split(/[,;]/)
+            .map((s) => s.trim())
+            .filter(Boolean);
+
+          // Carpetas: "4-5-6" = el comprobante está en 3 carpetas (partes 1..3)
+          const nc = numerosDeCelda(textoDeCelda(carpetaCelda));
+          detalle.carpetas = nc.numeros;
+          detalle.advertencias.push(...nc.advertencias);
+          const textoUbicacion = textoDeCelda(ubicacion).slice(0, 150);
+          const numeroFolio = textoDeCelda(folio) || undefined;
+          const ubicacionFisica =
+            textoUbicacion ||
+            (nc.numeros.length ? `Carpeta ${nc.numeros.join('-')}` : undefined);
+          const estadoNorm = normalizarEncabezado(textoDeCelda(estadoCelda));
+          const anulado = estadoNorm.includes('ANULAD');
+          // "No se encuentra en archivos" = comprobante perdido / extraviado
+          const noEncontrado =
+            !anulado &&
+            /NOSEENCUENTRA|NOENCONTRAD|NOUBICAD|PERDID|EXTRAVIAD/.test(
+              estadoNorm,
+            );
+          if (noEncontrado)
+            detalle.advertencias.push(
+              'Se marcará como "No se encuentra en archivos"',
+            );
+          const observaciones =
+            [
+              noEncontrado
+                ? 'No se encuentra en archivos (según Excel importado)'
+                : '',
+              textoDeCelda(observacionesCelda),
+            ]
+              .filter(Boolean)
+              .join(' · ') || undefined;
+
+          if (simular) continue;
+
+          await this.dataSource.transaction(async (manager) => {
+            const catalogoImport = await this.beneficiariosService.catalogar(
+              manager,
+              beneficiarios,
+              usuario.id,
+            );
+            const comprobante = manager.create(ComprobantesC31, {
+              // Con al menos un preventivo es Con imputación; solo devengado, Sin imputación
+              tipoC31: preventivosCelda.length
+                ? TipoC31.CON_IMPUTACION
+                : TipoC31.SIN_IMPUTACION,
+              montoTotal: montoNumerico,
+              fechaElaboracion: fechaElaboracion,
+              descripcion: textoDeCelda(descripcion),
+              numeroFolio,
+              ubicacionFisica,
+              observaciones,
+              gestion,
+              // Archivo histórico ya foliado y ubicado -> Archivado; si no, En archivo
+              estadoFisico: anulado
+                ? EstadoFisicoC31.ANULADO
+                : noEncontrado
+                  ? EstadoFisicoC31.NO_ENCONTRADO
+                  : numeroFolio && ubicacionFisica
+                    ? EstadoFisicoC31.ARCHIVADO
+                    : EstadoFisicoC31.EN_ARCHIVO,
+              creadoPorId: usuario.id,
+              preventivos: preventivosCelda.map((numeroPreventivo) =>
+                manager.create(C31Preventivo, { numeroPreventivo }),
+              ),
+              devengados: devengadosCelda.map((numeroDevengado) =>
+                manager.create(C31Devengado, { numeroDevengado }),
+              ),
+              beneficiarios: beneficiarios.map((nombreBeneficiario) =>
+                manager.create(C31Beneficiario, {
+                  nombreBeneficiario,
+                  beneficiarioId: catalogoImport.get(
+                    claveNombre(nombreBeneficiario),
+                  ),
+                }),
+              ),
+            });
+            const guardado = await manager.save(ComprobantesC31, comprobante);
+            await registrarCambioEstado(manager, {
+              comprobanteId: guardado.id as number,
+              estadoNuevo: guardado.estadoFisico as string,
+              origen: 'REGISTRO',
+              usuarioId: usuario.id,
+              detalle: 'Importado desde Excel',
+            });
+
+            // Carpetas: se buscan por código <gestión>-<N°>; si no existen se crean
+            for (let i = 0; i < nc.numeros.length; i++) {
+              const codigo = codigoDeCarpeta(gestion, nc.numeros[i]);
+              let carpeta = await manager.findOne(Carpeta, {
+                where: { codigoCarpeta: codigo },
+              });
+              if (!carpeta) {
+                carpeta = await manager.save(
+                  Carpeta,
+                  manager.create(Carpeta, {
+                    codigoCarpeta: codigo,
+                    ubicacionFisica: textoUbicacion || 'ARCHIVOS',
+                  }),
+                );
+              }
+              await manager.save(
+                C31CarpetasUbicacion,
+                manager.create(C31CarpetasUbicacion, {
+                  comprobante: { id: guardado.id } as ComprobantesC31,
+                  carpeta: { id: carpeta.id } as Carpeta,
+                  numeroParte: i + 1,
+                }),
+              );
+            }
+
+            // Cada pago se liga a un beneficiario; con varios beneficiarios no se
+            // sabe a quién corresponde cada cheque, así que se dejan en observaciones.
+            if (cheques.length > 0) {
+              if (guardado.beneficiarios?.length === 1) {
+                await manager.save(
+                  C31Pago,
+                  cheques.map((numeroDocumento) =>
+                    manager.create(C31Pago, {
+                      comprobanteId: guardado.id,
+                      beneficiarioId: guardado.beneficiarios?.[0].id,
+                      tipoPago: TipoPago.CHEQUE,
+                      numeroDocumento,
+                      // Con un solo cheque el monto es el del comprobante; con varios se completa después
+                      monto: cheques.length === 1 ? montoNumerico : null,
+                      estadoPago: EstadoPago.PAGADO,
+                      creadoPorId: usuario.id,
+                    }),
+                  ),
+                );
+              } else {
+                await manager.update(ComprobantesC31, guardado.id as number, {
+                  observaciones: [
+                    observaciones,
+                    `Cheques del Excel: ${cheques.join(', ')}`,
+                  ]
+                    .filter(Boolean)
+                    .join(' · '),
+                });
+              }
+            }
+          });
+
+          creados++;
+        } catch (err) {
+          const motivo =
+            err instanceof Error ? err.message : 'Error desconocido';
+          detalle.estado = 'ERROR';
+          detalle.advertencias.push(motivo);
+          errores.push({ fila: r, motivo });
+        }
       }
     }
 
-    return { creados, errores };
+    if (!hojasLeidas) {
+      throw new BadRequestException(
+        'No se encontró ninguna hoja con encabezados (Nº PREV o Nº DEV, BENEFICIARIO, DESCRIPCION, MONTO)',
+      );
+    }
+    return {
+      simulacion: simular,
+      creados,
+      omitidos,
+      errores,
+      filas,
+      total: filas.length,
+      porCrear: filas.filter((f) => f.estado === 'OK').length,
+    };
   }
+}
+
+export interface FilaImportacion {
+  fila: number;
+  hoja: string;
+  preventivos: string[];
+  devengados: string[];
+  carpetas: string[];
+  monto: number | null;
+  estado: 'OK' | 'DUPLICADO' | 'ERROR';
+  advertencias: string[];
+}
+
+export interface ResultadoImportacion {
+  simulacion: boolean;
+  creados: number;
+  omitidos: { fila: number; motivo: string }[];
+  errores: { fila: number; motivo: string }[];
+  filas: FilaImportacion[];
+  total: number;
+  porCrear: number;
 }

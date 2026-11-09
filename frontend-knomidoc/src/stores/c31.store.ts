@@ -89,11 +89,12 @@ export const useC31Store = defineStore('c31', {
     },
 
     async exportExcel() {
-      await c31Service.exportExcel(this.filters.gestion)
+      await c31Service.exportExcel(this.filters)
     },
 
-    async importExcel(file: File, gestion: number): Promise<C31ImportResult> {
-      const resultado = await c31Service.importExcel(file, gestion)
+    async importExcel(file: File, gestion: number, simular = false): Promise<C31ImportResult> {
+      const resultado = await c31Service.importExcel(file, gestion, simular)
+      if (simular) return resultado
       await this.fetchGestiones()
       await this.fetchList()
       return resultado
