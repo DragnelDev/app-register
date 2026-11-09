@@ -137,9 +137,9 @@ onMounted(loadRows)
         <BaseButton variant="secondary" :disabled="!rows.length" @click="imprimirTodas">
           <i class="fa-solid fa-barcode mr-1" aria-hidden="true" /> Imprimir etiquetas
         </BaseButton>
-        <BaseButton v-if="auth.puedeGestionarArchivo" @click="openCreate">
-          <i class="fa-solid fa-plus" aria-hidden="true" /> Registrar depósito
-        </BaseButton>
+      <BaseButton v-if="auth.puedeGestionarArchivo" @click="openCreate">
+        <i class="fa-solid fa-plus" aria-hidden="true" /> Registrar depósito
+      </BaseButton>
       </div>
     </div>
 
@@ -190,12 +190,7 @@ onMounted(loadRows)
       <template #actions="{ row }">
         <div class="flex justify-end gap-2">
           <IconButton icon="fa-barcode" label="Ver código de barras" @click="verBarras(row)" />
-          <IconButton
-            v-if="auth.puedeGestionarArchivo"
-            icon="fa-pen-to-square"
-            label="Editar"
-            @click="openEdit(row)"
-          />
+          <IconButton v-if="auth.puedeGestionarArchivo" icon="fa-pen-to-square" label="Editar" @click="openEdit(row)" />
           <IconButton
             v-if="auth.isAdmin"
             icon="fa-trash-can"

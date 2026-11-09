@@ -43,6 +43,8 @@ export class CreateNotaAuditoriaDto {
   @IsOptional() @IsString() @MaxLength(5000) cierre?: string;
   @IsOptional() @IsInt() gestion?: number;
   @IsOptional() @IsArray() @IsString({ each: true }) notasPrestamo?: string[];
+  /** Solicitud de Auditoría que esta nota responde. */
+  @IsOptional() @IsInt() solicitudId?: number;
 }
 
 export class UpdateNotaAuditoriaDto {
@@ -81,4 +83,24 @@ export class ClasificarDto {
   /** Comprobantes marcados en la selección rápida */
   @IsOptional() @IsArray() @IsInt({ each: true }) comprobanteIds?: number[];
   @IsOptional() @IsInt() gestion?: number;
+}
+
+export class SolicitudAuditoriaDto {
+  @IsString() @MaxLength(120) cite!: string;
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) fecha?: string;
+  @IsString() @MaxLength(150) solicitante!: string;
+  @IsOptional() @IsString() @MaxLength(200) cargoSolicitante?: string;
+  @IsString() @MaxLength(3000) asunto!: string;
+  @IsString() @MaxLength(20000) texto!: string;
+  @IsOptional() @IsInt() gestion?: number;
+  @IsOptional() @IsString() @MaxLength(3000) observaciones?: string;
+}
+export class UpdateSolicitudAuditoriaDto {
+  @IsOptional() @IsString() @MaxLength(120) cite?: string;
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) fecha?: string;
+  @IsOptional() @IsString() @MaxLength(150) solicitante?: string;
+  @IsOptional() @IsString() @MaxLength(200) cargoSolicitante?: string;
+  @IsOptional() @IsString() @MaxLength(3000) asunto?: string;
+  @IsOptional() @IsString() @MaxLength(20000) texto?: string;
+  @IsOptional() @IsString() @MaxLength(3000) observaciones?: string;
 }

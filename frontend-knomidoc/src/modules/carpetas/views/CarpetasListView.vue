@@ -77,9 +77,7 @@ const etiquetaSel = ref<EtiquetaArchivo | null>(null)
 const aEtiqueta = (row: (typeof rows.value)[number]): EtiquetaArchivo => ({
   codigo: row.codigoCarpeta,
   titulo: `Carpeta ${row.codigoCarpeta}`,
-  subtitulo: row.estante
-    ? `${row.estante.deposito?.codigo ?? ''} / ${row.estante.codigo}`
-    : row.ubicacionFisica,
+  subtitulo: row.estante ? `${row.estante.deposito?.codigo ?? ''} / ${row.estante.codigo}` : row.ubicacionFisica,
 })
 function verBarras(row: (typeof rows.value)[number]) {
   etiquetaSel.value = aEtiqueta(row)
@@ -165,9 +163,9 @@ onMounted(async () => {
         <BaseButton variant="secondary" :disabled="!rows.length" @click="imprimirTodas">
           <i class="fa-solid fa-barcode mr-1" aria-hidden="true" /> Imprimir etiquetas
         </BaseButton>
-        <BaseButton v-if="auth.puedeGestionarArchivo" @click="openCreate">
-          <i class="fa-solid fa-plus" aria-hidden="true" /> Registrar carpeta
-        </BaseButton>
+      <BaseButton v-if="auth.puedeGestionarArchivo" @click="openCreate">
+        <i class="fa-solid fa-plus" aria-hidden="true" /> Registrar carpeta
+      </BaseButton>
       </div>
     </div>
 
@@ -209,12 +207,7 @@ onMounted(async () => {
       <template #actions="{ row }">
         <div class="flex justify-end gap-2">
           <IconButton icon="fa-barcode" label="Ver código de barras" @click="verBarras(row)" />
-          <IconButton
-            v-if="auth.puedeGestionarArchivo"
-            icon="fa-pen-to-square"
-            label="Editar"
-            @click="openEdit(row)"
-          />
+          <IconButton v-if="auth.puedeGestionarArchivo" icon="fa-pen-to-square" label="Editar" @click="openEdit(row)" />
           <IconButton
             v-if="auth.puedeGestionarArchivo"
             icon="fa-trash-can"

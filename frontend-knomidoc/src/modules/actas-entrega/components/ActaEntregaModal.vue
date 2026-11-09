@@ -90,8 +90,7 @@ watch(
     const a = props.acta
     form.numeroActa = a?.numeroActa ?? ''
     form.unidadEmisora = a?.unidadEmisora ?? 'Tesorería'
-    form.responsableEntrega =
-      a?.responsableEntrega ?? (auth.esRemitente ? (auth.usuario?.nombreCompleto ?? '') : '')
+    form.responsableEntrega = a?.responsableEntrega ?? (auth.esRemitente ? (auth.usuario?.nombreCompleto ?? '') : '')
     form.responsableRecepcion = a?.responsableRecepcion ?? ''
     form.fechaRecepcion = a?.fechaRecepcion?.slice(0, 10) ?? new Date().toISOString().slice(0, 10)
     form.observaciones = a?.observaciones ?? ''
@@ -124,7 +123,8 @@ const visibles = computed(() =>
     : candidatos.value,
 )
 const todosMarcados = computed(
-  () => visibles.value.length > 0 && visibles.value.every((c) => seleccion.value.has(Number(c.id))),
+  () =>
+    visibles.value.length > 0 && visibles.value.every((c) => seleccion.value.has(Number(c.id))),
 )
 function alternarTodos() {
   if (soloLectura.value) return
@@ -140,7 +140,11 @@ const totalSeleccionado = computed(() =>
 )
 
 const errores = computed(() => ({
-  numeroActa: runValidators(form.numeroActa, [maxLength(50), codigoDocumento()]) ?? '',
+  numeroActa:
+    runValidators(form.numeroActa, [
+      maxLength(50),
+      codigoDocumento(),
+    ]) ?? '',
   responsableEntrega:
     runValidators(form.responsableEntrega, [
       required('Indique quién entrega'),
@@ -256,11 +260,7 @@ const ver = (e: string) => (intentado.value ? e : '')
             <button
               type="button"
               class="rounded-md px-2.5 py-1.5"
-              :class="
-                vista === 'lista'
-                  ? 'bg-seal-600 text-white'
-                  : 'bg-ink-100 dark:bg-white/10 dark:text-ink-100'
-              "
+              :class="vista === 'lista' ? 'bg-seal-600 text-white' : 'bg-ink-100 dark:bg-white/10 dark:text-ink-100'"
               @click="vista = 'lista'"
             >
               Lista
@@ -268,20 +268,13 @@ const ver = (e: string) => (intentado.value ? e : '')
             <button
               type="button"
               class="rounded-md px-2.5 py-1.5"
-              :class="
-                vista === 'matriz'
-                  ? 'bg-seal-600 text-white'
-                  : 'bg-ink-100 dark:bg-white/10 dark:text-ink-100'
-              "
+              :class="vista === 'matriz' ? 'bg-seal-600 text-white' : 'bg-ink-100 dark:bg-white/10 dark:text-ink-100'"
               @click="vista = 'matriz'"
             >
               Selección rápida
             </button>
           </div>
-          <label
-            v-if="!soloLectura"
-            class="flex items-center gap-1.5 text-xs text-ink-600 dark:text-ink-300"
-          >
+          <label v-if="!soloLectura" class="flex items-center gap-1.5 text-xs text-ink-600 dark:text-ink-300">
             <input v-model="soloMarcados" type="checkbox" /> Ver solo los marcados
           </label>
           <input
@@ -300,10 +293,7 @@ const ver = (e: string) => (intentado.value ? e : '')
           :items="visibles"
           :solo-lectura="soloLectura"
         />
-        <div
-          v-else
-          class="max-h-72 overflow-auto rounded-md border border-ink-100 dark:border-white/10"
-        >
+        <div v-else class="max-h-72 overflow-auto rounded-md border border-ink-100 dark:border-white/10">
           <table class="w-full border-collapse text-sm">
             <thead
               class="sticky top-0 border-b border-ink-100 bg-ink-50 dark:border-white/10 dark:bg-ink-950"
@@ -329,11 +319,7 @@ const ver = (e: string) => (intentado.value ? e : '')
               </tr>
               <tr v-else-if="!visibles.length">
                 <td colspan="4" class="px-3 py-5 text-center text-ink-400">
-                  {{
-                    soloLectura || soloMarcados
-                      ? 'No hay comprobantes marcados.'
-                      : 'No hay comprobantes firmados pendientes de entrega.'
-                  }}
+                  {{ soloLectura || soloMarcados ? 'No hay comprobantes marcados.' : 'No hay comprobantes firmados pendientes de entrega.' }}
                 </td>
               </tr>
               <tr
@@ -361,8 +347,7 @@ const ver = (e: string) => (intentado.value ? e : '')
           </table>
         </div>
         <p class="mt-1 text-xs text-ink-600 dark:text-ink-300">
-          {{ seleccion.size }} {{ soloLectura ? 'enviado(s)' : 'marcado(s)' }} · Total Bs
-          {{ bs(totalSeleccionado) }}
+          {{ seleccion.size }} {{ soloLectura ? 'enviado(s)' : 'marcado(s)' }} · Total Bs {{ bs(totalSeleccionado) }}
         </p>
         <p v-if="intentado && errores.comprobantes" class="mt-1 text-xs text-red-600">
           {{ errores.comprobantes }}

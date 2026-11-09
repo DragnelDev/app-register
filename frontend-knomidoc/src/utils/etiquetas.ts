@@ -8,10 +8,7 @@ export interface EtiquetaArchivo {
 }
 
 const esc = (s: string) =>
-  s.replace(
-    /[&<>"]/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string,
-  )
+  s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string)
 
 /** Abre una hoja de etiquetas (3 por fila) lista para imprimir. */
 export function imprimirEtiquetas(etiquetas: EtiquetaArchivo[], titulo = 'Etiquetas de archivo') {
@@ -27,8 +24,7 @@ export function imprimirEtiquetas(etiquetas: EtiquetaArchivo[], titulo = 'Etique
 </div>`,
     )
     .join('')
-  ventana.document
-    .write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(titulo)}</title>
+  ventana.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(titulo)}</title>
 <style>
   @page { size: letter; margin: 10mm; }
   body { font-family: Arial, Helvetica, sans-serif; margin: 0; color: #000; }

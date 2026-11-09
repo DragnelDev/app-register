@@ -26,7 +26,10 @@ export const C31_STORAGE_DIR = resolve(
 
 export const MAX_ADJUNTO_BYTES = 20 * 1024 * 1024;
 
-const TIPOS_PERMITIDOS: Record<string, { ext: string; firma: number[][] }> = {
+export const TIPOS_PERMITIDOS: Record<
+  string,
+  { ext: string; firma: number[][] }
+> = {
   'application/pdf': { ext: '.pdf', firma: [[0x25, 0x50, 0x44, 0x46]] },
   'image/jpeg': { ext: '.jpg', firma: [[0xff, 0xd8, 0xff]] },
   'image/png': { ext: '.png', firma: [[0x89, 0x50, 0x4e, 0x47]] },
@@ -34,7 +37,7 @@ const TIPOS_PERMITIDOS: Record<string, { ext: string; firma: number[][] }> = {
 };
 
 /** El tipo declarado por el cliente se contrasta con los primeros bytes reales. */
-function coincideFirma(buffer: Buffer, mime: string): boolean {
+export function coincideFirma(buffer: Buffer, mime: string): boolean {
   const def = TIPOS_PERMITIDOS[mime];
   if (!def) return false;
   return def.firma.some((f) => f.every((byte, i) => buffer[i] === byte));

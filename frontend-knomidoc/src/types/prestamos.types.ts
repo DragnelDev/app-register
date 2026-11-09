@@ -3,6 +3,8 @@ import type { ComprobanteC31 } from './c31.types'
 import type { UsuarioSolicitante } from './auth.types'
 import type { Funcionario } from './funcionarios.types'
 
+export type { EstadoPrestamoNota, MetodoVerificacion }
+
 /** Préstamo rápido registrado en el cuaderno de control de salida. */
 export interface PrestamoCuaderno {
   id: string

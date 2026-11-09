@@ -151,7 +151,10 @@ onMounted(loadRows)
           v-model="filtroEstado"
           class="rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
           aria-label="Filtrar por estado"
-          @change="((page = 1), loadRows())"
+          @change="
+            page = 1;
+            loadRows()
+          "
         >
           <option value="">Todas</option>
           <option value="BORRADOR">Borrador</option>
@@ -189,10 +192,7 @@ onMounted(loadRows)
       <template #cell-estado="{ row }"><BaseBadge :estado="row.estado" /></template>
       <template #actions="{ row }">
         <div class="flex justify-end gap-2">
-          <IconButton
-            v-if="
-              row.estado === 'BORRADOR' && row.cantidadComprobantes > 0 && auth.puedeRecibirActas
-            "
+          <IconButton v-if="(row.estado === 'BORRADOR' && row.cantidadComprobantes > 0) && auth.puedeRecibirActas"
             icon="fa-clipboard-check"
             label="Recibir acta (aprobar)"
             variant="success"
@@ -209,8 +209,7 @@ onMounted(loadRows)
             :label="row.estado === 'BORRADOR' ? 'Editar acta' : 'Ver acta'"
             @click.stop="openDetail(row)"
           />
-          <IconButton
-            v-if="row.estado === 'BORRADOR' && auth.puedeAnularActas"
+          <IconButton v-if="(row.estado === 'BORRADOR') && auth.puedeAnularActas"
             icon="fa-ban"
             label="Anular acta"
             variant="danger"

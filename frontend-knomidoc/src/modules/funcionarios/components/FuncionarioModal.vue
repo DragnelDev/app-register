@@ -50,7 +50,12 @@ const rules = {
     pattern(/^[A-Za-z0-9-]+$/, 'Solo letras, números y guion'),
   ],
   nombres: [required('Los nombres son obligatorios'), minLength(2), nombreOk, maxLength(100)],
-  apellidos: [required('Los apellidos son obligatorios'), minLength(2), nombreOk, maxLength(100)],
+  apellidos: [
+    required('Los apellidos son obligatorios'),
+    minLength(2),
+    nombreOk,
+    maxLength(100),
+  ],
   cargo: [required('El cargo es obligatorio'), maxLength(150)],
   unidadOficina: [required('La unidad u oficina es obligatoria'), maxLength(150)],
 } as const
@@ -112,15 +117,8 @@ function guardar() {
     :title="esEdicion() ? 'Editar funcionario' : 'Registrar funcionario'"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <form
-      id="form-funcionario"
-      class="grid grid-cols-1 gap-4 sm:grid-cols-2"
-      @submit.prevent="guardar"
-    >
-      <p
-        v-if="serverError"
-        class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 sm:col-span-2 dark:bg-red-950/40 dark:text-red-300"
-      >
+    <form id="form-funcionario" class="grid grid-cols-1 gap-4 sm:grid-cols-2" @submit.prevent="guardar">
+      <p v-if="serverError" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 sm:col-span-2 dark:bg-red-950/40 dark:text-red-300">
         {{ serverError }}
       </p>
       <BaseInput v-model="form.ci" label="CI" required :error="errors.ci" @blur="validar" />
@@ -140,11 +138,7 @@ function guardar() {
           Huella digital
           <span
             class="ml-1 text-xs font-normal"
-            :class="
-              funcionario.huellaRegistradaEn
-                ? 'text-emerald-600 dark:text-emerald-300'
-                : 'text-ink-400'
-            "
+            :class="funcionario.huellaRegistradaEn ? 'text-emerald-600 dark:text-emerald-300' : 'text-ink-400'"
           >
             {{ funcionario.huellaRegistradaEn ? 'registrada' : 'sin registrar' }}
           </span>
@@ -167,9 +161,7 @@ function guardar() {
       />
     </form>
     <template #footer>
-      <BaseButton variant="secondary" @click="emit('update:modelValue', false)"
-        >Cancelar</BaseButton
-      >
+      <BaseButton variant="secondary" @click="emit('update:modelValue', false)">Cancelar</BaseButton>
       <BaseButton type="submit" form="form-funcionario" :loading="saving">Guardar</BaseButton>
     </template>
   </BaseModal>

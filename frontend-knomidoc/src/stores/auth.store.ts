@@ -42,8 +42,7 @@ export const useAuthStore = defineStore('auth', {
     perfiles: (state) => state.usuario?.roles ?? (state.usuario ? [state.usuario.rol] : []),
     esRemitente: (state) => state.usuario?.rol === 'REMITENTE_C31',
     /** Consulta básica: solo ve el comprobante y dónde está (nada más) */
-    esSoloUbicacion: (state) =>
-      ['SOLO_LECTURA', 'CONSULTA_EXTERNA'].includes(state.usuario?.rol ?? ''),
+    esSoloUbicacion: (state) => ['SOLO_LECTURA', 'CONSULTA_EXTERNA'].includes(state.usuario?.rol ?? ''),
     /** Perfil de solo consulta (no modifica nada) */
     esSoloConsulta: (state) =>
       ['SOLO_LECTURA', 'CONSULTA_AVANZADA', 'CONSULTA_EXTERNA'].includes(state.usuario?.rol ?? ''),
@@ -129,11 +128,7 @@ export const useAuthStore = defineStore('auth', {
       localStorage.setItem(TOKEN_STORAGE_KEY, r.accessToken)
       sessionStorage.removeItem(TOKEN_STORAGE_KEY)
       if (this.usuario) {
-        this.usuario = {
-          ...this.usuario,
-          rol: r.rol as Usuario['rol'],
-          roles: r.roles as Usuario['roles'],
-        }
+        this.usuario = { ...this.usuario, rol: r.rol as Usuario['rol'], roles: r.roles as Usuario['roles'] }
         localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(this.usuario))
       }
       this.perfilPendiente = false

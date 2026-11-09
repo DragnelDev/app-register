@@ -25,6 +25,12 @@ import {
   UpdateNotaAuditoriaDto,
 } from './dto/nota-auditoria.dto';
 import { Usuario } from '../usuarios/entities/usuario.entity';
+import { SolicitudAuditoria } from './entities/solicitud-auditoria.entity';
+import {
+  SolicitudAuditoriaDto,
+  UpdateSolicitudAuditoriaDto,
+} from './dto/nota-auditoria.dto';
+import { CitesService } from '../cites/cites.service';
 import { notaAuditoriaPdf } from './nota-auditoria-pdf.util';
 
 const hoy = () =>
@@ -37,7 +43,10 @@ export class NotasAuditoriaService {
     private readonly repo: Repository<NotaAuditoria>,
     @InjectRepository(PrestamosNota)
     private readonly prestamos: Repository<PrestamosNota>,
+    @InjectRepository(SolicitudAuditoria)
+    private readonly solicitudes: Repository<SolicitudAuditoria>,
     private readonly dataSource: DataSource,
+    private readonly cites: CitesService,
   ) {}
 
   /** CITE correlativo por gestión: GAMSL/ARCH/AUD/OF-N° 004/2026 */
@@ -163,9 +172,10 @@ export class NotasAuditoriaService {
       dto.cite?.trim() || (await this.siguienteCite(Number(fecha.slice(0, 4))));
     if (await this.repo.existsBy({ cite }))
       throw new ConflictException(`Ya existe una nota con el CITE ${cite}`);
-    return this.repo.save(
+    const { solicitudId, ...datos } = dto;
+    const nota = await this.repo.save(
       this.repo.create({
-        ...dto,
+        ...datos,
         cite,
         fecha,
         introduccion: dto.introduccion ?? '',
@@ -174,6 +184,32 @@ export class NotasAuditoriaService {
         creadoPorId: usuario.id,
       }),
     );
+    if (solicitudId) {
+      const sol = await this.solicitudes.findOneBy({ id: solicitudId });
+      if (sol) {
+        sol.estado = 'RESPONDIDA';
+        sol.notaAuditoriaId = nota.id;
+        await this.solicitudes.save(sol);
+      }
+    }
+    // La nota queda también en el libro global de CITEs
+    await this.cites
+      .registrarSiNoExiste(
+        {
+          direccion: 'EMITIDO',
+          tipo: 'OF',
+          cite: nota.cite,
+          fecha: nota.fecha,
+          contraparte: nota.destinatario?.nombre ?? '',
+          cargoContraparte: nota.destinatario?.cargo,
+          asunto: nota.referencia ?? '',
+        },
+        'NOTA_AUDITORIA',
+        nota.id as number,
+        usuario,
+      )
+      .catch(() => undefined);
+    return nota;
   }
 
   findAll(search?: string) {
@@ -400,5 +436,127 @@ export class NotasAuditoriaService {
 
   async pdf(id: number) {
     return notaAuditoriaPdf(await this.findOne(id));
+  }
+
+  // ── Solicitudes de Auditoría (simulan la nota que llega de esa unidad) ──
+  listarSolicitudes(estado?: string, search?: string) {
+    const qb = this.solicitudes
+      .createQueryBuilder('s')
+      .orderBy('s.fecha', 'DESC')
+      .addOrderBy('s.id', 'DESC');
+    if (estado) qb.andWhere('s.estado = :e', { e: estado });
+    if (search?.trim())
+      qb.andWhere(
+        '(s.cite ILIKE :q OR s.asunto ILIKE :q OR s.solicitante ILIKE :q)',
+        { q: `%${search.trim()}%` },
+      );
+    return qb.take(200).getMany();
+  }
+
+  async solicitud(id: number) {
+    const s = await this.solicitudes.findOneBy({ id });
+    if (!s) throw new NotFoundException('Solicitud no encontrada');
+    return s;
+  }
+
+  async crearSolicitud(dto: SolicitudAuditoriaDto, usuario: Usuario) {
+    const fecha = dto.fecha ?? hoy();
+    const s = await this.solicitudes.save(
+      this.solicitudes.create({
+        ...dto,
+        fecha,
+        gestion: dto.gestion ?? Number(fecha.slice(0, 4)),
+        estado: 'PENDIENTE',
+        ejemplo: false,
+        creadoPorId: usuario.id,
+      }),
+    );
+    await this.cites
+      .registrarSiNoExiste(
+        {
+          direccion: 'RECIBIDO',
+          tipo: 'NOTA',
+          cite: s.cite,
+          fecha,
+          contraparte: s.solicitante ?? '',
+          cargoContraparte: s.cargoSolicitante ?? undefined,
+          asunto: s.asunto ?? '',
+        },
+        'SOLICITUD_AUDITORIA',
+        s.id as number,
+        usuario,
+      )
+      .catch(() => undefined);
+    return s;
+  }
+
+  async actualizarSolicitud(id: number, dto: UpdateSolicitudAuditoriaDto) {
+    const s = await this.solicitud(id);
+    if (s.estado === 'RESPONDIDA')
+      throw new ConflictException('La solicitud ya fue respondida');
+    Object.assign(s, dto);
+    return this.solicitudes.save(s);
+  }
+
+  async eliminarSolicitud(id: number) {
+    const s = await this.solicitud(id);
+    if (s.estado === 'RESPONDIDA')
+      throw new ConflictException('La solicitud ya fue respondida');
+    await this.solicitudes.remove(s);
+  }
+
+  /**
+   * Crea 2 solicitudes de ejemplo con comprobantes reales de la gestión (más algunos
+   * N° inexistentes) para probar la selección rápida y la respuesta.
+   */
+  async solicitudesEjemplo(gestion: number, usuario: Usuario) {
+    const filas = await this.dataSource
+      .createQueryBuilder(C31Preventivo, 'p')
+      .innerJoin('p.comprobante', 'c')
+      .select('p.numeroPreventivo', 'n')
+      .where('c.gestion = :g', { g: gestion })
+      .orderBy('c.id', 'ASC')
+      .limit(60)
+      .getRawMany<{ n: string }>();
+    const nums = [...new Set(filas.map((f) => f.n))];
+    if (nums.length < 4)
+      throw new BadRequestException(
+        `No hay suficientes comprobantes en la gestión ${gestion} para armar ejemplos`,
+      );
+    const mitad = Math.ceil(nums.length / 2);
+    const A = nums.slice(0, mitad);
+    const B = nums.slice(mitad);
+    const anio = String(gestion);
+    const creadas: SolicitudAuditoria[] = [];
+    const datos: [string, string, string][] = [
+      [
+        `GAMSL/AUD/OF-N° 0${10 + Math.floor(Math.random() * 80)}/${anio}`,
+        `Solicitud de comprobantes C-31 de la gestión ${anio}`,
+        [...A, '99991'].join(', '),
+      ],
+      [
+        `GAMSL/AUD/OF-N° 0${10 + Math.floor(Math.random() * 80)}/${anio}`,
+        'Solicitud complementaria de documentación',
+        [...B, '99992', '99993'].join(', '),
+      ],
+    ];
+    for (const [cite, asunto, texto] of datos) {
+      const s = await this.crearSolicitud(
+        {
+          cite,
+          solicitante: 'Lic. (Ejemplo) Auditor Interno',
+          cargoSolicitante: 'JEFE DE AUDITORIA INTERNA',
+          asunto,
+          texto,
+          gestion,
+        },
+        usuario,
+      ).catch(() => null);
+      if (s) {
+        s.ejemplo = true;
+        creadas.push(await this.solicitudes.save(s));
+      }
+    }
+    return creadas;
   }
 }

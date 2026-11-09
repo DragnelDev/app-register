@@ -46,13 +46,9 @@ async function handleSubmit() {
 
 <template>
   <div class="flex min-h-screen items-center justify-center bg-ink-950 px-4">
-    <div
-      class="w-full max-w-sm rounded-lg bg-white p-8 shadow-xl dark:border dark:border-white/10 dark:bg-ink-900"
-    >
+    <div class="w-full max-w-sm rounded-lg bg-white p-8 shadow-xl dark:border dark:border-white/10 dark:bg-ink-900">
       <div class="mb-6 text-center">
-        <h1 class="font-display text-2xl font-semibold text-ink-900 dark:text-white">
-          Nueva contraseña
-        </h1>
+        <h1 class="font-display text-2xl font-semibold text-ink-900 dark:text-white">Nueva contraseña</h1>
         <p class="mt-1 text-sm text-ink-400">
           Si el correo está registrado, te enviamos un código de 6 dígitos (vence en 10 minutos).
         </p>
@@ -69,9 +65,7 @@ async function handleSubmit() {
       <form v-else class="space-y-4" novalidate @submit.prevent="handleSubmit">
         <BaseInput v-model="form.email" type="email" label="Correo electrónico" required />
         <div>
-          <label class="mb-1.5 block text-sm font-medium text-ink-700 dark:text-ink-200"
-            >Código de 6 dígitos</label
-          >
+          <label class="mb-1.5 block text-sm font-medium text-ink-700 dark:text-ink-200">Código de 6 dígitos</label>
           <CodigoInput v-model="form.codigo" />
         </div>
         <BaseInput

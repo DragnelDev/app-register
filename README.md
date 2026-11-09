@@ -96,3 +96,10 @@ Imprescindibles: `DB_*`, `JWT_TOKEN`, `ADMIN_PASSWORD`. Para PDF: `ENTIDAD_*`, `
 - Evidencia (imagen) por préstamo de cuaderno: `POST/GET /prestamos-cuaderno/:id/evidencia/:momento` (salida|devolucion). Ejecutar la migración SQL.
 - PDF digitalizados: `storage/c31/<gestión>/PREV-11/2026_PREV-11_parte-1-de-2.pdf` (unidos: `PREV-8_DEV-7`).
 - Rótulo de comprobantes unidos ("PREV 8 - DEV 7") en todas las respuestas, listados, actas y PDF.
+
+## Ronda G (resumen)
+
+- **Registro de CITEs** (`/cites`): libro de emitidos (correlativo automático `GAMSL/ARCH/OF-N° 004/2026`) y recibidos, con varios archivos de respaldo (PDF/imagen) en `CITES_STORAGE_DIR` (`emitidos|recibidos/<gestión>/<TIPO-NNN>/…parte-1-de-2.pdf`). Las notas a Auditoría y las solicitudes se registran solas.
+- **Solicitudes de Auditoría** (pestaña en Préstamos por nota): simula la nota recibida de Auditoría; "Responder" arma la nota clasificada por estado. El admin puede "Cargar datos de ejemplo".
+- Selección rápida: chips por estado con contador, búsqueda, vista Matriz/Lista, "Marcar los N".
+- Remitente: oculta por defecto los comprobantes ya enviados en un acta.

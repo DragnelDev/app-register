@@ -16,6 +16,10 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Usuario } from '../usuarios/entities/usuario.entity';
 import { NotasAuditoriaService } from './notas-auditoria.service';
 import {
+  SolicitudAuditoriaDto,
+  UpdateSolicitudAuditoriaDto,
+} from './dto/nota-auditoria.dto';
+import {
   ClasificarDto,
   CreateNotaAuditoriaDto,
   UpdateNotaAuditoriaDto,
@@ -45,6 +49,58 @@ export class NotasAuditoriaController {
   @Get()
   findAll(@Query('search') search?: string) {
     return this.service.findAll(search);
+  }
+
+  // ── Solicitudes de Auditoría (antes de ':id' para que no choquen las rutas) ──
+  @Roles(...LECTURA)
+  @Get('solicitudes')
+  solicitudes(
+    @Query('estado') estado?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.service.listarSolicitudes(estado, search);
+  }
+
+  @Roles(...ESCRITURA)
+  @Post('solicitudes')
+  crearSolicitud(
+    @Body() dto: SolicitudAuditoriaDto,
+    @CurrentUser() u: Usuario,
+  ) {
+    return this.service.crearSolicitud(dto, u);
+  }
+
+  @Roles('ADMIN')
+  @Post('solicitudes/ejemplo')
+  solicitudesEjemplo(
+    @Query('gestion') gestion: string | undefined,
+    @CurrentUser() u: Usuario,
+  ) {
+    return this.service.solicitudesEjemplo(
+      Number(gestion) || new Date().getFullYear(),
+      u,
+    );
+  }
+
+  @Roles(...LECTURA)
+  @Get('solicitudes/:id')
+  solicitud(@Param('id', ParseIntPipe) id: number) {
+    return this.service.solicitud(id);
+  }
+
+  @Roles(...ESCRITURA)
+  @Patch('solicitudes/:id')
+  actualizarSolicitud(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateSolicitudAuditoriaDto,
+  ) {
+    return this.service.actualizarSolicitud(id, dto);
+  }
+
+  @Roles(...ESCRITURA)
+  @Delete('solicitudes/:id')
+  eliminarSolicitud(@Param('id', ParseIntPipe) id: number) {
+    return this.service.eliminarSolicitud(id);
   }
 
   @Roles(...LECTURA)

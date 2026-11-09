@@ -208,12 +208,8 @@ onMounted(async () => {
         </p>
       </div>
       <div class="flex gap-2">
-        <BaseButton v-if="auth.puedeExportar" variant="secondary" @click="pdfListado"
-          >Descargar PDF</BaseButton
-        >
-        <BaseButton v-if="auth.puedeExportar" variant="secondary" @click="exportar"
-          >Exportar Excel</BaseButton
-        >
+        <BaseButton v-if="auth.puedeExportar" variant="secondary" @click="pdfListado">Descargar PDF</BaseButton>
+        <BaseButton v-if="auth.puedeExportar" variant="secondary" @click="exportar">Exportar Excel</BaseButton>
         <BaseButton v-if="auth.puedeRegistrarC31" @click="nuevo">+ Registrar pago</BaseButton>
       </div>
     </div>
@@ -279,7 +275,10 @@ onMounted(async () => {
         <button
           type="button"
           class="ml-2 text-seal-600 hover:underline dark:text-seal-300"
-          @click="((filtros.beneficiario = ''), aplicar())"
+          @click="
+            filtros.beneficiario = '';
+            aplicar()
+          "
         >
           quitar
         </button>
@@ -337,7 +336,9 @@ onMounted(async () => {
           @click="verComprobante(row)"
         >
           {{
-            row.comprobante ? (rotuloC31(row.comprobante) ?? row.comprobanteId) : row.comprobanteId
+            row.comprobante
+              ? (rotuloC31(row.comprobante) ?? row.comprobanteId)
+              : row.comprobanteId
           }}
         </button>
       </template>
@@ -357,22 +358,18 @@ onMounted(async () => {
       <template #cell-estadoPago="{ row }"><BaseBadge :estado="row.estadoPago" /></template>
       <template #actions="{ row }">
         <div class="flex justify-end gap-1">
+          <IconButton icon="fa-file-pdf" label="Constancia de pago (PDF)" @click="pdfConstancia(row)" />
+        <template v-if="auth.puedeRegistrarC31 && row.estadoPago !== 'ANULADO'">
           <IconButton
-            icon="fa-file-pdf"
-            label="Constancia de pago (PDF)"
-            @click="pdfConstancia(row)"
+            v-if="row.estadoPago === 'PENDIENTE'"
+            icon="fa-circle-check"
+            label="Marcar como pagado"
+            variant="success"
+            @click="marcarPagado(row)"
           />
-          <template v-if="auth.puedeRegistrarC31 && row.estadoPago !== 'ANULADO'">
-            <IconButton
-              v-if="row.estadoPago === 'PENDIENTE'"
-              icon="fa-circle-check"
-              label="Marcar como pagado"
-              variant="success"
-              @click="marcarPagado(row)"
-            />
-            <IconButton icon="fa-pen-to-square" label="Editar pago" @click="editar(row)" />
-            <IconButton icon="fa-ban" label="Anular pago" variant="danger" @click="anular(row)" />
-          </template>
+          <IconButton icon="fa-pen-to-square" label="Editar pago" @click="editar(row)" />
+          <IconButton icon="fa-ban" label="Anular pago" variant="danger" @click="anular(row)" />
+        </template>
         </div>
       </template>
     </BaseDataTable>

@@ -19,6 +19,7 @@ import { AuthModule } from './auth/auth.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { NotasAuditoriaModule } from './notas-auditoria/notas-auditoria.module';
+import { CitesModule } from './cites/cites.module';
 import { ActasEntregaModule } from './actas-entrega/actas-entrega.module';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { RotuloGrupoInterceptor } from './common/interceptors/rotulo-grupo.interceptor';
@@ -54,6 +55,7 @@ import { FuncionariosModule } from './funcionarios/funcionarios.module';
     BeneficiariosModule,
     ActasEntregaModule,
     NotasAuditoriaModule,
+    CitesModule,
     ComprobantesC31Module,
     CarpetasModule,
     C31PreventivosModule,

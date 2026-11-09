@@ -49,6 +49,5 @@ export interface BeneficiarioFicha {
   }[]
 }
 
-export const documentoBeneficiario = (
-  b: Pick<Beneficiario, 'tipoDocumento' | 'numeroDocumento'>,
-) => (b.numeroDocumento ? `${b.tipoDocumento} ${b.numeroDocumento}` : 'Sin documento')
+export const documentoBeneficiario = (b: Pick<Beneficiario, 'tipoDocumento' | 'numeroDocumento'>) =>
+  b.numeroDocumento ? `${b.tipoDocumento} ${b.numeroDocumento}` : 'Sin documento'

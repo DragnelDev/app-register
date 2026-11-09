@@ -146,6 +146,12 @@ function openDetail(
   detailOpen.value = true
 }
 
+function alternarEnviados(e: Event) {
+  const mostrar = (e.target as HTMLInputElement).checked
+  store.setFilters({ ...store.filters, sinEnviar: mostrar ? undefined : true })
+  store.fetchList()
+}
+
 onMounted(() => {
   // Estado limpio al entrar: sin filtros heredados de otra pantalla
   store.setFilters({
@@ -157,6 +163,8 @@ onMounted(() => {
     gestion: gestionStore.seleccionada,
     sinActa: undefined,
     sinCarpeta: undefined,
+    // El remitente ve primero lo que aún no envió; puede mostrar los enviados con el interruptor
+    sinEnviar: auth.esRemitente ? true : undefined,
     detalle: '',
     beneficiarioId: '',
     numeroPreventivo: '',
@@ -226,6 +234,14 @@ onMounted(() => {
     <p v-if="importFeedback" class="whitespace-pre-line text-sm text-ink-600 dark:text-ink-300">
       {{ importFeedback }}
     </p>
+
+    <label
+      v-if="auth.esRemitente"
+      class="flex w-fit items-center gap-2 rounded-md border border-ink-100 px-3 py-1.5 text-sm text-ink-600 dark:border-white/10 dark:text-ink-300"
+    >
+      <input type="checkbox" :checked="!store.filters.sinEnviar" @change="alternarEnviados" />
+      Mostrar también los que ya envié en un acta
+    </label>
 
     <C31FilterBar
       :model-value="store.filters"

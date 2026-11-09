@@ -67,16 +67,8 @@ const campo =
       <FuncionarioSelect v-model="local.funcionarioId" label="Funcionario" />
     </div>
     <div>
-      <label class="mb-1 block text-xs font-medium text-ink-500" for="cq-unidad"
-        >Unidad / área</label
-      >
-      <input
-        id="cq-unidad"
-        v-model="local.unidad"
-        type="text"
-        placeholder="Ej: Auditoría"
-        :class="campo"
-      />
+      <label class="mb-1 block text-xs font-medium text-ink-500" for="cq-unidad">Unidad / área</label>
+      <input id="cq-unidad" v-model="local.unidad" type="text" placeholder="Ej: Auditoría" :class="campo" />
     </div>
     <div>
       <label class="mb-1 block text-xs font-medium text-ink-500" for="cq-estado">Estado</label>

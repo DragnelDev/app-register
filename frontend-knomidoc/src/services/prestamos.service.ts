@@ -66,7 +66,9 @@ export const prestamosService = {
   subirEvidenciaCuaderno(id: string | number, momento: 'salida' | 'devolucion', archivo: File) {
     const fd = new FormData()
     fd.append('file', archivo)
-    return apiClient.post(`/prestamos-cuaderno/${id}/evidencia/${momento}`, fd).then((r) => r.data)
+    return apiClient
+      .post(`/prestamos-cuaderno/${id}/evidencia/${momento}`, fd)
+      .then((r) => r.data)
   },
   /** Descarga la imagen (autenticada) como URL temporal para mostrarla. */
   async urlEvidenciaCuaderno(id: string | number, momento: 'salida' | 'devolucion') {

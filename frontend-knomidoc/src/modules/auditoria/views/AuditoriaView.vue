@@ -38,7 +38,8 @@ const TONOS: Record<string, string> = {
   LOGIN: 'bg-ink-100 text-ink-700 dark:bg-white/10 dark:text-ink-200',
 }
 
-const formatoFecha = (iso: string) => fechaHora(iso)
+const formatoFecha = (iso: string) =>
+  fechaHora(iso)
 
 async function loadRows() {
   loading.value = true

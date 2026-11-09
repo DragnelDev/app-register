@@ -174,20 +174,9 @@ const tabs = computed(() =>
           <BaseBadge :estado="comprobante.estadoFisico" />
           <span
             class="text-xs font-medium"
-            :class="
-              comprobante.archivoAdjuntoUrl
-                ? 'text-emerald-600 dark:text-emerald-300'
-                : 'text-amber-600 dark:text-amber-300'
-            "
+            :class="comprobante.archivoAdjuntoUrl ? 'text-emerald-600 dark:text-emerald-300' : 'text-amber-600 dark:text-amber-300'"
           >
-            <i
-              :class="
-                comprobante.archivoAdjuntoUrl
-                  ? 'fa-solid fa-circle-check'
-                  : 'fa-solid fa-hourglass-half'
-              "
-              aria-hidden="true"
-            />
+            <i :class="comprobante.archivoAdjuntoUrl ? 'fa-solid fa-circle-check' : 'fa-solid fa-hourglass-half'" aria-hidden="true" />
             {{ comprobante.archivoAdjuntoUrl ? 'Digitalizado' : 'Pendiente de digitalizar' }}
           </span>
           <button

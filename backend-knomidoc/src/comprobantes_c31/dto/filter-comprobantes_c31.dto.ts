@@ -75,6 +75,15 @@ export class FilterComprobantesC31Dto extends PaginationQueryDto {
 
   @ApiPropertyOptional({
     description:
+      'true = oculta los comprobantes que ya fueron enviados en un acta de entrega',
+  })
+  @IsOptional()
+  @Transform(textoABooleano, { toClassOnly: true })
+  @IsBoolean()
+  sinEnviar?: boolean;
+
+  @ApiPropertyOptional({
+    description:
       'true = solo comprobantes en archivo que aún no tienen carpeta asignada',
   })
   @IsOptional()

@@ -53,8 +53,10 @@ services:
       ENTIDAD_UNIDAD: ${ENTIDAD_UNIDAD:-UNIDAD DE ARCHIVO}
       CITE_PREFIJO: ${CITE_PREFIJO:-GAMSL/ARCH}
       C31_STORAGE_DIR: /app/storage/c31
+      CITES_STORAGE_DIR: /app/storage/cites
     volumes:
       - c31_storage:/app/storage/c31
+      - cites_storage:/app/storage/cites
       - uploads:/app/uploads
     ports:
       - "${BACKEND_PORT:-3000}:3000"
@@ -73,4 +75,5 @@ services:
 volumes:
   pgdata:
   c31_storage:
+  cites_storage:
   uploads:

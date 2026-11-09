@@ -424,6 +424,7 @@ export class ComprobantesC31Service {
         { enRevision: EstadoFisicoC31.EN_REVISION },
       );
     }
+    if (query.sinEnviar) qb.andWhere('c.actaEntregaId IS NULL');
     if (query.sinCarpeta) {
       qb.andWhere('c.estadoFisico = :enArchivo', {
         enArchivo: EstadoFisicoC31.EN_ARCHIVO,

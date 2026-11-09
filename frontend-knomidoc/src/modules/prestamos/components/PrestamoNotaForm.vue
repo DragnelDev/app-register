@@ -53,11 +53,7 @@ function validateAll(): boolean {
     : ''
   errors.funcionarioId = form.funcionarioId ? '' : 'Seleccione al funcionario solicitante'
   validateItems()
-  if (
-    !errors.items &&
-    form.fechaDevolucionEstimada &&
-    form.fechaDevolucionEstimada < form.fechaPrestamo
-  ) {
+  if (!errors.items && form.fechaDevolucionEstimada && form.fechaDevolucionEstimada < form.fechaPrestamo) {
     errors.items = 'La devolución estimada no puede ser anterior a la fecha del préstamo'
   }
   return !errors.numeroNotaSolicitud && !errors.funcionarioId && !errors.items
@@ -148,11 +144,7 @@ function enviar(aprobar: boolean) {
       </h3>
       <div class="flex gap-2">
         <div class="min-w-0 flex-1">
-          <ComprobanteC31Picker
-            :exclude-ids="excludeIds"
-            solo-disponibles
-            @select="addComprobante"
-          />
+          <ComprobanteC31Picker :exclude-ids="excludeIds" solo-disponibles @select="addComprobante" />
         </div>
         <button
           type="button"
@@ -162,11 +154,7 @@ function enviar(aprobar: boolean) {
           <i class="fa-solid fa-table-cells" aria-hidden="true" /> Selección rápida
         </button>
       </div>
-      <SeleccionRapidaModal
-        v-model="matrizAbierta"
-        :exclude-ids="excludeIds"
-        @confirm="agregarLote"
-      />
+      <SeleccionRapidaModal v-model="matrizAbierta" :exclude-ids="excludeIds" @confirm="agregarLote" />
       <div class="mt-3">
         <ComprobantesC31SelectedTable :items="selectedComprobantes" @remove="removeComprobante" />
       </div>

@@ -15,7 +15,9 @@ export const funcionariosService = {
       conPrestamosActivos?: string
     } = {},
   ) {
-    return apiClient.get<PaginatedResponse<Funcionario>>(RESOURCE, { params }).then((r) => r.data)
+    return apiClient
+      .get<PaginatedResponse<Funcionario>>(RESOURCE, { params })
+      .then((r) => r.data)
   },
 
   unidades() {

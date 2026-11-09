@@ -180,6 +180,8 @@ export interface C31FilterState {
   sinActa?: boolean
   /** true = solo en archivo sin carpeta asignada */
   sinCarpeta?: boolean
+  /** Oculta los ya enviados en un acta (perfil remitente) */
+  sinEnviar?: boolean
 }
 
 /** Resultado de una importación masiva desde Excel */

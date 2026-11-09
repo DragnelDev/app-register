@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router'
+import SolicitudesAuditoriaPanel from '@/modules/notas-auditoria/components/SolicitudesAuditoriaPanel.vue'
 import NotasAuditoriaView from '@/modules/notas-auditoria/views/NotasAuditoriaView.vue'
 import FechaInput from '@/components/shared/FechaInput.vue'
 import { useAuthStore } from '@/stores/auth.store'
@@ -40,9 +41,17 @@ async function responderAuditoria(nota: string) {
   await router.replace({ query: { tab: 'auditoria', nota } })
   pestana.value = 'auditoria'
 }
-const pestana = ref<'prestamos' | 'auditoria'>(
-  route.query.tab === 'auditoria' && puedeVerAuditoria.value ? 'auditoria' : 'prestamos',
+type Pestana = 'prestamos' | 'solicitudes' | 'auditoria'
+const pestana = ref<Pestana>(
+  puedeVerAuditoria.value && (route.query.tab === 'auditoria' || route.query.tab === 'solicitudes')
+    ? (route.query.tab as Pestana)
+    : 'prestamos',
 )
+/** Desde una solicitud de Auditoría: abre la respuesta ya armada. */
+async function responderSolicitud(id: number) {
+  await router.replace({ query: { tab: 'auditoria', solicitud: String(id) } })
+  pestana.value = 'auditoria'
+}
 const store = usePrestamosStore()
 const modalOpen = ref(false)
 const saving = ref(false)
@@ -64,12 +73,18 @@ async function handleSubmit(payload: PrestamoNotaCreatePayload) {
     errorNota.value = ''
     await prestamosService.createNota(payload)
     modalOpen.value = false
-    avisoNota.value = String(payload.numeroNotaSolicitud)
+
+    // 1. Validar que exista o asignar un string vacío por seguridad
+    const numeroNota = payload.numeroNotaSolicitud ?? ''
+
+    avisoNota.value = numeroNota
     avisoAprobada.value = Boolean(payload.aprobar)
     await store.fetchNotas()
+
     // Un borrador recién creado se abre directo para revisarlo y previsualizarlo
-    if (!payload.aprobar && payload.numeroNotaSolicitud !== undefined) {
-      editarNota(payload.numeroNotaSolicitud)
+    // 2. Comprobar que no esté vacío antes de llamar a editarNota
+    if (!payload.aprobar && numeroNota) {
+      editarNota(numeroNota)
     }
   } catch (err) {
     errorNota.value = extractApiErrorMessage(err, 'No se pudo registrar el préstamo.')
@@ -78,7 +93,6 @@ async function handleSubmit(payload: PrestamoNotaCreatePayload) {
     saving.value = false
   }
 }
-
 const devolviendo = ref<PrestamoNota | null>(null)
 const devolucionOpen = ref(false)
 
@@ -230,6 +244,7 @@ onMounted(() => {
       <button
         v-for="t in [
           { k: 'prestamos', l: 'Notas de préstamo' },
+          { k: 'solicitudes', l: 'Solicitudes de Auditoría' },
           { k: 'auditoria', l: 'Respuesta a Auditoría' },
         ]"
         :key="t.k"
@@ -242,12 +257,13 @@ onMounted(() => {
             ? 'border-seal-600 text-seal-700 dark:text-seal-300'
             : 'border-transparent text-ink-500 hover:text-ink-800'
         "
-        @click="pestana = t.k as 'prestamos' | 'auditoria'"
+        @click="pestana = t.k as Pestana"
       >
         {{ t.l }}
       </button>
     </div>
 
+    <SolicitudesAuditoriaPanel v-if="pestana === 'solicitudes'" @responder="responderSolicitud" />
     <NotasAuditoriaView v-if="pestana === 'auditoria'" embedded />
     <div v-show="pestana === 'prestamos'" class="space-y-4">
       <p

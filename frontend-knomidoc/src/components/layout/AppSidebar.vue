@@ -81,6 +81,18 @@ const navGroups = computed<NavGroup[]>(() => [
       },
       { to: '/pagos', label: 'Pagos', icon: 'fa-money-check-dollar' },
       {
+        to: '/cites',
+        label: 'Registro de CITEs',
+        icon: 'fa-stamp',
+        roles: [
+          'ADMIN',
+          'OPERADOR_ARCHIVOS',
+          'AUXILIAR_ARCHIVOS',
+          'ENCARGADO_PRESTAMOS',
+          'CONSULTA_AVANZADA',
+        ],
+      },
+      {
         to: '/beneficiarios',
         label: 'Beneficiarios',
         icon: 'fa-address-book',
@@ -195,7 +207,12 @@ watch(
   >
     <!-- Logo y nombre del sistema -->
     <div class="sidebar-header">
-      <div class="logo-box">K</div>
+      <!-- Imagen centrada desde assets/images -->
+      <img
+        src="@/assets/images/logo.png"
+        alt="KnomiDoc Logo"
+        class="mx-auto mb-3 h-12 w-auto object-contain"
+      />
       <div class="logo-text">KnomiDoc</div>
       <button
         type="button"
