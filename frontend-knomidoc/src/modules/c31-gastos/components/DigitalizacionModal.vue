@@ -107,7 +107,14 @@ function alSoltarArchivos(e: DragEvent) {
 
 // --- Orden y edición ---
 function mover(desde: number, hasta: number) {
-  if (desde < 0 || desde >= paginas.value.length || hasta < 0 || hasta >= paginas.value.length || desde === hasta) return
+  if (
+    desde < 0 ||
+    desde >= paginas.value.length ||
+    hasta < 0 ||
+    hasta >= paginas.value.length ||
+    desde === hasta
+  )
+    return
   const [p] = paginas.value.splice(desde, 1)
   if (!p) return
   paginas.value.splice(hasta, 0, p)
@@ -165,6 +172,9 @@ async function generar() {
       (pct) => (progreso.value = pct),
     )
     emit('listo', r.adjunto, r.paginas)
+    // `cerrar` ignora la petición mientras `enviando` sea true; hay que liberarlo
+    // antes, o el modal se quedaba abierto tras una subida correcta.
+    enviando.value = false
     cerrar(false)
   } catch (e) {
     error.value = extractApiErrorMessage(e, 'No se pudo generar el PDF.')

@@ -279,10 +279,7 @@ onMounted(async () => {
         <button
           type="button"
           class="ml-2 text-seal-600 hover:underline dark:text-seal-300"
-          @click="
-            filtros.beneficiario = '',
-            aplicar()
-          "
+          @click="((filtros.beneficiario = ''), aplicar())"
         >
           quitar
         </button>

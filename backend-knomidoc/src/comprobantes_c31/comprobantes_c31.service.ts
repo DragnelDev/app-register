@@ -1235,7 +1235,15 @@ export class ComprobantesC31Service {
     simular = false,
   ): Promise<ResultadoImportacion> {
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
+    try {
+      await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
+    } catch {
+      // exceljs lanza si el contenido no es un .xlsx válido (PDF renombrado,
+      // archivo dañado, etc.): es un error del cliente, no del servidor.
+      throw new BadRequestException(
+        'El archivo no es un Excel válido (.xlsx). Verifica que no esté dañado.',
+      );
+    }
     if (!workbook.worksheets.length) {
       throw new BadRequestException('El archivo no contiene ninguna hoja');
     }
@@ -1255,7 +1263,8 @@ export class ComprobantesC31Service {
       hoja.eachRow((row, rowNumber) => {
         if (filaEncabezado !== -1) return;
         const textos = (row.values as unknown[])
-          .map((v) => (typeof v === 'string' ? v.toUpperCase() : ''))
+          // Sin tildes ni símbolos: "Descripción" debe reconocerse como DESCRIPCION
+          .map((v) => (typeof v === 'string' ? normalizarEncabezado(v) : ''))
           .join('|');
         if (textos.includes('BENEFICIARIO') && textos.includes('DESCRIPCION')) {
           filaEncabezado = rowNumber;

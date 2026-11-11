@@ -151,10 +151,7 @@ onMounted(loadRows)
           v-model="filtroEstado"
           class="rounded-md border border-ink-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-ink-950 dark:text-ink-100"
           aria-label="Filtrar por estado"
-          @change="
-            page = 1,
-            loadRows()
-          "
+          @change="((page = 1), loadRows())"
         >
           <option value="">Todas</option>
           <option value="BORRADOR">Borrador</option>
