@@ -68,14 +68,12 @@ describe('C31AdjuntosService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     manager = {
-      findOne: jest
-        .fn()
-        .mockResolvedValue({
-          id: 1,
-          gestion: 2026,
-          preventivos: [],
-          devengados: [],
-        }),
+      findOne: jest.fn().mockResolvedValue({
+        id: 1,
+        gestion: 2026,
+        preventivos: [],
+        devengados: [],
+      }),
       create: jest.fn((_e, d) => ({ ...d })),
       save: jest.fn(async (_e, d) => ({ ...d, id: 10 })),
       update: jest.fn(),

@@ -39,6 +39,10 @@ for (const nombre of ['localStorage', 'sessionStorage'] as const) {
   })
 }
 
+// jsdom no implementa window.scrollTo y el router lo llama en cada navegación
+// (scrollBehavior): sin esto la consola se llena de "Not implemented: scrollTo".
+window.scrollTo = vi.fn() as unknown as typeof window.scrollTo
+
 // BaseModal usa <Teleport to="body">: se "stubea" para que su contenido se
 // renderice dentro del wrapper y pueda consultarse con wrapper.find(...).
 config.global.stubs = { ...config.global.stubs, teleport: true }
