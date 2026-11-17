@@ -105,10 +105,10 @@ export const TRANSICIONES_MANUALES: Record<EstadoFisicoC31, EstadoFisicoC31[]> =
 
 /**
  * Ubicación física que se asigna automáticamente cuando el archivo recibe el
- * acta de entrega: el comprobante pasa a "En archivo" en "ARCHIVOS GAMSL"
+ * acta de entrega: el comprobante pasa a "En archivo" en "ARCHIVOS CENTRAL GAMSL"
  * hasta que se ubique en su carpeta definitiva.
  */
-export const UBICACION_ARCHIVO_DEFAULT = 'ARCHIVOS GAMSL';
+export const UBICACION_ARCHIVO_DEFAULT = 'ARCHIVOS CENTRAL GAMSL';
 
 @Entity('comprobantes_c31')
 export class ComprobantesC31 extends BaseAuditoriaEntity {

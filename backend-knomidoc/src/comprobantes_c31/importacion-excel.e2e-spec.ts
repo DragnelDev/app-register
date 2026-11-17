@@ -17,14 +17,14 @@ import { INestApplication } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import request from 'supertest';
-import { ComprobantesC31Controller } from '../src/comprobantes_c31/comprobantes_c31.controller';
-import { ComprobantesC31Service } from '../src/comprobantes_c31/comprobantes_c31.service';
-import { C31SeguimientoService } from '../src/comprobantes_c31/c31-seguimiento.service';
-import { ComprobantesC31 } from '../src/comprobantes_c31/entities/comprobantes_c31.entity';
-import { BeneficiariosService } from '../src/beneficiarios/beneficiarios.service';
-import { crearAppPruebas, mockServicio } from './helpers/auth-app';
-import { crearExcel } from './helpers/excel';
-import { FakeImportDataSource } from './helpers/fake-import-ds';
+import { ComprobantesC31Controller } from './comprobantes_c31.controller';
+import { ComprobantesC31Service } from './comprobantes_c31.service';
+import { C31SeguimientoService } from './c31-seguimiento.service';
+import { ComprobantesC31 } from './entities/comprobantes_c31.entity';
+import { BeneficiariosService } from '../beneficiarios/beneficiarios.service';
+import { crearAppPruebas, mockServicio } from '../../test/helpers/auth-app';
+import { crearExcel } from '../../test/helpers/excel';
+import { FakeImportDataSource } from '../../test/helpers/fake-import-ds';
 
 const XLSX =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -37,9 +37,9 @@ describe('POST /comprobantes-c31/import (integración)', () => {
 
   beforeEach(async () => {
     ds = new FakeImportDataSource();
-    // Fallo de BD simulado SOLO al crear la carpeta 2026-777 (a mitad de la fila)
+    // Fallo de BD simulado SOLO al crear la carpeta 2026-CI-777 (a mitad de la fila)
     ds.fallarSi = (entidad, data) =>
-      entidad === 'Carpeta' && data.codigoCarpeta === '2026-777';
+      entidad === 'Carpeta' && data.codigoCarpeta === '2026-CI-777';
     ds.existentesPrev.add('2026:50'); // el PREV 50 ya existe en la gestión 2026
 
     ({ app, tokenPara } = await crearAppPruebas({
@@ -320,6 +320,78 @@ describe('POST /comprobantes-c31/import (integración)', () => {
           contentType: XLSX,
         });
       expect(res.status).toBe(400);
+    });
+
+    it('importa ubicación física al comprobante y a la carpeta, normalizando el nombre histórico', async () => {
+      await importar(
+        await crearExcel([
+          {
+            prev: '105',
+            beneficiario: 'ACME SRL',
+            descripcion: 'Ubicación importada',
+            monto: 100,
+            carpeta: '15',
+            ubicacion: ' ARCHIVOS GAMSL ',
+          },
+        ]),
+      );
+
+      expect(
+        ds.committed.find((e) => e.entidad === 'ComprobantesC31')?.data,
+      ).toMatchObject({ ubicacionFisica: 'ARCHIVOS CENTRAL GAMSL' });
+      expect(
+        ds.committed.find((e) => e.entidad === 'Carpeta')?.data,
+      ).toMatchObject({
+        codigoCarpeta: '2026-CI-015',
+        ubicacionFisica: 'ARCHIVOS CENTRAL GAMSL',
+      });
+    });
+
+    it('actualiza la ubicación física de una carpeta existente con el valor importado', async () => {
+      ds.carpetasExistentes.set('2026-CI-016', {
+        id: 90,
+        codigoCarpeta: '2026-CI-016',
+        ubicacionFisica: 'Ubicación anterior',
+      });
+
+      await importar(
+        await crearExcel([
+          {
+            prev: '106',
+            beneficiario: 'ACME SRL',
+            descripcion: 'Actualización de ubicación',
+            monto: 100,
+            carpeta: '16',
+            ubicacion: 'DEP-01 / EST-02 / Caja 4',
+          },
+        ]),
+      );
+
+      expect(
+        ds.committed.find((e) => e.entidad === 'Carpeta')?.data,
+      ).toMatchObject({
+        codigoCarpeta: '2026-CI-016',
+        ubicacionFisica: 'DEP-01 / EST-02 / Caja 4',
+      });
+    });
+
+    it('usa el prefijo SI al importar carpeta de devengado', async () => {
+      await importar(
+        await crearExcel([
+          {
+            dev: '21',
+            beneficiario: 'ACME SRL',
+            descripcion: 'Devengado',
+            monto: 100,
+            carpeta: '20',
+          },
+        ]),
+        { gestion: '2025' },
+      );
+
+      expect(
+        ds.committed.find((e) => e.entidad === 'Carpeta')?.data,
+      ).toMatchObject({ codigoCarpeta: '2025-SI-020' });
     });
   });
 });

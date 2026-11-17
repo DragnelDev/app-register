@@ -37,9 +37,9 @@ describe('POST /comprobantes-c31/import (integración)', () => {
 
   beforeEach(async () => {
     ds = new FakeImportDataSource();
-    // Fallo de BD simulado SOLO al crear la carpeta 2026-777 (a mitad de la fila)
+    // Fallo de BD simulado SOLO al crear la carpeta 2026-CI-777 (a mitad de la fila)
     ds.fallarSi = (entidad, data) =>
-      entidad === 'Carpeta' && data.codigoCarpeta === '2026-777';
+      entidad === 'Carpeta' && data.codigoCarpeta === '2026-CI-777';
     ds.existentesPrev.add('2026:50'); // el PREV 50 ya existe en la gestión 2026
 
     ({ app, tokenPara } = await crearAppPruebas({
@@ -236,6 +236,25 @@ describe('POST /comprobantes-c31/import (integración)', () => {
     expect(ds.preventivosGuardados()).toEqual(['300']); // sin duplicar
   });
 
+  it('importa la carpeta de preventivo con el prefijo CI', async () => {
+    await importar(
+      await crearExcel([
+        {
+          prev: '301',
+          beneficiario: 'X',
+          descripcion: 'Preventivo con carpeta',
+          monto: 10,
+          carpeta: '1',
+        },
+      ]),
+      { gestion: '2025' },
+    );
+
+    expect(
+      ds.committed.find((e) => e.entidad === 'Carpeta')?.data,
+    ).toMatchObject({ codigoCarpeta: '2025-CI-001' });
+  });
+
   it('un devengado sin preventivo se importa como SIN_IMPUTACION', async () => {
     const res = await importar(
       await crearExcel([
@@ -245,6 +264,7 @@ describe('POST /comprobantes-c31/import (integración)', () => {
           descripcion: 'Gasto sin imputación',
           monto: 99,
           fecha: '01/02/2026',
+          carpeta: '20',
         },
       ]),
     );
@@ -253,6 +273,9 @@ describe('POST /comprobantes-c31/import (integración)', () => {
     const c = ds.committed.find((e) => e.entidad === 'ComprobantesC31');
     expect(c?.data.tipoC31).toBe('SIN_IMPUTACION');
     expect(c?.data.devengados[0].numeroDevengado).toBe('45');
+    expect(
+      ds.committed.find((e) => e.entidad === 'Carpeta')?.data,
+    ).toMatchObject({ codigoCarpeta: '2026-SI-020' });
   });
 
   describe('validaciones del endpoint', () => {

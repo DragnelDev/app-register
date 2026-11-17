@@ -7,6 +7,7 @@ import {
   campoDeEncabezado,
   codigoDeCarpeta,
   normalizarEncabezado,
+  normalizarUbicacionFisica,
   numerosDeCelda,
   parseFechaCelda,
   parseMonto,
@@ -43,6 +44,24 @@ describe('import-utils', () => {
     it('un encabezado desconocido o vacío no se mapea', () => {
       expect(campoDeEncabezado('Columna rara')).toBeNull();
       expect(campoDeEncabezado('')).toBeNull();
+    });
+  });
+
+  describe('normalizarUbicacionFisica', () => {
+    it('actualiza el nombre histórico del archivo central', () => {
+      expect(normalizarUbicacionFisica(' ARCHIVOS GAMSL ')).toBe(
+        'ARCHIVOS CENTRAL GAMSL',
+      );
+      expect(normalizarUbicacionFisica('Archivos Gamsl')).toBe(
+        'ARCHIVOS CENTRAL GAMSL',
+      );
+    });
+
+    it('conserva otras ubicaciones', () => {
+      expect(normalizarUbicacionFisica('Depósito 1 / Estante A')).toBe(
+        'Depósito 1 / Estante A',
+      );
+      expect(normalizarUbicacionFisica('')).toBe('');
     });
   });
 
@@ -136,12 +155,14 @@ describe('import-utils', () => {
   });
 
   describe('codigoDeCarpeta', () => {
-    it('rellena a 3 cifras con la gestión', () => {
-      expect(codigoDeCarpeta(2017, '4')).toBe('2017-004');
-      expect(codigoDeCarpeta(2026, '123')).toBe('2026-123');
+    it('usa CI para preventivos y rellena a 3 cifras', () => {
+      expect(codigoDeCarpeta(2025, '1', 'CI')).toBe('2025-CI-001');
+    });
+    it('usa SI para devengados y rellena a 3 cifras', () => {
+      expect(codigoDeCarpeta(2025, '20', 'SI')).toBe('2025-SI-020');
     });
     it('un código alfanumérico se conserva en mayúsculas', () => {
-      expect(codigoDeCarpeta(2026, 'a1')).toBe('2026-A1');
+      expect(codigoDeCarpeta(2026, 'a1', 'CI')).toBe('2026-CI-A1');
     });
   });
 });

@@ -189,13 +189,16 @@ describe('ComprobantesC31Service · cambiarEstado (FSM)', () => {
       await expect(cambiar(f.id, 'ARCHIVADO')).rejects.toThrow(MSG);
     });
 
-    it('con folio pero ubicación genérica de recepción ("ARCHIVOS GAMSL") → 409', async () => {
-      const f = sembrar({
-        estadoFisico: E.EN_ARCHIVO,
-        ubicacionFisica: UBICACION_ARCHIVO_DEFAULT,
-      });
-      await expect(cambiar(f.id, 'ARCHIVADO')).rejects.toThrow(MSG);
-    });
+    it.each([UBICACION_ARCHIVO_DEFAULT, 'ARCHIVOS GAMSL'])(
+      'con folio pero ubicación genérica de recepción (%s) → 409',
+      async (ubicacionFisica) => {
+        const f = sembrar({
+          estadoFisico: E.EN_ARCHIVO,
+          ubicacionFisica,
+        });
+        await expect(cambiar(f.id, 'ARCHIVADO')).rejects.toThrow(MSG);
+      },
+    );
 
     it('con folio y sin ubicación alguna → 409', async () => {
       const f = sembrar({ estadoFisico: E.EN_ARCHIVO, ubicacionFisica: null });

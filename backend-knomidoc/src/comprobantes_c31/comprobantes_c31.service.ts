@@ -57,6 +57,7 @@ import {
   codigoDeCarpeta,
   normalizarEncabezado,
   numerosDeCelda,
+  normalizarUbicacionFisica,
   parseFechaCelda,
   parseMonto,
   type CampoImport,
@@ -981,7 +982,9 @@ export class ComprobantesC31Service {
       if (nuevo === EstadoFisicoC31.ARCHIVADO) {
         const ubicado =
           (comprobante.ubicacionFisica &&
-            comprobante.ubicacionFisica !== UBICACION_ARCHIVO_DEFAULT) ||
+            ![UBICACION_ARCHIVO_DEFAULT, 'ARCHIVOS GAMSL'].includes(
+              comprobante.ubicacionFisica.trim().toUpperCase(),
+            )) ||
           (await manager.countBy(C31CarpetasUbicacion, {
             comprobante: { id },
           })) > 0;
@@ -1117,8 +1120,8 @@ export class ComprobantesC31Service {
     { header: 'MONTO', key: 'monto', width: 13 },
     { header: 'FECHA', key: 'fecha', width: 13 },
     { header: 'Nº DE FOLIO', key: 'folio', width: 13 },
-    // Columna del formato institucional; corresponde a comprobantes_c31.ubicacion_fisica
-    { header: 'CARPETA', key: 'carpeta', width: 20 },
+    { header: 'Nº CARPETA', key: 'carpeta', width: 20 },
+    { header: 'UBICACIÓN FÍSICA', key: 'ubicacion', width: 30 },
   ];
 
   /** RF-02.2 / plantilla institucional: exporta los comprobantes de una gestión con el mismo formato usado en archivo físico. */
@@ -1138,7 +1141,11 @@ export class ComprobantesC31Service {
       ? (
           await this.repo.find({
             where: { id: In(ids) },
-            relations: { ...RELATIONS, pagos: true },
+            relations: {
+              ...RELATIONS,
+              pagos: true,
+              carpetasUbicacion: { carpeta: true },
+            },
           })
         ).sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id))
       : [];
@@ -1203,7 +1210,14 @@ export class ComprobantesC31Service {
           .reverse()
           .join('/'),
         folio: c.numeroFolio ?? '',
-        carpeta: c.ubicacionFisica ?? '',
+        carpeta: (c.carpetasUbicacion ?? [])
+          .map(({ carpeta }) => {
+            const codigo = carpeta?.codigoCarpeta ?? '';
+            return codigo.replace(/^\d{4}-(?:(?:CI|SI)-)?/, '');
+          })
+          .filter(Boolean)
+          .join(', '),
+        ubicacion: c.ubicacionFisica ?? '',
       });
       fila.eachCell((celda, colNumber) => {
         celda.border = bordeFino;
@@ -1403,7 +1417,9 @@ export class ComprobantesC31Service {
           const nc = numerosDeCelda(textoDeCelda(carpetaCelda));
           detalle.carpetas = nc.numeros;
           detalle.advertencias.push(...nc.advertencias);
-          const textoUbicacion = textoDeCelda(ubicacion).slice(0, 150);
+          const textoUbicacion = normalizarUbicacionFisica(
+            textoDeCelda(ubicacion).slice(0, 150),
+          );
           const numeroFolio = textoDeCelda(folio) || undefined;
           const ubicacionFisica =
             textoUbicacion ||
@@ -1483,9 +1499,14 @@ export class ComprobantesC31Service {
               detalle: 'Importado desde Excel',
             });
 
-            // Carpetas: se buscan por código <gestión>-<N°>; si no existen se crean
+            // Una carpeta usa CI si la fila tiene PREV y SI si solo tiene DEV.
+            const tipoCarpeta = preventivosCelda.length ? 'CI' : 'SI';
             for (let i = 0; i < nc.numeros.length; i++) {
-              const codigo = codigoDeCarpeta(gestion, nc.numeros[i]);
+              const codigo = codigoDeCarpeta(
+                gestion,
+                nc.numeros[i],
+                tipoCarpeta,
+              );
               let carpeta = await manager.findOne(Carpeta, {
                 where: { codigoCarpeta: codigo },
               });
@@ -1497,6 +1518,9 @@ export class ComprobantesC31Service {
                     ubicacionFisica: textoUbicacion || 'ARCHIVOS',
                   }),
                 );
+              } else if (textoUbicacion) {
+                carpeta.ubicacionFisica = textoUbicacion;
+                await manager.save(Carpeta, carpeta);
               }
               await manager.save(
                 C31CarpetasUbicacion,

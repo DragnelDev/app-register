@@ -9,6 +9,7 @@ export const ENCABEZADOS_IMPORT = [
   'MONTO',
   'FECHA',
   'Nº CARPETA',
+  'UBICACIÓN FÍSICA',
 ] as const;
 
 export type FilaExcel = Partial<
@@ -19,7 +20,8 @@ export type FilaExcel = Partial<
     | 'descripcion'
     | 'monto'
     | 'fecha'
-    | 'carpeta',
+    | 'carpeta'
+    | 'ubicacion',
     string | number
   >
 >;
@@ -45,6 +47,7 @@ export async function crearExcel(
       f.monto ?? '',
       f.fecha ?? '',
       f.carpeta ?? '',
+      f.ubicacion ?? '',
     ]);
   }
   return Buffer.from(await wb.xlsx.writeBuffer());

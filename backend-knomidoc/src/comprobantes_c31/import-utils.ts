@@ -43,6 +43,14 @@ export function campoDeEncabezado(encabezado: unknown): CampoImport | null {
   return null;
 }
 
+/** Migra el rótulo histórico de recepción al nombre actual del archivo central. */
+export function normalizarUbicacionFisica(valor: string): string {
+  const ubicacion = valor.trim();
+  return ubicacion.toUpperCase() === 'ARCHIVOS GAMSL'
+    ? 'ARCHIVOS CENTRAL GAMSL'
+    : ubicacion;
+}
+
 /**
  * Monto en formato boliviano (12.345,67) o americano (12,345.67 / 2,600.00),
  * con o sin "Bs". Devuelve null si no se puede interpretar.
@@ -172,9 +180,13 @@ export function numerosDeCelda(texto: string): {
   return { numeros, advertencias };
 }
 
-/** Código de carpeta con convención <gestión>-<N° a 3 cifras>: 4 → "2017-004". */
-export function codigoDeCarpeta(gestion: number, numero: string): string {
+/** Código de carpeta: 4 → "2017-CI-004" o "2017-SI-004". */
+export function codigoDeCarpeta(
+  gestion: number,
+  numero: string,
+  tipo: 'CI' | 'SI',
+): string {
   return /^\d+$/.test(numero)
-    ? `${gestion}-${numero.padStart(3, '0')}`
-    : `${gestion}-${numero.toUpperCase()}`.slice(0, 50);
+    ? `${gestion}-${tipo}-${numero.padStart(3, '0')}`
+    : `${gestion}-${tipo}-${numero.toUpperCase()}`.slice(0, 50);
 }

@@ -29,6 +29,10 @@ export class FakeImportDataSource {
   /** N° ya existentes en la base: clave `${gestion}:${numero}` */
   existentesPrev = new Set<string>();
   existentesDev = new Set<string>();
+  carpetasExistentes = new Map<
+    string,
+    { id: number; codigoCarpeta: string; ubicacionFisica: string }
+  >();
 
   /** Si devuelve true, el guardado de esa entidad lanza un error (fallo de BD simulado). */
   fallarSi?: (entidad: string, data: any) => boolean;
@@ -64,7 +68,16 @@ export class FakeImportDataSource {
           }
           return datos;
         },
-        findOne: async () => null,
+        findOne: (
+          entidad: unknown,
+          opciones?: { where?: { codigoCarpeta?: string } },
+        ) => {
+          if (nombreDe(entidad) !== 'Carpeta') return null;
+          const carpeta = this.carpetasExistentes.get(
+            opciones?.where?.codigoCarpeta ?? '',
+          );
+          return carpeta ? { ...carpeta } : null;
+        },
         update: async (entidad: unknown, _criterio: unknown, datos: any) => {
           pendientes.push({
             entidad: `${nombreDe(entidad)}#update`,
