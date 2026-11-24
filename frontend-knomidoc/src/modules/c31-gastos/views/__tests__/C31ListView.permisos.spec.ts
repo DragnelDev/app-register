@@ -22,6 +22,7 @@ vi.mock('@/services/c31.service', () => ({
   c31Service: {
     list: vi.fn(),
     listGestiones: vi.fn(),
+    importExcel: vi.fn(),
   },
 }))
 
@@ -136,5 +137,64 @@ describe('C31ListView · cambio de perfil en caliente', () => {
 
     expect(texto(wrapper)).toContain('Importar Excel')
     expect(texto(wrapper)).toContain('Registrar comprobante')
+  })
+})
+
+describe('C31ListView · importación Excel', () => {
+  it('ignora una segunda confirmación mientras la primera sigue en curso', async () => {
+    const { wrapper } = await montar('ADMIN')
+    const vistaPrevia = {
+      simulacion: true,
+      creados: 0,
+      porCrear: 1,
+      total: 1,
+      omitidos: [],
+      errores: [],
+      filas: [
+        {
+          fila: 2,
+          hoja: 'Comprobantes',
+          preventivos: ['123'],
+          devengados: [],
+          carpetas: [],
+          monto: 100,
+          estado: 'OK' as const,
+          advertencias: [],
+        },
+      ],
+    }
+
+    vi.mocked(c31Service.importExcel).mockResolvedValueOnce(vistaPrevia)
+    const input = wrapper.find<HTMLInputElement>('input[type="file"]')
+    Object.defineProperty(input.element, 'files', {
+      value: [new File(['excel'], 'import.xlsx')],
+      configurable: true,
+    })
+    await input.trigger('change')
+    await flushPromises()
+
+    let terminarImportacion!: (resultado: typeof vistaPrevia) => void
+    vi.mocked(c31Service.importExcel).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          terminarImportacion = resolve
+        }),
+    )
+    const confirmar = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Confirmar e importar'))
+    expect(confirmar).toBeDefined()
+
+    void confirmar!.trigger('click')
+    void confirmar!.trigger('click')
+
+    expect(
+      vi.mocked(c31Service.importExcel).mock.calls.filter(
+        ([, , simular]) => simular === false,
+      ),
+    ).toHaveLength(1)
+
+    terminarImportacion({ ...vistaPrevia, simulacion: false, creados: 1 })
+    await flushPromises()
   })
 })

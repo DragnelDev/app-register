@@ -123,7 +123,7 @@ function cancelarImportacion() {
 
 // Paso 2: confirma y guarda
 async function confirmarImportacion() {
-  if (!archivoPendiente.value) return
+  if (!archivoPendiente.value || importing.value) return
   importing.value = true
   try {
     const r = await store.importExcel(archivoPendiente.value, gestionImport(), false)
